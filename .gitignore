@@ -1,0 +1,39 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+*.tsbuildinfo
+
+# Variables de entorno (la URL del backend cambia por máquina/sesión;
+# .env.example sí se versiona como plantilla)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+*.log.*
+npm-debug.log*
+
+# Perfiles de Rspack/Rsbuild
+.rspack-profile-*/
+
+# Capturas de referencia de diseño (material local, no código)
+img_muestra/
+
+# Herramientas locales
+.tokensave/
+.claude/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Testing (cuando se agregue vitest)
+coverage/

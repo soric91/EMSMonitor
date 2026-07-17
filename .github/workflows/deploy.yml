@@ -1,0 +1,57 @@
+name: Deploy a GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Permite relanzar el deploy a mano (ej. tras cambiar la URL de ngrok en Variables)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un deploy a la vez; no cancelar el que esté en curso
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          PUBLIC_API_BASE_URL: ${{ vars.PUBLIC_API_BASE_URL }}
+          PUBLIC_WS_URL: ${{ vars.PUBLIC_WS_URL }}
+          PUBLIC_BASE_PATH: /EMSMonitor/
+
+      # Fallback SPA: Pages devuelve 404.html en rutas desconocidas (/dashboard, /tariff…);
+      # servir el mismo index.html deja que React Router resuelva la ruta.
+      - name: Fallback SPA
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
