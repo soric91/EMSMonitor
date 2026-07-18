@@ -23,7 +23,12 @@ const PRIMARY_TABS: Tab[] = [
   { key: 'factor', label: 'F. potencia', variables: ['FACTOR_POTENCIA_TOTAL'] },
 ];
 const PRIMARY_VARIABLES = new Set(PRIMARY_TABS.flatMap((t) => t.variables));
-const SECONDARY_VARIABLES = VARIABLE_LIST.filter((v) => !PRIMARY_VARIABLES.has(v));
+// Los contadores acumulados (kWh totales) crecen monótonos — como serie en vivo no
+// aportan nada; esa información ya vive en Consumo/Exportación.
+const HIDDEN_VARIABLES = new Set<Variable>(['POWER_ACTIVE_TOTAL_POS', 'POWER_ACTIVE_TOTAL_NEG']);
+const SECONDARY_VARIABLES = VARIABLE_LIST.filter(
+  (v) => !PRIMARY_VARIABLES.has(v) && !HIDDEN_VARIABLES.has(v),
+);
 
 const BUFFER_WINDOW_MS = 6 * 3_600_000; // 6 horas
 const BACKFILL_TARGET_POINTS = 360; // ~1min de resolución sobre 6h
@@ -254,18 +259,20 @@ export function LiveVariableChart() {
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
-        <p className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
-          {primaryValue !== null && primaryVariable
-            ? formatVariableValue(primaryVariable, isPowerSigned ? Math.abs(primaryValue) : primaryValue)
-            : '—'}
-        </p>
-        {secondaryVariable && (
-          <span className="text-xs text-slate-400">
-            {secondaryStatus === 'connected' ? '· fase B activa' : '· conectando fase B…'}
-          </span>
-        )}
-      </div>
+      {/* En modo dual (Voltaje/Corriente) la leyenda dentro de la gráfica ya muestra
+          ambos valores en vivo — repetir uno grande aquí sería duplicado. */}
+      {!secondaryVariable && (
+        <div className="mt-4 flex items-center gap-2">
+          <p className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+            {primaryValue !== null && primaryVariable
+              ? formatVariableValue(primaryVariable, isPowerSigned ? Math.abs(primaryValue) : primaryValue)
+              : '—'}
+          </p>
+        </div>
+      )}
+      {secondaryVariable && secondaryStatus !== 'connected' && (
+        <p className="mt-4 text-xs text-slate-400">conectando fase B…</p>
+      )}
 
       <div className="mt-3">
         {hasData ? (
