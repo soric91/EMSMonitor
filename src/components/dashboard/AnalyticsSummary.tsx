@@ -7,6 +7,7 @@ import { Badge } from '../ui/Badge';
 import { Skeleton } from '../ui/Skeleton';
 import { HourlyProfileChart } from '../charts/HourlyProfileChart';
 import { formatCop, formatKwh } from '../../utils/format';
+import { utcHourToBogota } from '../../utils/timezone';
 
 function monthLabel(month: string): string {
   return new Intl.DateTimeFormat('es-CO', { month: 'long', year: 'numeric' }).format(
@@ -103,6 +104,15 @@ export function AnalyticsSummary() {
 
   const eff = summary.efficiency;
 
+  // Los buckets de hora del backend vienen en UTC; se muestran en hora Bogotá.
+  const localProfile = summary.hourly_profile
+    .map((p) => ({ ...p, hour: utcHourToBogota(p.hour) }))
+    .sort((a, b) => a.hour - b.hour);
+  const peakConsumptionLocal =
+    summary.peak_consumption_hour !== null ? utcHourToBogota(summary.peak_consumption_hour) : null;
+  const peakExportLocal =
+    summary.peak_export_hour !== null ? utcHourToBogota(summary.peak_export_hour) : null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -153,22 +163,22 @@ export function AnalyticsSummary() {
             Perfil horario promedio (últimos 30 días)
           </p>
           <div className="flex gap-2 text-[11px] text-slate-400">
-            {summary.peak_consumption_hour !== null && (
+            {peakConsumptionLocal !== null && (
               <span className="text-amber-600 dark:text-amber-400">
-                pico de consumo: {summary.peak_consumption_hour}:00
+                pico de consumo: {peakConsumptionLocal}:00
               </span>
             )}
-            {summary.peak_export_hour !== null && (
+            {peakExportLocal !== null && (
               <span className="text-emerald-600 dark:text-emerald-400">
-                pico de exportación: {summary.peak_export_hour}:00
+                pico de exportación: {peakExportLocal}:00
               </span>
             )}
           </div>
         </div>
         <HourlyProfileChart
-          profile={summary.hourly_profile}
-          peakConsumptionHour={summary.peak_consumption_hour}
-          peakExportHour={summary.peak_export_hour}
+          profile={localProfile}
+          peakConsumptionHour={peakConsumptionLocal}
+          peakExportHour={peakExportLocal}
         />
       </Card>
 
@@ -191,7 +201,7 @@ export function AnalyticsSummary() {
             <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               Podrías haber ahorrado <strong>hasta ~{formatCop(eff.potential_savings_cop)}</strong> este
               mes si hubieras desplazado consumo a tus horas de mayor generación
-              {summary.peak_export_hour !== null && <> (alrededor de las {summary.peak_export_hour}:00)</>}.
+              {peakExportLocal !== null && <> (alrededor de las {peakExportLocal}:00)</>}.
             </p>
             <p className="mt-1 text-[11px] text-slate-400">
               Estimación tope: asume autoconsumir los {formatKwh(eff.export_kwh)} exportados del mes en

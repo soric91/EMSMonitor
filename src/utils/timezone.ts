@@ -20,3 +20,11 @@ export function nowLocalInput(): string {
 export function hoursAgoLocalInput(hours: number): string {
   return utcIsoToLocalInput(new Date(Date.now() - hours * 3_600_000).toISOString());
 }
+
+/**
+ * Convierte un bucket de hora 0-23 en UTC (como los devuelve /analytics/*) a hora
+ * Bogotá. Colombia no tiene horario de verano: UTC-5 fijo, el corrimiento es seguro.
+ */
+export function utcHourToBogota(hour: number): number {
+  return (hour + 19) % 24;
+}
