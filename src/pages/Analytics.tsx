@@ -21,6 +21,7 @@ import { DateRangePicker } from '../components/ui/DateRangePicker';
 import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
+import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
 import { formatCop, formatKwh, formatLocalDateTime, formatPercent, formatWatts } from '../utils/format';
 import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
 
@@ -77,6 +78,8 @@ export default function Analytics() {
 
   return (
     <div className="space-y-6">
+      <AnalyticsSummary />
+
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Rango de análisis</p>
         <DateRangePicker fromIso={fromIso} toIso={toIso} onChange={(f, t) => { setFromIso(f); setToIso(t); }} />

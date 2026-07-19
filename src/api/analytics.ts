@@ -2,6 +2,7 @@ import { apiClient, unwrap } from './client';
 import type {
   AnalyticsOverview,
   AnalyticsRangeParams,
+  AnalyticsSummary,
   ApiResponse,
   BaseLoadParams,
   BaseLoadResult,
@@ -60,6 +61,19 @@ export async function getLoadFactor(
 
 export async function getBaseLoad(params: BaseLoadParams = {}): Promise<BaseLoadResult> {
   const { data } = await apiClient.get<ApiResponse<BaseLoadResult>>('/analytics/base-load', {
+    params,
+  });
+  return unwrap(data);
+}
+
+/**
+ * Resumen general. Ojo: sin from/to el default del backend son los ÚLTIMOS 30 DÍAS
+ * (no "hoy" como el resto de /analytics/*) — la hora pico necesita semanas de muestras.
+ */
+export async function getAnalyticsSummary(
+  params: AnalyticsRangeParams = {},
+): Promise<AnalyticsSummary> {
+  const { data } = await apiClient.get<ApiResponse<AnalyticsSummary>>('/analytics/summary', {
     params,
   });
   return unwrap(data);

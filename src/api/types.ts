@@ -240,6 +240,36 @@ export interface AnalyticsRangeParams {
   device_id?: string;
 }
 
+export interface EfficiencyRecommendation {
+  tariff_month: string;
+  /** true = la tarifa usada es de un mes anterior, no la del mes actual. */
+  stale: boolean;
+  cu_cop_kwh: number;
+  excedente_cop_kwh: number;
+  export_kwh: number;
+  /** Cota superior ilustrativa (asume autoconsumir TODO lo exportado), no promesa exacta. */
+  potential_savings_cop: number;
+}
+
+export interface AnalyticsSummary {
+  period_start: string;
+  period_end: string;
+  device_id: string | null;
+  consumption_daily_kwh: number;
+  consumption_weekly_kwh: number;
+  consumption_monthly_kwh: number;
+  export_daily_kwh: number;
+  export_monthly_kwh: number;
+  /** 24 puntos (hora 0-23); power_avg_w positivo = importando, negativo = exportando. */
+  hourly_profile: HourProfilePoint[];
+  /** null si el rango no tuvo ninguna hora importando. */
+  peak_consumption_hour: number | null;
+  /** null si el rango no tuvo ninguna hora exportando. */
+  peak_export_hour: number | null;
+  /** null si no hay NINGUNA tarifa registrada de la cual estimar. */
+  efficiency: EfficiencyRecommendation | null;
+}
+
 export interface BaseLoadParams extends AnalyticsRangeParams {
   percentile?: number;
 }
