@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Download, Lightbulb } from 'lucide-react';
 import { getAnalyticsSummary } from '../../api/analytics';
 import type { AnalyticsSummary as AnalyticsSummaryData } from '../../api/types';
@@ -26,35 +26,14 @@ export function AnalyticsSummary() {
   const [summary, setSummary] = useState<AnalyticsSummaryData | null>(null);
   const [error, setError] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const sectionRef = useRef<HTMLDivElement>(null);
 
   const exportPdf = async () => {
-    const element = sectionRef.current;
-    if (!element || exporting) return;
+    if (!summary || exporting) return;
     setExporting(true);
     try {
-      // Carga diferida: jspdf + html2canvas-pro solo se descargan al exportar.
-      // Se usa el fork -pro porque el html2canvas original no soporta los
-      // colores oklch() que genera Tailwind v4.
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import('html2canvas-pro'),
-        import('jspdf'),
-      ]);
-      const isDark = document.documentElement.classList.contains('dark');
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        backgroundColor: isDark ? '#020617' : '#f8fafc',
-      });
-      // Página única a la medida del contenido (evita cortes feos de multipágina).
-      const pdf = new jsPDF({
-        orientation: canvas.width >= canvas.height ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height],
-      });
-      // JPEG: con fondo sólido no hay pérdida visible y el archivo baja de ~8MB a <1MB.
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, canvas.width, canvas.height);
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
-      pdf.save(`resumen_analitica_${today}.pdf`);
+      // Informe ejecutivo programático (texto y gráfica vectoriales, no captura).
+      const { buildAnalyticsSummaryPdf } = await import('../../utils/analyticsSummaryPdf');
+      await buildAnalyticsSummaryPdf(summary);
     } finally {
       setExporting(false);
     }
@@ -125,7 +104,7 @@ export function AnalyticsSummary() {
         </button>
       </div>
 
-      <div ref={sectionRef} className="space-y-4">
+      <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {STAT_CARDS.map(({ key, label, tone }) => (
           <Card key={key} className="flex items-start justify-between gap-2">
