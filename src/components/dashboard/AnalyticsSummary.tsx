@@ -7,7 +7,6 @@ import { Badge } from '../ui/Badge';
 import { Skeleton } from '../ui/Skeleton';
 import { HourlyProfileChart } from '../charts/HourlyProfileChart';
 import { formatCop, formatKwh } from '../../utils/format';
-import { utcHourToBogota } from '../../utils/timezone';
 
 function monthLabel(month: string): string {
   return new Intl.DateTimeFormat('es-CO', { month: 'long', year: 'numeric' }).format(
@@ -104,14 +103,11 @@ export function AnalyticsSummary() {
 
   const eff = summary.efficiency;
 
-  // Los buckets de hora del backend vienen en UTC; se muestran en hora Bogotá.
-  const localProfile = summary.hourly_profile
-    .map((p) => ({ ...p, hour: utcHourToBogota(p.hour) }))
-    .sort((a, b) => a.hour - b.hour);
-  const peakConsumptionLocal =
-    summary.peak_consumption_hour !== null ? utcHourToBogota(summary.peak_consumption_hour) : null;
-  const peakExportLocal =
-    summary.peak_export_hour !== null ? utcHourToBogota(summary.peak_export_hour) : null;
+  // Los buckets de hora ya vienen en hora Bogotá desde el backend (fix 2026-07-19);
+  // no aplicar ninguna conversión adicional aquí.
+  const localProfile = summary.hourly_profile;
+  const peakConsumptionLocal = summary.peak_consumption_hour;
+  const peakExportLocal = summary.peak_export_hour;
 
   return (
     <div className="space-y-4">

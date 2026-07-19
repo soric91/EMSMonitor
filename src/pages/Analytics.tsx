@@ -23,7 +23,7 @@ import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
 import { formatCop, formatKwh, formatLocalDateTime, formatPercent, formatWatts } from '../utils/format';
-import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput, utcHourToBogota } from '../utils/timezone';
+import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
 
 const NOT_APPLICABLE = 'No aplica — exportando';
 
@@ -165,10 +165,8 @@ export default function Analytics() {
               </p>
               {dailyProfile && dailyProfile.length > 0 ? (
                 <AreaChartWidget
-                  // hour del backend viene en UTC; se grafica en hora Bogotá
-                  data={dailyProfile
-                    .map((p) => ({ time: utcHourToBogota(p.hour), value: p.power_avg_w }))
-                    .sort((a, b) => a.time - b.time)}
+                  // hour ya viene en hora Bogotá desde el backend (fix 2026-07-19)
+                  data={dailyProfile.map((p) => ({ time: p.hour, value: p.power_avg_w }))}
                   color="#3b82f6"
                   valueFormatter={(v) => formatWatts(v)}
                   timeFormatter={(h) => `${h}:00`}
