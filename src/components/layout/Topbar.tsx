@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useLocalClock } from '../../hooks/useLocalClock';
 import { useRealtime } from '../../hooks/useRealtime';
 import { AlertsBell } from './AlertsBell';
+import { NoticeBell } from './NoticeBell';
 import type { WsConnectionStatus } from '../../api/websocket';
 
 interface TopbarProps {
@@ -64,6 +65,7 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
         <span className="hidden font-mono text-xs text-slate-500 sm:inline dark:text-slate-400">
           {clock}
         </span>
+        <NoticeBell />
         <AlertsBell />
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
