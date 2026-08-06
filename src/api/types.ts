@@ -96,6 +96,9 @@ export interface DeviceSnapshot {
   timestamp: string;
   received_at: string;
   data: Record<string, number>;
+  /** Del tópico MQTT — informativo, coincide con Gateway.uuid en CRMBackend. */
+  gateway_uuid: string | null;
+  modbus_id_from_topic: number | null;
 }
 
 // ---------- History ----------
