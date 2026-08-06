@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, History as HistoryIcon, TrendingDown, TrendingUp, Clock, Sigma } from 'lucide-react';
+import axios from 'axios';
+import {
+  Download,
+  History as HistoryIcon,
+  TrendingDown,
+  TrendingUp,
+  Clock,
+  Sigma,
+} from 'lucide-react';
 import { DashboardFiltersProvider } from '../context/DashboardFiltersContext';
 import { useDashboardFilters } from '../hooks/useDashboardFilters';
-import { getHistory, getHistoryDownsample } from '../api/history';
+import { useDevice } from '../hooks/useDevice';
+import { getHistory } from '../api/history';
 import type { HistoryResponse, TimeSeriesPoint, Variable } from '../api/types';
 import { VARIABLE_LIST, VARIABLE_META } from '../types/variable';
 import { Card } from '../components/ui/Card';
@@ -13,10 +22,33 @@ import { DateRangePicker } from '../components/ui/DateRangePicker';
 import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { formatVariableValue, formatLocalDateTime } from '../utils/format';
 
-const RAW_THRESHOLD_MS = 6 * 3_600_000;
 const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
 const NEUTRAL_COLOR = '#3b82f6';
+
+// "Agrupar cada" — intervalo elegible en vez del binario raw(300s)/downsample(500pts)
+// de antes. El backend (`/history`) ya acepta cualquier interval_seconds y protege
+// con MAX_POINTS=5000; acá solo se expone la elección.
+const INTERVAL_OPTIONS: { label: string; seconds: number }[] = [
+  { label: '1 min', seconds: 60 },
+  { label: '5 min', seconds: 300 },
+  { label: '15 min', seconds: 900 },
+  { label: '30 min', seconds: 1800 },
+  { label: '1 hora', seconds: 3600 },
+  { label: '3 horas', seconds: 3 * 3600 },
+  { label: '6 horas', seconds: 6 * 3600 },
+  { label: '12 horas', seconds: 12 * 3600 },
+  { label: '24 horas', seconds: 24 * 3600 },
+];
+const DEFAULT_INTERVAL_SECONDS = 900;
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const detail = (err.response?.data as { detail?: string } | undefined)?.detail;
+    if (detail) return detail;
+  }
+  return fallback;
+}
 
 function colorForSeries(variable: Variable, points: { value: number }[]): string {
   const meta = VARIABLE_META[variable];
@@ -45,25 +77,29 @@ function downloadCsv(variable: Variable, points: TimeSeriesPoint[]): void {
 
 function HistoryContent() {
   const { variable, fromIso, toIso, setVariable, setRange } = useDashboardFilters();
+  const { selectedDeviceId } = useDevice();
+  const [intervalSeconds, setIntervalSeconds] = useState(DEFAULT_INTERVAL_SECONDS);
   const [response, setResponse] = useState<HistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function run() {
       setLoading(true);
-      setError(false);
-      const spanMs = Date.parse(toIso) - Date.parse(fromIso);
+      setError(null);
       try {
-        const data =
-          spanMs <= RAW_THRESHOLD_MS
-            ? await getHistory({ variable, from: fromIso, to: toIso, interval_seconds: 300 })
-            : await getHistoryDownsample({ variable, from: fromIso, to: toIso, target_points: 500 });
+        const data = await getHistory({
+          variable,
+          from: fromIso,
+          to: toIso,
+          interval_seconds: intervalSeconds,
+          device_id: selectedDeviceId ?? undefined,
+        });
         if (!cancelled) setResponse(data);
-      } catch {
-        if (!cancelled) setError(true);
+      } catch (err) {
+        if (!cancelled) setError(extractErrorMessage(err, 'No se pudo cargar el histórico.'));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -73,7 +109,7 @@ function HistoryContent() {
     return () => {
       cancelled = true;
     };
-  }, [variable, fromIso, toIso]);
+  }, [variable, fromIso, toIso, intervalSeconds, selectedDeviceId]);
 
   const meta = VARIABLE_META[variable];
   const points = useMemo(() => response?.points ?? [], [response]);
@@ -104,6 +140,18 @@ function HistoryContent() {
             </option>
           ))}
         </select>
+        <select
+          value={intervalSeconds}
+          onChange={(e) => setIntervalSeconds(Number(e.target.value))}
+          title="Agrupar cada"
+          className="rounded-lg border border-slate-900/10 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300"
+        >
+          {INTERVAL_OPTIONS.map((opt) => (
+            <option key={opt.seconds} value={opt.seconds}>
+              Agrupar cada {opt.label}
+            </option>
+          ))}
+        </select>
         <DateRangePicker fromIso={fromIso} toIso={toIso} onChange={setRange} />
       </Card>
 
@@ -120,11 +168,13 @@ function HistoryContent() {
         </div>
 
         {loading && <Skeleton className="h-[260px] w-full" />}
-        {!loading && error && (
-          <p className="text-sm text-red-500">No se pudo cargar el histórico.</p>
-        )}
+        {!loading && error && <p className="text-sm text-red-500">{error}</p>}
         {!loading && !error && points.length === 0 && (
-          <EmptyState icon={HistoryIcon} title="Sin datos" description="No hay puntos en el rango seleccionado." />
+          <EmptyState
+            icon={HistoryIcon}
+            title="Sin datos"
+            description="No hay puntos en el rango seleccionado."
+          />
         )}
         {!loading && !error && points.length > 0 && (
           <AreaChartWidget

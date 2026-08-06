@@ -11,12 +11,16 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { getReport, getCustomReport } from '../api/reports';
+import { useDevice } from '../hooks/useDevice';
 import type { ReportData, ReportType } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
-import { ComparisonBarChart, type ComparisonBarPoint } from '../components/charts/ComparisonBarChart';
+import {
+  ComparisonBarChart,
+  type ComparisonBarPoint,
+} from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { formatKwh, formatLocalDateTime, formatPercent, formatWatts } from '../utils/format';
 import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
@@ -34,14 +38,24 @@ const TABS: { key: ReportType; label: string }[] = [
 function mergeSeries(report: ReportData): (ComparisonBarPoint & { time: string })[] {
   const byTime = new Map<string, ComparisonBarPoint & { time: string }>();
   for (const p of report.consumption_series) {
-    byTime.set(p.time, { time: p.time, label: formatLocalDateTime(p.time, 'd MMM HH:mm'), a: p.value, b: 0 });
+    byTime.set(p.time, {
+      time: p.time,
+      label: formatLocalDateTime(p.time, 'd MMM HH:mm'),
+      a: p.value,
+      b: 0,
+    });
   }
   for (const p of report.export_series) {
     const existing = byTime.get(p.time);
     if (existing) {
       existing.b = p.value;
     } else {
-      byTime.set(p.time, { time: p.time, label: formatLocalDateTime(p.time, 'd MMM HH:mm'), a: 0, b: p.value });
+      byTime.set(p.time, {
+        time: p.time,
+        label: formatLocalDateTime(p.time, 'd MMM HH:mm'),
+        a: 0,
+        b: p.value,
+      });
     }
   }
   return Array.from(byTime.entries())
@@ -76,6 +90,7 @@ function downloadCsv(report: ReportData): void {
 }
 
 export default function Reports() {
+  const { selectedDeviceId } = useDevice();
   const [reportType, setReportType] = useState<ReportType>('daily');
   const [fromIso, setFromIso] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
   const [toIso, setToIso] = useState(() => localInputToUtcIso(nowLocalInput()));
@@ -92,7 +107,7 @@ export default function Reports() {
       setLoading(true);
       setError(false);
       try {
-        const data = await getReport(type);
+        const data = await getReport(type, selectedDeviceId ?? undefined);
         if (!cancelled) setReport(data);
       } catch {
         if (!cancelled) setError(true);
@@ -105,13 +120,17 @@ export default function Reports() {
     return () => {
       cancelled = true;
     };
-  }, [reportType]);
+  }, [reportType, selectedDeviceId]);
 
   const generateCustom = async () => {
     setLoading(true);
     setError(false);
     try {
-      const data = await getCustomReport({ from: fromIso, to: toIso });
+      const data = await getCustomReport({
+        from: fromIso,
+        to: toIso,
+        device_id: selectedDeviceId ?? undefined,
+      });
       setReport(data);
     } catch {
       setError(true);
@@ -152,7 +171,14 @@ export default function Reports() {
 
         {reportType === 'custom' && (
           <div className="flex flex-wrap items-center gap-2">
-            <DateRangePicker fromIso={fromIso} toIso={toIso} onChange={(f, t) => { setFromIso(f); setToIso(t); }} />
+            <DateRangePicker
+              fromIso={fromIso}
+              toIso={toIso}
+              onChange={(f, t) => {
+                setFromIso(f);
+                setToIso(t);
+              }}
+            />
             <button
               onClick={generateCustom}
               disabled={loading}
@@ -175,7 +201,9 @@ export default function Reports() {
         </div>
       )}
 
-      {!loading && error && <Card className="text-sm text-red-500">No se pudo generar el reporte.</Card>}
+      {!loading && error && (
+        <Card className="text-sm text-red-500">No se pudo generar el reporte.</Card>
+      )}
 
       {!loading && !error && !report && reportType === 'custom' && (
         <EmptyState
@@ -220,7 +248,9 @@ export default function Reports() {
             </Card>
             <Card className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Balance neto</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Balance neto
+                </p>
                 <p
                   className={[
                     'mt-1.5 text-2xl font-semibold',
@@ -273,27 +303,43 @@ export default function Reports() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Potencia promedio</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Potencia promedio
+              </p>
               <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
-                {report.kpis.power_avg_w !== null ? formatWatts(report.kpis.power_avg_w) : NOT_APPLICABLE}
+                {report.kpis.power_avg_w !== null
+                  ? formatWatts(report.kpis.power_avg_w)
+                  : NOT_APPLICABLE}
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Voltaje promedio</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Voltaje promedio
+              </p>
               <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
-                {report.kpis.voltage_avg_v !== null ? `${report.kpis.voltage_avg_v.toFixed(1)} V` : NOT_APPLICABLE}
+                {report.kpis.voltage_avg_v !== null
+                  ? `${report.kpis.voltage_avg_v.toFixed(1)} V`
+                  : NOT_APPLICABLE}
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Corriente promedio</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Corriente promedio
+              </p>
               <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
-                {report.kpis.current_avg_a !== null ? `${report.kpis.current_avg_a.toFixed(2)} A` : NOT_APPLICABLE}
+                {report.kpis.current_avg_a !== null
+                  ? `${report.kpis.current_avg_a.toFixed(2)} A`
+                  : NOT_APPLICABLE}
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Factor de potencia</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Factor de potencia
+              </p>
               <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
-                {report.kpis.power_factor_avg !== null ? report.kpis.power_factor_avg.toFixed(2) : NOT_APPLICABLE}
+                {report.kpis.power_factor_avg !== null
+                  ? report.kpis.power_factor_avg.toFixed(2)
+                  : NOT_APPLICABLE}
               </p>
             </Card>
           </div>
@@ -309,7 +355,9 @@ export default function Reports() {
                     {formatWatts(report.max_demand.peak_power_w)}
                   </p>
                   {report.max_demand.peak_at && (
-                    <p className="text-xs text-slate-400">{formatLocalDateTime(report.max_demand.peak_at)}</p>
+                    <p className="text-xs text-slate-400">
+                      {formatLocalDateTime(report.max_demand.peak_at)}
+                    </p>
                   )}
                 </>
               ) : (

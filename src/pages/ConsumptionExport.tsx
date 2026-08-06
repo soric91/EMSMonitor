@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDownToLine, ArrowUpFromLine, Scale } from 'lucide-react';
 import { getReport } from '../api/reports';
+import { useDevice } from '../hooks/useDevice';
 import type { Period, ReportData, ReportType } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
-import { ComparisonBarChart, type ComparisonBarPoint } from '../components/charts/ComparisonBarChart';
+import {
+  ComparisonBarChart,
+  type ComparisonBarPoint,
+} from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { formatCop, formatKwh, formatLocalDateTime } from '../utils/format';
 
@@ -36,14 +40,22 @@ const BUCKET_FORMAT: Record<Period, string> = {
 function mergeSeries(report: ReportData, period: Period): ComparisonBarPoint[] {
   const byTime = new Map<string, ComparisonBarPoint>();
   for (const p of report.consumption_series) {
-    byTime.set(p.time, { label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]), a: p.value, b: 0 });
+    byTime.set(p.time, {
+      label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]),
+      a: p.value,
+      b: 0,
+    });
   }
   for (const p of report.export_series) {
     const existing = byTime.get(p.time);
     if (existing) {
       existing.b = p.value;
     } else {
-      byTime.set(p.time, { label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]), a: 0, b: p.value });
+      byTime.set(p.time, {
+        label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]),
+        a: 0,
+        b: p.value,
+      });
     }
   }
   return Array.from(byTime.entries())
@@ -52,6 +64,7 @@ function mergeSeries(report: ReportData, period: Period): ComparisonBarPoint[] {
 }
 
 export default function ConsumptionExport() {
+  const { selectedDeviceId } = useDevice();
   const [period, setPeriod] = useState<Period>('day');
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,7 +77,7 @@ export default function ConsumptionExport() {
       setLoading(true);
       setError(false);
       try {
-        const data = await getReport(PERIOD_TO_REPORT_TYPE[period]);
+        const data = await getReport(PERIOD_TO_REPORT_TYPE[period], selectedDeviceId ?? undefined);
         if (!cancelled) setReport(data);
       } catch {
         if (!cancelled) setError(true);
@@ -77,7 +90,7 @@ export default function ConsumptionExport() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, selectedDeviceId]);
 
   const net = report ? report.net_balance_kwh : null;
   const costs = report ? report.costs : null;
@@ -119,7 +132,9 @@ export default function ConsumptionExport() {
         </div>
       )}
 
-      {!loading && error && <Card className="text-sm text-red-500">No se pudo cargar la comparación.</Card>}
+      {!loading && error && (
+        <Card className="text-sm text-red-500">No se pudo cargar la comparación.</Card>
+      )}
 
       {!loading && !error && report && (
         <>
@@ -148,7 +163,9 @@ export default function ConsumptionExport() {
             </Card>
             <Card className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Balance neto</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Balance neto
+                </p>
                 <p
                   className={[
                     'mt-1.5 text-2xl font-semibold',

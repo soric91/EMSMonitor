@@ -9,10 +9,13 @@ export interface ApiResponse<T> {
 export type Variable =
   | 'CURRENT_A'
   | 'CURRENT_B'
+  | 'CURRENT_C'
   | 'VOLTAGE_A'
   | 'VOLTAGE_B'
+  | 'VOLTAGE_C'
   | 'POWER_ACTIVE_INST_A'
   | 'POWER_ACTIVE_INST_B'
+  | 'POWER_ACTIVE_INST_C'
   | 'POWER_ACTIVE_INST_TOTAL'
   | 'POWER_REACTIVE_INST_TOTAL'
   | 'FACTOR_POTENCIA_TOTAL'
@@ -467,9 +470,4 @@ export interface WsAlertEvent extends Alert {
 }
 
 export type WsServerEvent =
-  | WsSubscribedEvent
-  | WsDataEvent
-  | WsUnsubscribedEvent
-  | WsPongEvent
-  | WsErrorEvent
-  | WsAlertEvent;
+  WsSubscribedEvent | WsDataEvent | WsUnsubscribedEvent | WsPongEvent | WsErrorEvent | WsAlertEvent;

@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { LogOut, Menu, Wifi, WifiOff } from 'lucide-react';
+import { Gauge, LogOut, Menu, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useLocalClock } from '../../hooks/useLocalClock';
 import { useRealtime } from '../../hooks/useRealtime';
+import { useDevice } from '../../hooks/useDevice';
 import { AlertsBell } from './AlertsBell';
 import { NoticeBell } from './NoticeBell';
 import type { WsConnectionStatus } from '../../api/websocket';
@@ -21,6 +22,7 @@ const STATUS_LABEL: Record<WsConnectionStatus, string> = {
 export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
   const { user, logout } = useAuth();
   const { status: wsStatus } = useRealtime();
+  const { devices, selectedDeviceId, setSelectedDeviceId } = useDevice();
   const clock = useLocalClock();
   const isLive = wsStatus === 'connected';
 
@@ -46,7 +48,11 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
             <span
               className={[
                 'relative inline-flex h-2 w-2 rounded-full',
-                isLive ? 'bg-emerald-500' : wsStatus === 'connecting' || wsStatus === 'reconnecting' ? 'bg-amber-500' : 'bg-slate-400',
+                isLive
+                  ? 'bg-emerald-500'
+                  : wsStatus === 'connecting' || wsStatus === 'reconnecting'
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400',
               ].join(' ')}
             />
           </span>
@@ -62,6 +68,24 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-4">
+        {devices.length > 1 && (
+          <div className="hidden items-center gap-1.5 rounded-full border border-slate-900/10 px-2.5 py-1.5 text-xs font-medium sm:flex dark:border-white/10">
+            <Gauge className="h-3.5 w-3.5 text-slate-400" />
+            <select
+              value={selectedDeviceId ?? ''}
+              onChange={(e) => setSelectedDeviceId(e.target.value || null)}
+              title="Medidor"
+              className="bg-transparent text-slate-600 outline-none dark:text-slate-300"
+            >
+              <option value="">Todos los medidores</option>
+              {devices.map((d) => (
+                <option key={d.device_id} value={d.device_id}>
+                  {d.device_name || d.identify_device || d.device_id}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <span className="hidden font-mono text-xs text-slate-500 sm:inline dark:text-slate-400">
           {clock}
         </span>
