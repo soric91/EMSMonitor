@@ -11,7 +11,11 @@ const INPUT_CLASS =
   'w-full rounded-lg border border-slate-900/10 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-slate-800 dark:text-white';
 
 function currentMonth(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit' })
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+  })
     .format(new Date())
     .slice(0, 7);
 }
@@ -26,11 +30,10 @@ export default function Tariff() {
   const [config, setConfig] = useState<TariffConfig | null>(null);
   const [loadError, setLoadError] = useState(false);
 
-  const [excedente, setExcedente] = useState('');
   const [umbral, setUmbral] = useState('');
   const [month, setMonth] = useState(currentMonth);
   const [cu, setCu] = useState('');
-  const [cargoFijo, setCargoFijo] = useState('');
+  const [excedente, setExcedente] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [saveState, setSaveState] = useState<'idle' | 'ok' | 'error'>('idle');
@@ -43,12 +46,11 @@ export default function Tariff() {
         const data = await getTariff();
         if (cancelled) return;
         setConfig(data);
-        setExcedente(String(data.excedente_cop_kwh));
         setUmbral(String(data.umbral_cs_kwh));
         const existing = data.periods.find((p) => p.month === currentMonth());
         if (existing) {
           setCu(String(existing.cu_cop_kwh));
-          setCargoFijo(String(existing.cargo_fijo_cop));
+          setExcedente(String(existing.excedente_cop_kwh));
         }
       } catch {
         if (!cancelled) setLoadError(true);
@@ -67,7 +69,7 @@ export default function Tariff() {
     const existing = config?.periods.find((p) => p.month === nextMonth);
     if (existing) {
       setCu(String(existing.cu_cop_kwh));
-      setCargoFijo(String(existing.cargo_fijo_cop));
+      setExcedente(String(existing.excedente_cop_kwh));
     }
   };
 
@@ -85,10 +87,9 @@ export default function Tariff() {
       byMonth.set(month, {
         month,
         cu_cop_kwh: Number(cu),
-        cargo_fijo_cop: Number(cargoFijo),
+        excedente_cop_kwh: Number(excedente),
       });
       const merged: TariffConfig = {
-        excedente_cop_kwh: Number(excedente),
         umbral_cs_kwh: Number(umbral),
         periods: Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month)),
       };
@@ -103,7 +104,9 @@ export default function Tariff() {
   };
 
   if (loadError) {
-    return <Card className="text-sm text-red-500">No se pudo cargar la configuración de tarifa.</Card>;
+    return (
+      <Card className="text-sm text-red-500">No se pudo cargar la configuración de tarifa.</Card>
+    );
   }
 
   if (!config) {
@@ -122,7 +125,7 @@ export default function Tariff() {
   }
 
   const sortedPeriods = [...config.periods].sort((a, b) => b.month.localeCompare(a.month));
-  const canSubmit = excedente !== '' && umbral !== '' && cu !== '' && cargoFijo !== '';
+  const canSubmit = umbral !== '' && cu !== '' && excedente !== '';
 
   return (
     <div className="space-y-6">
@@ -130,48 +133,40 @@ export default function Tariff() {
         <Card>
           <div className="mb-4 flex items-center gap-2">
             <Coins className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">Parámetros generales</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              Parámetros generales
+            </p>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
-                Crédito por kWh exportado (COP)
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={excedente}
-                onChange={(e) => setExcedente(e.target.value)}
-                className={INPUT_CLASS}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
-                Umbral CS (kWh)
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={umbral}
-                onChange={(e) => setUmbral(e.target.value)}
-                className={INPUT_CLASS}
-              />
-            </label>
-          </div>
+          <label className="block sm:max-w-xs">
+            <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
+              Umbral CS (kWh)
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              value={umbral}
+              onChange={(e) => setUmbral(e.target.value)}
+              className={INPUT_CLASS}
+            />
+          </label>
         </Card>
 
         <Card>
-          <p className="mb-1 text-sm font-semibold text-slate-900 dark:text-white">Tarifa del mes</p>
+          <p className="mb-1 text-sm font-semibold text-slate-900 dark:text-white">
+            Tarifa del mes
+          </p>
           <p className="mb-4 text-xs text-slate-400">
             Si el mes ya tiene tarifa registrada, se precargan sus valores y guardar los actualiza.
+            El excedente exportado que supera lo importado ese mismo mes se paga a este precio — el
+            resto se paga al mismo precio que importar.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">Mes</span>
+              <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                Mes
+              </span>
               <input
                 type="month"
                 required
@@ -196,15 +191,15 @@ export default function Tariff() {
             </label>
             <label className="block">
               <span className="mb-1.5 block text-xs font-medium text-slate-500 dark:text-slate-400">
-                Cargo fijo mensual (COP)
+                Crédito por kWh de excedente (COP)
               </span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 required
-                value={cargoFijo}
-                onChange={(e) => setCargoFijo(e.target.value)}
+                value={excedente}
+                onChange={(e) => setExcedente(e.target.value)}
                 className={INPUT_CLASS}
               />
             </label>
@@ -247,17 +242,21 @@ export default function Tariff() {
 
       <Card className="p-0">
         <div className="border-b border-slate-900/5 px-5 py-4 dark:border-white/5">
-          <p className="text-sm font-semibold text-slate-900 dark:text-white">Historial de tarifas</p>
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+            Historial de tarifas
+          </p>
         </div>
         {sortedPeriods.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-slate-400">Aún no hay meses registrados.</p>
+          <p className="px-5 py-8 text-center text-sm text-slate-400">
+            Aún no hay meses registrados.
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="px-5 py-3 font-medium">Mes</th>
                 <th className="px-5 py-3 font-medium">Costo kWh</th>
-                <th className="px-5 py-3 font-medium">Cargo fijo</th>
+                <th className="px-5 py-3 font-medium">Excedente kWh</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-900/5 dark:divide-white/5">
@@ -270,7 +269,7 @@ export default function Tariff() {
                     {formatCop(p.cu_cop_kwh)}
                   </td>
                   <td className="px-5 py-2.5 text-slate-700 dark:text-slate-200">
-                    {formatCop(p.cargo_fijo_cop)}
+                    {formatCop(p.excedente_cop_kwh)}
                   </td>
                 </tr>
               ))}

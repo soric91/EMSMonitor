@@ -89,6 +89,7 @@ export interface DashboardStatus {
 // ---------- Realtime ----------
 
 export interface DeviceSnapshot {
+  /** = identify_device (UUID por equipo) — confirmado como tag real en InfluxDB. */
   device_id: string;
   device_name: string;
   device_type: string;
@@ -96,9 +97,9 @@ export interface DeviceSnapshot {
   timestamp: string;
   received_at: string;
   data: Record<string, number>;
-  /** Del tópico MQTT — informativo, coincide con Gateway.uuid en CRMBackend. */
-  gateway_uuid: string | null;
-  modbus_id_from_topic: number | null;
+  /** Del tópico MQTT — mismo valor que identify_device, no una identidad aparte. */
+  equipment_uuid: string | null;
+  modbus_id: number | null;
 }
 
 // ---------- History ----------
@@ -341,11 +342,12 @@ export interface TariffPeriod {
   /** Mes calendario "YYYY-MM" (validado server-side). */
   month: string;
   cu_cop_kwh: number;
-  cargo_fijo_cop: number;
+  /** Precio del tramo 2 del excedente exportado — el tramo 1 (hasta lo importado
+   *  ese mismo mes) se paga a cu_cop_kwh. Por mes, igual que cu_cop_kwh. */
+  excedente_cop_kwh: number;
 }
 
 export interface TariffConfig {
-  excedente_cop_kwh: number;
   umbral_cs_kwh: number;
   periods: TariffPeriod[];
 }
@@ -371,11 +373,8 @@ export interface CostBreakdown {
   export_kwh: number;
   consumption_cost_cop: number;
   export_credit_cop: number;
-  cargo_fijo_cop: number;
   /** Negativo = crédito por exportación superó el costo: saldo a favor del usuario. */
   net_cost_cop: number;
-  /** false solo en day/week; en range y en costs de reportes siempre true. */
-  cargo_fijo_included: boolean;
   months_used: string[];
   /** Meses sin tarifa registrada: el backend estimó con la más reciente anterior. */
   stale_months: string[];

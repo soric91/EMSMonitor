@@ -73,17 +73,15 @@ export function CostCard({ label, period }: CostCardProps) {
           {inFavor && <span className="ml-1.5 text-xs font-medium">a tu favor</span>}
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          {formatCop(cost.consumption_cost_cop)} importado · {formatCop(cost.export_credit_cop)} crédito
-          {cost.cargo_fijo_included
-            ? ` · ${formatCop(cost.cargo_fijo_cop)} cargo fijo`
-            : ' · no incluye cargo fijo'}
+          {formatCop(cost.consumption_cost_cop)} importado · {formatCop(cost.export_credit_cop)}{' '}
+          crédito
         </p>
         {staleMonths.length > 0 && (
           <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
             <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
             <span>
-              Tarifa estimada con datos de {cost.months_used.map(monthLabel).join(', ')} — actualiza la
-              tarifa de {staleMonths.map(monthLabel).join(', ')}
+              Tarifa estimada con datos de {cost.months_used.map(monthLabel).join(', ')} — actualiza
+              la tarifa de {staleMonths.map(monthLabel).join(', ')}
             </span>
           </p>
         )}
