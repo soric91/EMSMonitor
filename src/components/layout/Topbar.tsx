@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { Gauge, LogOut, Menu, Wifi, WifiOff } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { Menu, Wifi, WifiOff } from 'lucide-react';
 import { useLocalClock } from '../../hooks/useLocalClock';
 import { useRealtime } from '../../hooks/useRealtime';
-import { useDevice } from '../../hooks/useDevice';
 import { AlertsBell } from './AlertsBell';
+import { SelectorDeMedidor } from './SelectorDeMedidor';
 import { NoticeBell } from './NoticeBell';
+import { UserMenu } from './UserMenu';
 import type { WsConnectionStatus } from '../../api/websocket';
 
 interface TopbarProps {
@@ -20,9 +20,7 @@ const STATUS_LABEL: Record<WsConnectionStatus, string> = {
 };
 
 export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
-  const { user, logout } = useAuth();
   const { status: wsStatus } = useRealtime();
-  const { devices, selectedDeviceId, setSelectedDeviceId } = useDevice();
   const clock = useLocalClock();
   const isLive = wsStatus === 'connected';
 
@@ -65,47 +63,20 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
             {STATUS_LABEL[wsStatus]}
           </span>
         </div>
+
+        {/* Al lado del indicador: qué se está mirando va junto a si está
+            llegando. Separarlos obliga a cruzar la pantalla para saber si el
+            "Online" corresponde al medidor que se está viendo. */}
+        <SelectorDeMedidor />
       </div>
 
       <div className="flex items-center gap-4">
-        {devices.length > 1 && (
-          <div className="hidden items-center gap-1.5 rounded-full border border-slate-900/10 px-2.5 py-1.5 text-xs font-medium sm:flex dark:border-white/10">
-            <Gauge className="h-3.5 w-3.5 text-slate-400" />
-            <select
-              value={selectedDeviceId ?? ''}
-              onChange={(e) => setSelectedDeviceId(e.target.value || null)}
-              title="Medidor"
-              className="bg-transparent text-slate-600 outline-none dark:text-slate-300"
-            >
-              <option value="">Todos los medidores</option>
-              {devices.map((d) => (
-                <option key={d.device_id} value={d.device_id}>
-                  {d.device_name || d.identify_device || d.device_id}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         <span className="hidden font-mono text-xs text-slate-500 sm:inline dark:text-slate-400">
           {clock}
         </span>
         <NoticeBell />
         <AlertsBell />
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            {(user?.username ?? '?').slice(0, 1).toUpperCase()}
-          </div>
-          <span className="hidden text-sm font-medium text-slate-700 sm:inline dark:text-slate-200">
-            {user?.username}
-          </span>
-        </div>
-        <button
-          onClick={() => void logout()}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-500/10 hover:text-red-500 dark:text-slate-400"
-          title="Cerrar sesión"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
+        <UserMenu />
       </div>
     </header>
   );
