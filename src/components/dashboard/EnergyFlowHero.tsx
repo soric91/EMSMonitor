@@ -2,17 +2,30 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Home, Minus, Zap } from 'lucide-react';
 import { useRealtime } from '../../hooks/useRealtime';
+import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 import { Card } from '../ui/Card';
-import { formatWatts } from '../../utils/format';
+import { enWatts, formatWatts } from '../../utils/format';
 import type { WsDataEvent } from '../../api/types';
 
 const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
 const NEUTRAL_COLOR = '#64748b';
 const IDLE_BORDER = 'rgba(148,163,184,0.2)';
-const VARIABLE = 'POWER_ACTIVE_INST_TOTAL';
+// La potencia activa total de la acometida: con signo, positiva importando y
+// negativa exportando, que es justo lo que este hero dibuja. Es la única
+// variable fija que queda en el panel, y lo es porque el componente entero
+// existe para mostrar ese flujo — no es una lista que pueda quedar corta.
+const VARIABLE = 'TotW';
 
-function FlowDots({ direction, color, axis }: { direction: 'import' | 'export'; color: string; axis: 'x' | 'y' }) {
+function FlowDots({
+  direction,
+  color,
+  axis,
+}: {
+  direction: 'import' | 'export';
+  color: string;
+  axis: 'x' | 'y';
+}) {
   const from = direction === 'import' ? '0%' : '100%';
   const to = direction === 'import' ? '100%' : '0%';
   const styleKey = axis === 'x' ? 'left' : 'top';
@@ -33,9 +46,23 @@ function FlowDots({ direction, color, axis }: { direction: 'import' | 'export'; 
   );
 }
 
-function FlowArrowhead({ direction, axis, color }: { direction: 'import' | 'export'; axis: 'x' | 'y'; color: string }) {
+function FlowArrowhead({
+  direction,
+  axis,
+  color,
+}: {
+  direction: 'import' | 'export';
+  axis: 'x' | 'y';
+  color: string;
+}) {
   const Icon =
-    axis === 'x' ? (direction === 'import' ? ArrowRight : ArrowLeft) : direction === 'import' ? ArrowDown : ArrowUp;
+    axis === 'x'
+      ? direction === 'import'
+        ? ArrowRight
+        : ArrowLeft
+      : direction === 'import'
+        ? ArrowDown
+        : ArrowUp;
   return (
     <motion.span
       className={axis === 'x' ? 'hidden shrink-0 sm:flex' : 'flex shrink-0 sm:hidden'}
@@ -49,6 +76,7 @@ function FlowArrowhead({ direction, axis, color }: { direction: 'import' | 'expo
 
 export function EnergyFlowHero() {
   const { status, subscribedVariable, latestData, subscribe, onDataEvent } = useRealtime();
+  const { porNombre } = useVariablesDelMedidor();
   const [lastKnown, setLastKnown] = useState<WsDataEvent | null>(null);
 
   useEffect(() => {
@@ -66,17 +94,29 @@ export function EnergyFlowHero() {
   }, [status, subscribedVariable, subscribe]);
 
   const isLive = subscribedVariable === VARIABLE;
-  const value = isLive ? (latestData?.value ?? lastKnown?.value ?? null) : (lastKnown?.value ?? null);
+  const crudo = isLive
+    ? (latestData?.value ?? lastKnown?.value ?? null)
+    : (lastKnown?.value ?? null);
+  // El medidor reporta `TotW` en kW. Todo lo de abajo —el formato y los dos
+  // umbrales— razona en vatios, así que la conversión va acá y una sola vez.
+  const unidad = porNombre.get(VARIABLE)?.unidad ?? '';
+  const value = crudo === null ? null : enWatts(crudo, unidad);
   const isImporting = value !== null && value > 1;
   const isExporting = value !== null && value < -1;
-  const direction: 'import' | 'export' | 'neutral' = isImporting ? 'import' : isExporting ? 'export' : 'neutral';
+  const direction: 'import' | 'export' | 'neutral' = isImporting
+    ? 'import'
+    : isExporting
+      ? 'export'
+      : 'neutral';
   const color = isImporting ? IMPORT_COLOR : isExporting ? EXPORT_COLOR : NEUTRAL_COLOR;
 
   return (
     <Card>
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Balance energético</p>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Balance energético
+          </p>
           {isLive ? (
             <span className="flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
@@ -87,7 +127,9 @@ export function EnergyFlowHero() {
                 />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
               </span>
-              <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">Online</span>
+              <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                Online
+              </span>
             </span>
           ) : (
             value !== null && <span className="text-[10px] text-slate-400">último valor</span>
@@ -108,7 +150,12 @@ export function EnergyFlowHero() {
         </span>
       </div>
 
-      <div className={['flex flex-col items-center gap-6 sm:flex-row sm:justify-between', !isLive && 'opacity-70'].join(' ')}>
+      <div
+        className={[
+          'flex flex-col items-center gap-6 sm:flex-row sm:justify-between',
+          !isLive && 'opacity-70',
+        ].join(' ')}
+      >
         <div
           className="flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border-2 transition-colors"
           style={{
@@ -117,7 +164,9 @@ export function EnergyFlowHero() {
           }}
         >
           <Zap className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-          <span className="text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400">RED</span>
+          <span className="text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400">
+            RED
+          </span>
         </div>
 
         <div className="relative hidden h-1 flex-1 overflow-hidden rounded-full bg-slate-900/10 sm:block dark:bg-white/10">
@@ -161,13 +210,19 @@ export function EnergyFlowHero() {
           }}
         >
           <Home className="h-5 w-5 text-slate-500 dark:text-slate-300" />
-          <span className="text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400">CASA</span>
+          <span className="text-[10px] font-semibold tracking-wide text-slate-500 dark:text-slate-400">
+            CASA
+          </span>
         </div>
       </div>
 
       {!isLive && (
         <div className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-400">
-          {direction === 'import' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+          {direction === 'import' ? (
+            <ArrowDown className="h-3 w-3" />
+          ) : (
+            <ArrowUp className="h-3 w-3" />
+          )}
           En pausa — el gráfico de abajo está mostrando otra variable
         </div>
       )}
