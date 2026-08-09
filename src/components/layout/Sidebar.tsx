@@ -5,7 +5,6 @@ import {
   BarChart3,
   ChevronsLeft,
   ChevronsRight,
-  Coins,
   FileText,
   History,
   LayoutDashboard,
@@ -22,7 +21,6 @@ const NAV_ITEMS = [
   { to: '/consumption-export', label: 'Consumo / Exportación', icon: ArrowLeftRight },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/reports', label: 'Reportes', icon: FileText },
-  { to: '/tariff', label: 'Tarifa', icon: Coins },
 ] as const;
 
 interface SidebarProps {
@@ -49,7 +47,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
               exit={{ opacity: 0, width: 0 }}
               className="overflow-hidden whitespace-nowrap text-sm font-semibold tracking-tight text-slate-900 dark:text-white"
             >
-              EMS Residencial
+              EMS Monitor
             </motion.span>
           )}
         </AnimatePresence>
@@ -138,7 +136,11 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
           onClick={onToggleCollapse}
           className="absolute -right-3 top-16 flex h-6 w-6 items-center justify-center rounded-full border border-slate-900/10 bg-white text-slate-500 shadow-sm transition hover:text-emerald-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-emerald-400"
         >
-          {collapsed ? <ChevronsRight className="h-3.5 w-3.5" /> : <ChevronsLeft className="h-3.5 w-3.5" />}
+          {collapsed ? (
+            <ChevronsRight className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronsLeft className="h-3.5 w-3.5" />
+          )}
         </button>
       </motion.aside>
 

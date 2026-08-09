@@ -5,13 +5,20 @@ import { Eye, EyeOff, Lock, User, Zap } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Login() {
-  const { login, isAuthenticated, isLoading } = useAuth();
-  const [username, setUsername] = useState('');
+  const { login, isAuthenticated, isLoading, mustChangePassword } = useAuth();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [shake, setShake] = useState(0);
+
+  if (!isLoading && mustChangePassword) {
+    // La sesión existe pero su token solo abre el cambio de contraseña. Sin
+    // este caso el login entraba bien y se quedaba en la misma pantalla,
+    // porque `isAuthenticated` es false hasta que la contraseña se cambie.
+    return <Navigate to="/cambiar-password" replace />;
+  }
 
   if (!isLoading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -22,9 +29,9 @@ export default function Login() {
     setFormError(null);
     setSubmitting(true);
     try {
-      await login(username, password);
+      await login(email, password);
     } catch {
-      setFormError('Usuario o contraseña incorrectos');
+      setFormError('Correo o contraseña incorrectos');
       setShake((n) => n + 1);
     } finally {
       setSubmitting(false);
@@ -69,7 +76,7 @@ export default function Login() {
           >
             <Zap className="h-7 w-7 text-slate-950" strokeWidth={2.5} />
           </motion.div>
-          <h1 className="text-xl font-semibold tracking-tight text-white">EMS Residencial</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-white">EMS Monitor</h1>
           <p className="mt-1 text-sm text-slate-400">Panel de monitoreo energético</p>
         </div>
 
@@ -81,20 +88,20 @@ export default function Login() {
           className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
         >
           <div className="space-y-1.5">
-            <label htmlFor="username" className="text-xs font-medium text-slate-400">
-              Usuario
+            <label htmlFor="email" className="text-xs font-medium text-slate-400">
+              Correo
             </label>
             <div className="relative">
               <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <input
-                id="username"
-                type="text"
-                autoComplete="username"
+                id="email"
+                type="email"
+                autoComplete="email"
                 required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-10 pr-3 text-sm text-white outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="admin"
+                placeholder="cliente@empresa.com"
               />
             </div>
           </div>

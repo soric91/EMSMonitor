@@ -6,21 +6,56 @@ export interface ApiResponse<T> {
   data: T | null;
 }
 
-export type Variable =
-  | 'CURRENT_A'
-  | 'CURRENT_B'
-  | 'CURRENT_C'
-  | 'VOLTAGE_A'
-  | 'VOLTAGE_B'
-  | 'VOLTAGE_C'
-  | 'POWER_ACTIVE_INST_A'
-  | 'POWER_ACTIVE_INST_B'
-  | 'POWER_ACTIVE_INST_C'
-  | 'POWER_ACTIVE_INST_TOTAL'
-  | 'POWER_REACTIVE_INST_TOTAL'
-  | 'FACTOR_POTENCIA_TOTAL'
-  | 'POWER_ACTIVE_TOTAL_POS'
-  | 'POWER_ACTIVE_TOTAL_NEG';
+/**
+ * El nombre canónico de una medición: `PhV_phsA`, `TotW`, `TotWh_import`.
+ *
+ * Es un identificador IEC 61850, no un texto para mostrar — viaja por MQTT,
+ * queda guardado en InfluxDB y es lo que se manda en `?variable=`. Lo que ve
+ * el usuario es la `etiqueta` ("Tensión fase A"), que llega junto al nombre.
+ *
+ * Deliberadamente `string` y no una unión cerrada: la lista de variables la
+ * decide el CRM y cambia cuando alguien da de alta una nueva. Enumerarlas acá
+ * era tener una segunda lista que se desactualiza sola — el problema exacto
+ * que hacía que la fase C no apareciera.
+ */
+export type Variable = string;
+
+/** Qué se está midiendo. El panel agrupa por esto. */
+export type Magnitud =
+  | 'tension'
+  | 'tension_compuesta'
+  | 'corriente'
+  | 'potencia_activa'
+  | 'potencia_reactiva'
+  | 'potencia_aparente'
+  | 'factor_potencia'
+  | 'frecuencia'
+  | 'energia_importada'
+  | 'energia_exportada'
+  | 'energia_reactiva_importada'
+  | 'energia_reactiva_exportada'
+  | 'estado_digital';
+
+export type Fase = 'A' | 'B' | 'C' | 'AB' | 'BC' | 'CA' | 'N' | 'total';
+
+/**
+ * Una medición que este cliente tiene cargada y que además reportó datos.
+ *
+ * Sale de `GET /variables`. Que el backend solo devuelva las que tienen
+ * lecturas es lo que evita dibujar una gráfica de fase C para un medidor
+ * monofásico.
+ */
+export interface VariableDisponible {
+  nombre: Variable;
+  etiqueta: string;
+  unidad: string;
+  magnitud: Magnitud | null;
+  fase: Fase | null;
+  acumulativa: boolean;
+  equipos: string[];
+  /** Reportó al menos una lectura. En `false` existe en el CRM pero nunca publicó. */
+  con_datos: boolean;
+}
 
 export type Aggregation = 'mean' | 'max' | 'min' | 'last';
 
@@ -31,7 +66,8 @@ export type ReportType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 // ---------- Auth ----------
 
 export interface LoginRequest {
-  username: string;
+  /** La cuenta la crea un administrador en el CRM; la identifica el correo. */
+  email: string;
   password: string;
 }
 
@@ -48,10 +84,79 @@ export interface TokenPair {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+  /**
+   * La empresa cuyos datos va a pedir esta sesión.
+   *
+   * `null` en un administrador que todavía no eligió cuál mirar: su cuenta no
+   * pertenece a ninguna empresa. Con ese token solo se puede listar proyectos
+   * y elegir uno — no hay datos que pedir sin empresa.
+   */
+  client_id: string | null;
+  /** Qué entró. El panel arranca en el tablero o en la lista de proyectos. */
+  role: UserRole;
+  /**
+   * La contraseña sigue siendo la que generó un administrador. Mientras sea
+   * true, el token no abre nada más que el cambio de contraseña —ni en el CRM
+   * ni acá.
+   */
+  must_change_password: boolean;
 }
 
 export interface UserInfo {
-  username: string;
+  user_id: string;
+  email: string;
+  client_id: string | null;
+  role: UserRole;
+  /** Un administrador mirando los datos de otra empresa. El panel lo avisa. */
+  impersonated: boolean;
+  must_change_password: boolean;
+}
+
+export type UserRole = 'admin' | 'tecnico' | 'cliente';
+
+export type EstadoCliente = 'activo' | 'suspendido' | 'prospecto';
+
+/** Un gateway que dejó de reportar, con dónde está. */
+export interface GatewayCaido {
+  id: string;
+  numero_serie: string;
+  uuid: string;
+  /** `None` si nunca se conectó: la instalación puede no haber arrancado. */
+  ultima_conexion: string | null;
+  site_id: string;
+  sitio: string;
+  client_id: string;
+  empresa: string;
+}
+
+/**
+ * Una empresa y cuánto tiene instalado, de `GET /fleet/summary`.
+ *
+ * Son conteos y no el árbol a propósito: dibujar "3 gateways" pidiendo el
+ * inventario completo de cada empresa transfiere cada registro Modbus de cada
+ * equipo para mostrar un número.
+ */
+export interface Proyecto {
+  id: string;
+  nombre_empresa: string;
+  /** Estado comercial. Un prospecto suele no tener nada instalado todavía. */
+  estado: EstadoCliente;
+  /**
+   * Si el cliente puede ver su propio consumo. Un administrador entra igual
+   * —por eso existe la pantalla— pero la tarjeta lo muestra: es la diferencia
+   * entre "todavía no lo habilitamos" y "no tiene datos".
+   */
+  puede_ver_consumo: boolean;
+
+  sedes: number;
+  gateways: number;
+  /** Cuántos reportan ahora. La diferencia contra `gateways` es lo que hay que ir a arreglar. */
+  gateways_en_linea: number;
+  equipos: number;
+  /** Registros Modbus. Un equipo sin variables está de alta pero no mide nada. */
+  variables: number;
+  /** La conexión más reciente de cualquiera de sus gateways. */
+  ultima_conexion: string | null;
 }
 
 // ---------- Dashboard ----------
@@ -87,6 +192,20 @@ export interface DashboardStatus {
 }
 
 // ---------- Realtime ----------
+
+export interface DeviceDisponible {
+  /** El `identify_device` con el que viajan sus lecturas. */
+  device_id: string;
+  nombre: string;
+  modbus_id: number | null;
+  sede_id: string;
+  sede: string;
+  gateway_id: string;
+  /** Número de serie del gateway que lo lee. */
+  gateway: string;
+  /** Lo decide el CRM con su umbral; acá solo se muestra. */
+  gateway_en_linea: boolean;
+}
 
 export interface DeviceSnapshot {
   /** = identify_device (UUID por equipo) — confirmado como tag real en InfluxDB. */
@@ -423,6 +542,8 @@ export interface AlertsParams {
 export interface WsSubscribeMessage {
   action: 'subscribe';
   variable: Variable;
+  /** Acota a un medidor. `null` = todos los del cliente. */
+  device_id?: string | null;
 }
 
 export interface WsUnsubscribeMessage {
@@ -438,6 +559,8 @@ export type WsClientMessage = WsSubscribeMessage | WsUnsubscribeMessage | WsPing
 export interface WsSubscribedEvent {
   type: 'subscribed';
   variable: Variable;
+  /** El equipo al que quedó acotada, o `null` si son todos. */
+  device_id: string | null;
 }
 
 export interface WsDataEvent {

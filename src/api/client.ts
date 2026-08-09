@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import * as authApi from './auth';
 import { ApiError } from './errors';
-import type { ApiResponse, TokenPair } from './types';
+import type { ApiResponse } from './types';
 import {
   clearSession,
   getAccessToken,
@@ -37,20 +38,19 @@ interface RetriableConfig extends InternalAxiosRequestConfig {
 
 let refreshPromise: Promise<string> | null = null;
 
+/**
+ * Renueva contra CRMBackend, no contra ApiEMS.
+ *
+ * ApiEMS ya no emite tokens: los verifica. Un 401 suyo significa que el token
+ * del CRM venció o fue revocado, y el único que puede dar uno nuevo es quien
+ * lo firmó.
+ */
 async function refreshAccessToken(): Promise<string> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
     throw new ApiError('No refresh token available');
   }
-  const response = await axios.post<ApiResponse<TokenPair>>(
-    `${baseURL}/api/v1/auth/refresh`,
-    { refresh_token: refreshToken },
-    { headers: NGROK_HEADERS },
-  );
-  const pair = response.data.data;
-  if (!response.data.success || !pair) {
-    throw new ApiError(response.data.message || 'Refresh failed');
-  }
+  const pair = await authApi.refresh(refreshToken);
   setAccessToken(pair.access_token);
   setRefreshToken(pair.refresh_token);
   return pair.access_token;
@@ -61,7 +61,12 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const config = error.config as RetriableConfig | undefined;
 
-    if (error.response?.status === 401 && config && !config._retried && !config.url?.includes('/auth/')) {
+    if (
+      error.response?.status === 401 &&
+      config &&
+      !config._retried &&
+      !config.url?.includes('/auth/')
+    ) {
       config._retried = true;
       try {
         refreshPromise ??= refreshAccessToken().finally(() => {
