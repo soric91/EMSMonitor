@@ -237,7 +237,7 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
   pdf.setFontSize(7.5);
   pdf.setTextColor(FAINT);
   pdf.text(
-    'EMS Residencial · Informe generado automáticamente desde el panel de monitoreo',
+    'EMS Monitor · Informe generado automáticamente desde el panel de monitoreo',
     MARGIN,
     pageH - 28,
   );

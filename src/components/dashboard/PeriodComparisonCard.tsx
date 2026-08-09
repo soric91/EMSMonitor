@@ -69,10 +69,16 @@ export function PeriodComparisonCard({ label, days }: PeriodComparisonCardProps)
           <span
             className={[
               'flex items-center gap-1 text-xs font-medium',
-              improved ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400',
+              improved
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-amber-600 dark:text-amber-400',
             ].join(' ')}
           >
-            {improved ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
+            {improved ? (
+              <TrendingDown className="h-3.5 w-3.5" />
+            ) : (
+              <TrendingUp className="h-3.5 w-3.5" />
+            )}
             {delta >= 0 ? '+' : ''}
             {delta.toFixed(1)}%
           </span>

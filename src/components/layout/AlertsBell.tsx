@@ -17,12 +17,18 @@ function AlertItem({ alert }: { alert: Alert }) {
       <span className={['mt-1.5 h-2 w-2 shrink-0 rounded-full', style.dot].join(' ')} />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className={['text-[10px] font-semibold uppercase tracking-wide', style.text].join(' ')}>
+          <span
+            className={['text-[10px] font-semibold uppercase tracking-wide', style.text].join(' ')}
+          >
             {style.label}
           </span>
-          <span className="text-[10px] text-slate-400">{formatLocalDateTime(alert.timestamp, 'd MMM, HH:mm')}</span>
+          <span className="text-[10px] text-slate-400">
+            {formatLocalDateTime(alert.timestamp, 'd MMM, HH:mm')}
+          </span>
         </div>
-        <p className="mt-0.5 text-xs leading-relaxed text-slate-700 dark:text-slate-200">{alert.message}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+          {alert.message}
+        </p>
       </div>
     </li>
   );
@@ -87,7 +93,9 @@ export function AlertsBell() {
             className="absolute right-0 top-11 z-40 w-80 overflow-hidden rounded-2xl border border-slate-900/10 bg-white shadow-2xl shadow-black/20 dark:border-white/10 dark:bg-slate-900"
           >
             <div className="border-b border-slate-900/5 px-4 py-3 dark:border-white/5">
-              <p className="text-xs font-semibold text-slate-900 dark:text-white">Alertas de consumo</p>
+              <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                Alertas de consumo
+              </p>
               <p className="text-[10px] text-slate-400">Desde el último arranque del sistema</p>
             </div>
             {alerts.length === 0 ? (
@@ -98,7 +106,10 @@ export function AlertsBell() {
             ) : (
               <ul className="max-h-96 divide-y divide-slate-900/5 overflow-y-auto dark:divide-white/5">
                 {alerts.map((alert) => (
-                  <AlertItem key={`${alert.kind}-${alert.timestamp}-${alert.variable}`} alert={alert} />
+                  <AlertItem
+                    key={`${alert.kind}-${alert.timestamp}-${alert.variable}`}
+                    alert={alert}
+                  />
                 ))}
               </ul>
             )}

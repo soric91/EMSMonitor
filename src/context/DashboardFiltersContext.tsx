@@ -14,7 +14,10 @@ interface DashboardFiltersValue {
 export const DashboardFiltersContext = createContext<DashboardFiltersValue | null>(null);
 
 export function DashboardFiltersProvider({ children }: { children: ReactNode }) {
-  const [variable, setVariable] = useState<Variable>('POWER_ACTIVE_INST_TOTAL');
+  // Potencia activa total: lo que casi siempre se quiere ver primero. Si este
+  // medidor no la reporta, la pantalla cambia a la primera que sí tenga —el
+  // default es una preferencia, no una promesa de que exista.
+  const [variable, setVariable] = useState<Variable>('TotW');
   const [fromIso, setFromIso] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
   const [toIso, setToIso] = useState(() => localInputToUtcIso(nowLocalInput()));
 

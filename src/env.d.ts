@@ -11,6 +11,11 @@ declare module '*.svg?react' {
 interface ImportMetaEnv {
   readonly PUBLIC_API_BASE_URL: string;
   readonly PUBLIC_WS_URL: string;
+  /**
+   * Dónde vive CRMBackend, que es quien emite la identidad. ApiEMS ya no
+   * tiene login propio: verifica el token que firma el CRM.
+   */
+  readonly PUBLIC_CRM_BASE_URL: string;
   /** Subruta donde se sirve el sitio (GitHub Pages); ausente = raíz. */
   readonly PUBLIC_BASE_PATH?: string;
 }
