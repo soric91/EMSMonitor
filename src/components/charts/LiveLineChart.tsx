@@ -74,7 +74,10 @@ export function LiveLineChart({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesMapRef = useRef(
-    new Map<string, { api: ISeriesApi<'Area'>; minLine: IPriceLine | null; maxLine: IPriceLine | null }>(),
+    new Map<
+      string,
+      { api: ISeriesApi<'Area'>; minLine: IPriceLine | null; maxLine: IPriceLine | null }
+    >(),
   );
   const lastSeriesKeyRef = useRef<string | null>(null);
   const visibleRangeRef = useRef<IRange<Time> | null>(null);
@@ -148,7 +151,7 @@ export function LiveLineChart({
             `<span style="width:6px;height:6px;border-radius:9999px;background:${spec.color};"></span>` +
             (currentSeries.length > 1 ? `<span style="opacity:.7">${spec.label}</span>` : '') +
             `<span style="font-weight:600">${format(point.value)}</span>` +
-          `</div>`,
+            `</div>`,
         );
       }
       if (rows.length === 0) {
@@ -212,7 +215,11 @@ export function LiveLineChart({
         entry = { api, minLine: null, maxLine: null };
         seriesMap.set(spec.key, entry);
       } else {
-        entry.api.applyOptions({ lineColor: spec.color, topColor: `${spec.color}33`, bottomColor: `${spec.color}00` });
+        entry.api.applyOptions({
+          lineColor: spec.color,
+          topColor: `${spec.color}33`,
+          bottomColor: `${spec.color}00`,
+        });
       }
 
       const points = toChartPoints(spec.data);
@@ -279,7 +286,10 @@ export function LiveLineChart({
       {series.length > 1 && (
         <div className="pointer-events-none absolute left-2 top-1 flex gap-3">
           {series.map((s) => (
-            <span key={s.key} className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+            <span
+              key={s.key}
+              className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400"
+            >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
               {s.label}
               {s.data.length > 0 && (

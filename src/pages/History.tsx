@@ -13,8 +13,9 @@ import { DashboardFiltersProvider } from '../context/DashboardFiltersContext';
 import { useDashboardFilters } from '../hooks/useDashboardFilters';
 import { useDevice } from '../hooks/useDevice';
 import { getHistory } from '../api/history';
-import type { HistoryResponse, TimeSeriesPoint, Variable } from '../api/types';
-import { VARIABLE_LIST, VARIABLE_META } from '../types/variable';
+import type { HistoryResponse, TimeSeriesPoint, Variable, VariableDisponible } from '../api/types';
+import { colorModeFor } from '../types/variable';
+import { useVariablesDelMedidor } from '../hooks/useVariablesDelMedidor';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -50,11 +51,11 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-function colorForSeries(variable: Variable, points: { value: number }[]): string {
-  const meta = VARIABLE_META[variable];
-  if (meta.colorMode === 'import') return IMPORT_COLOR;
-  if (meta.colorMode === 'export') return EXPORT_COLOR;
-  if (meta.colorMode === 'power') {
+function colorForSeries(info: VariableDisponible | undefined, points: { value: number }[]): string {
+  const modo = colorModeFor(info?.magnitud ?? null);
+  if (modo === 'import') return IMPORT_COLOR;
+  if (modo === 'export') return EXPORT_COLOR;
+  if (modo === 'power') {
     const mean = points.reduce((sum, p) => sum + p.value, 0) / (points.length || 1);
     return mean >= 0 ? IMPORT_COLOR : EXPORT_COLOR;
   }
@@ -77,6 +78,17 @@ function downloadCsv(variable: Variable, points: TimeSeriesPoint[]): void {
 
 function HistoryContent() {
   const { variable, fromIso, toIso, setVariable, setRange } = useDashboardFilters();
+  const { variables, porNombre } = useVariablesDelMedidor();
+  const info = porNombre.get(variable);
+
+  // Si la variable elegida no la reporta este medidor —el default de la app, o
+  // la que quedó seleccionada al cambiar de equipo— se pasa a la primera que sí
+  // tenga datos. Antes se quedaba pidiendo una serie que nunca iba a llegar y
+  // la pantalla mostraba un vacío sin explicación.
+  useEffect(() => {
+    if (variables.length === 0 || porNombre.has(variable)) return;
+    setVariable(variables[0]!.nombre);
+  }, [variables, porNombre, variable, setVariable]);
   const { selectedDeviceId } = useDevice();
   const [intervalSeconds, setIntervalSeconds] = useState(DEFAULT_INTERVAL_SECONDS);
   const [response, setResponse] = useState<HistoryResponse | null>(null);
@@ -111,10 +123,9 @@ function HistoryContent() {
     };
   }, [variable, fromIso, toIso, intervalSeconds, selectedDeviceId]);
 
-  const meta = VARIABLE_META[variable];
   const points = useMemo(() => response?.points ?? [], [response]);
   const chartData = points.map((p) => ({ time: Date.parse(p.time), value: p.value }));
-  const color = colorForSeries(variable, points);
+  const color = colorForSeries(info, points);
 
   const stats = useMemo(() => {
     if (points.length === 0) return null;
@@ -134,9 +145,9 @@ function HistoryContent() {
           onChange={(e) => setVariable(e.target.value as Variable)}
           className="rounded-lg border border-slate-900/10 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300"
         >
-          {VARIABLE_LIST.map((v) => (
-            <option key={v} value={v}>
-              {VARIABLE_META[v].label}
+          {variables.map((v) => (
+            <option key={v.nombre} value={v.nombre}>
+              {v.etiqueta}
             </option>
           ))}
         </select>
@@ -158,7 +169,7 @@ function HistoryContent() {
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            {meta.label}
+            {info?.etiqueta ?? variable}
             {response && (
               <span className="ml-2 text-slate-400">
                 · {response.aggregation} · cada {response.interval_seconds}s
@@ -181,7 +192,7 @@ function HistoryContent() {
             data={chartData}
             color={color}
             height={280}
-            valueFormatter={(v) => formatVariableValue(variable, v)}
+            valueFormatter={(v) => formatVariableValue(info?.unidad ?? '', v)}
             timeFormatter={(t) => formatLocalDateTime(new Date(t).toISOString(), 'd MMM, HH:mm')}
           />
         )}
@@ -198,7 +209,7 @@ function HistoryContent() {
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Mínimo</p>
               <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(variable, stats.min)}
+                {formatVariableValue(info?.unidad ?? '', stats.min)}
               </p>
             </div>
             <TrendingDown className="h-4 w-4 text-slate-400" />
@@ -207,7 +218,7 @@ function HistoryContent() {
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Máximo</p>
               <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(variable, stats.max)}
+                {formatVariableValue(info?.unidad ?? '', stats.max)}
               </p>
             </div>
             <TrendingUp className="h-4 w-4 text-slate-400" />
@@ -216,7 +227,7 @@ function HistoryContent() {
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Promedio</p>
               <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(variable, stats.mean)}
+                {formatVariableValue(info?.unidad ?? '', stats.mean)}
               </p>
             </div>
             <Sigma className="h-4 w-4 text-slate-400" />
@@ -225,7 +236,7 @@ function HistoryContent() {
             <div>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Último</p>
               <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(variable, stats.last)}
+                {formatVariableValue(info?.unidad ?? '', stats.last)}
               </p>
             </div>
             <Clock className="h-4 w-4 text-slate-400" />
