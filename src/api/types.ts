@@ -1,4 +1,7 @@
 // Tipos alineados 1:1 con /openapi.json del backend ApiEMS. No inventar campos.
+import type { Period } from '../domain/periods';
+
+export type { Period };
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -58,8 +61,6 @@ export interface VariableDisponible {
 }
 
 export type Aggregation = 'mean' | 'max' | 'min' | 'last';
-
-export type Period = 'day' | 'week' | 'month' | 'year';
 
 export type ReportType = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 
@@ -161,34 +162,40 @@ export interface Proyecto {
 
 // ---------- Dashboard ----------
 
-export interface DashboardData {
-  device_id: string;
-  power_active_total_w: number;
-  voltage_a: number;
-  voltage_b: number;
-  current_a: number;
-  current_b: number;
-  power_factor: number;
-  consumption_today_kwh: number;
-  consumption_month_kwh: number;
-  export_today_kwh: number;
-  export_month_kwh: number;
-  last_update: string;
-}
-
-export interface DashboardCard {
-  key: string;
-  label: string;
-  value: number;
-  unit: string;
-}
-
 export interface DashboardStatus {
   mqtt_connected: boolean;
   influx_connected: boolean;
   devices_online: number;
   devices_total: number;
   last_message_at: string | null;
+}
+
+/**
+ * El payload consolidado del panel (una sola llamada).
+ *
+ * Sustituye las peticiones separadas de costos y KPIs del top del dashboard.
+ * La conectividad NO va aquí — la sigue exponiendo `/dashboard/status`.
+ */
+export interface DashboardSummary {
+  device_id: string;
+  last_update: string;
+  // En vivo (RAM, vía MQTT)
+  power_active_total_w: number;
+  voltage_a: number;
+  voltage_b: number;
+  current_a: number;
+  current_b: number;
+  power_factor: number;
+  // Energía del periodo (InfluxDB, cacheada)
+  consumption_today_kwh: number;
+  consumption_month_kwh: number;
+  export_today_kwh: number;
+  export_month_kwh: number;
+  // Costos del día y del mes (mismos rangos que /costs/*)
+  costs_day: CostBreakdown;
+  costs_month: CostBreakdown;
+  // KPIs del día (idénticos a /kpis con el default de hoy)
+  kpis: KpiSummary;
 }
 
 // ---------- Realtime ----------
@@ -205,20 +212,6 @@ export interface DeviceDisponible {
   gateway: string;
   /** Lo decide el CRM con su umbral; acá solo se muestra. */
   gateway_en_linea: boolean;
-}
-
-export interface DeviceSnapshot {
-  /** = identify_device (UUID por equipo) — confirmado como tag real en InfluxDB. */
-  device_id: string;
-  device_name: string;
-  device_type: string;
-  identify_device: string;
-  timestamp: string;
-  received_at: string;
-  data: Record<string, number>;
-  /** Del tópico MQTT — mismo valor que identify_device, no una identidad aparte. */
-  equipment_uuid: string | null;
-  modbus_id: number | null;
 }
 
 // ---------- History ----------
@@ -238,18 +231,6 @@ export interface HistoryResponse {
   points: TimeSeriesPoint[];
 }
 
-export interface RangeSummary {
-  variable: Variable;
-  device_id: string | null;
-  period_start: string;
-  period_end: string;
-  mean: number | null;
-  max: number | null;
-  min: number | null;
-  last: number | null;
-  total_kwh: number | null;
-}
-
 export interface HistoryParams {
   variable: Variable;
   from: string;
@@ -266,29 +247,6 @@ export interface HistoryDownsampleParams {
   target_points?: number;
   device_id?: string;
   aggregation?: Aggregation;
-}
-
-export interface HistoryRangeParams {
-  variable: Variable;
-  from: string;
-  to: string;
-  device_id?: string;
-}
-
-// ---------- Consumption / Export ----------
-
-export interface EnergyPoint {
-  time: string;
-  value: number;
-}
-
-export interface EnergySummary {
-  period: Period;
-  device_id: string | null;
-  period_start: string;
-  period_end: string;
-  total_kwh: number;
-  series: EnergyPoint[];
 }
 
 // ---------- Analytics ----------
@@ -316,17 +274,6 @@ export interface BaseLoadResult {
   device_id: string | null;
   percentile: number;
   base_load_w: number | null;
-}
-
-export interface AnalyticsOverview {
-  period_start: string;
-  period_end: string;
-  device_id: string | null;
-  consumption_kwh: number;
-  export_kwh: number;
-  max_demand: MaxDemandResult;
-  load_factor: LoadFactorResult;
-  base_load: BaseLoadResult;
 }
 
 export interface HourProfilePoint {
@@ -430,6 +377,11 @@ export interface KpiSummary {
 
 // ---------- Reports ----------
 
+export interface EnergyPoint {
+  time: string;
+  value: number;
+}
+
 export interface ReportData {
   report_type: ReportType;
   device_id: string | null;
@@ -472,7 +424,7 @@ export interface TariffConfig {
 }
 
 /** Ojo: NO son los mismos strings que ReportType ("daily"/"monthly"/…) — convención aparte. */
-export type CostPeriod = Period | 'custom';
+export type CostPeriod = Period;
 
 export interface CostPoint {
   time: string;
@@ -595,4 +547,9 @@ export interface WsAlertEvent extends Alert {
 }
 
 export type WsServerEvent =
-  WsSubscribedEvent | WsDataEvent | WsUnsubscribedEvent | WsPongEvent | WsErrorEvent | WsAlertEvent;
+  | WsSubscribedEvent
+  | WsDataEvent
+  | WsUnsubscribedEvent
+  | WsPongEvent
+  | WsErrorEvent
+  | WsAlertEvent;

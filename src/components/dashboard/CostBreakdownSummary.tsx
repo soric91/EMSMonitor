@@ -2,12 +2,7 @@ import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Wallet } from 'lucide-
 import type { CostBreakdown } from '../../api/types';
 import { Card } from '../ui/Card';
 import { formatCop } from '../../utils/format';
-
-function monthLabel(month: string): string {
-  return new Intl.DateTimeFormat('es-CO', { month: 'short', year: 'numeric' }).format(
-    new Date(`${month}-01T12:00:00Z`),
-  );
-}
+import { monthLabel } from '../../utils/labels';
 
 /** Desglose de costos ya calculado (viene embebido en reportes o de /costs/*). */
 export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
@@ -75,8 +70,8 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
         <p className="flex items-start gap-1.5 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>
-            Tarifa estimada con datos de {costs.months_used.map(monthLabel).join(', ')} — actualiza
-            la tarifa de {staleMonths.map(monthLabel).join(', ')}
+            Tarifa estimada con datos de {costs.months_used.map((m) => monthLabel(m)).join(', ')} —
+            actualiza la tarifa de {staleMonths.map((m) => monthLabel(m)).join(', ')}
           </span>
         </p>
       )}

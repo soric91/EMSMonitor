@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, Gauge, Router, Search, WifiOff } from 'lucide-react';
 import { useDevice } from '../../hooks/useDevice';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 /**
  * Qué gateway y qué medidor se está mirando.
@@ -106,31 +107,14 @@ function Desplegable({
 }: DesplegableProps) {
   const [abierto, setAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
-  const contenedor = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!abierto) return;
-    function alClic(evento: MouseEvent) {
-      if (!contenedor.current?.contains(evento.target as Node)) setAbierto(false);
-    }
-    function alEscape(evento: KeyboardEvent) {
-      if (evento.key === 'Escape') setAbierto(false);
-    }
-    document.addEventListener('mousedown', alClic);
-    document.addEventListener('keydown', alEscape);
-    return () => {
-      document.removeEventListener('mousedown', alClic);
-      document.removeEventListener('keydown', alEscape);
-    };
-  }, [abierto]);
+  const contenedor = useClickOutside<HTMLDivElement>(() => setAbierto(false), abierto);
 
   const filtradas = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
     if (!texto) return opciones;
     return opciones.filter(
       (o) =>
-        o.principal.toLowerCase().includes(texto) ||
-        o.secundario.toLowerCase().includes(texto),
+        o.principal.toLowerCase().includes(texto) || o.secundario.toLowerCase().includes(texto),
     );
   }, [opciones, busqueda]);
 
@@ -231,9 +215,7 @@ function Desplegable({
                       )}
                     </span>
                     {opcion.secundario && (
-                      <span className="block text-[10px] text-slate-400">
-                        {opcion.secundario}
-                      </span>
+                      <span className="block text-[10px] text-slate-400">{opcion.secundario}</span>
                     )}
                   </span>
                   {esElegido && <Check className="h-3.5 w-3.5 shrink-0" />}

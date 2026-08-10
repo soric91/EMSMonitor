@@ -22,6 +22,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
 import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { formatVariableValue, formatLocalDateTime } from '../utils/format';
+import { downloadCsv } from '../utils/downloadCsv';
 
 const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
@@ -62,18 +63,11 @@ function colorForSeries(info: VariableDisponible | undefined, points: { value: n
   return NEUTRAL_COLOR;
 }
 
-function downloadCsv(variable: Variable, points: TimeSeriesPoint[]): void {
-  const rows = [
-    'hora_bogota,valor',
-    ...points.map((p) => `${formatLocalDateTime(p.time, "yyyy-MM-dd'T'HH:mm:ss")},${p.value}`),
-  ];
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${variable.toLowerCase()}_historico.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+function exportCsv(variable: Variable, points: TimeSeriesPoint[]): void {
+  downloadCsv(`${variable.toLowerCase()}_historico.csv`, [
+    ['hora_bogota', 'valor'],
+    ...points.map((p) => [formatLocalDateTime(p.time, "yyyy-MM-dd'T'HH:mm:ss"), String(p.value)]),
+  ]);
 }
 
 function HistoryContent() {
@@ -247,7 +241,7 @@ function HistoryContent() {
       {!loading && !error && points.length > 0 && (
         <div className="flex justify-end">
           <button
-            onClick={() => downloadCsv(variable, points)}
+            onClick={() => exportCsv(variable, points)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
           >
             <Download className="h-3.5 w-3.5" />

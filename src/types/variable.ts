@@ -84,3 +84,38 @@ export function ordenarMagnitudes(magnitudes: Magnitud[]): Magnitud[] {
 export function esGraficableEnVivo(variable: VariableDisponible): boolean {
   return !variable.acumulativa && variable.magnitud !== 'estado_digital';
 }
+
+/** Orden de fases dentro de un grupo: A, B, C, compuestas, neutro, total. */
+export const ORDEN_FASE: Record<string, number> = {
+  A: 0,
+  B: 1,
+  C: 2,
+  AB: 3,
+  BC: 4,
+  CA: 5,
+  N: 6,
+  total: 7,
+};
+
+/**
+ * Agrupa por magnitud y ordena cada grupo por fase (A, B, C…).
+ *
+ * Copiado antes en `VariablesContext` y `useVariablesDelMedidor` con la misma
+ * lógica: se salta las magnitud sin clasificar y ordena con `ORDEN_FASE`. Aquí
+ * vive una vez; ambos consumidores solo derivan grupos a partir de su lista.
+ */
+export function agruparPorMagnitud(
+  variables: VariableDisponible[],
+): Map<Magnitud, VariableDisponible[]> {
+  const porMagnitud = new Map<Magnitud, VariableDisponible[]>();
+  for (const variable of variables) {
+    if (variable.magnitud === null) continue; // sin clasificar: no se agrupa
+    const grupo = porMagnitud.get(variable.magnitud) ?? [];
+    grupo.push(variable);
+    porMagnitud.set(variable.magnitud, grupo);
+  }
+  for (const grupo of porMagnitud.values()) {
+    grupo.sort((a, b) => (ORDEN_FASE[a.fase ?? ''] ?? 99) - (ORDEN_FASE[b.fase ?? ''] ?? 99));
+  }
+  return porMagnitud;
+}

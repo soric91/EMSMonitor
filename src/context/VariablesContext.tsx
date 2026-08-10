@@ -1,5 +1,6 @@
 import { createContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { listVariables } from '../api/variables';
+import { agruparPorMagnitud } from '../types/variable';
 import type { Magnitud, Variable, VariableDisponible } from '../api/types';
 
 // Qué se puede graficar, para toda la app.
@@ -38,17 +39,6 @@ interface VariablesContextValue {
   /** La petición falló. Distinto de "no hay variables", que es una lista vacía. */
   error: boolean;
 }
-
-const ORDEN_FASE: Record<string, number> = {
-  A: 0,
-  B: 1,
-  C: 2,
-  AB: 3,
-  BC: 4,
-  CA: 5,
-  N: 6,
-  total: 7,
-};
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const VariablesContext = createContext<VariablesContextValue | null>(null);
@@ -90,17 +80,7 @@ export function VariablesProvider({ children }: { children: ReactNode }) {
     // datos, pero necesita saber que las otras existen para no acusar al CRM.
     const variables = declaradas.filter((v) => v.con_datos);
     const porNombre = new Map(variables.map((v) => [v.nombre, v]));
-
-    const porMagnitud = new Map<Magnitud, VariableDisponible[]>();
-    for (const variable of variables) {
-      if (variable.magnitud === null) continue; // sin clasificar: no se puede agrupar
-      const grupo = porMagnitud.get(variable.magnitud) ?? [];
-      grupo.push(variable);
-      porMagnitud.set(variable.magnitud, grupo);
-    }
-    for (const grupo of porMagnitud.values()) {
-      grupo.sort((a, b) => (ORDEN_FASE[a.fase ?? ''] ?? 99) - (ORDEN_FASE[b.fase ?? ''] ?? 99));
-    }
+    const porMagnitud = agruparPorMagnitud(variables);
 
     return {
       variables,

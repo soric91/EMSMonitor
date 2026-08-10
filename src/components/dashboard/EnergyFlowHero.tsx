@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Home, Minus, Zap } from 'lucide-react';
-import { getRealtimeDevice } from '../../api/realtime';
-import { useDevice } from '../../hooks/useDevice';
 import { useRealtime } from '../../hooks/useRealtime';
 import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 import { Card } from '../ui/Card';
@@ -18,14 +16,6 @@ const IDLE_BORDER = 'rgba(148,163,184,0.2)';
 // variable fija que queda en el panel, y lo es porque el componente entero
 // existe para mostrar ese flujo — no es una lista que pueda quedar corta.
 const VARIABLE = 'TotW';
-
-// Cada cuánto se pregunta el último valor cuando el socket está ocupado con
-// otra variable. Un segundo, igual que el medidor: este recuadro es la cifra
-// que se mira de continuo, y a cinco segundos se notaba a saltos.
-//
-// El costo es una petición por segundo, pero la lectura sale de la memoria de
-// ApiEMS —no de InfluxDB— así que no toca nada de lo que costaba caro.
-const REFRESCO_MS = 1000;
 
 function FlowDots({
   direction,
@@ -84,55 +74,27 @@ function FlowArrowhead({
   );
 }
 
-export function EnergyFlowHero() {
+interface EnergyFlowHeroProps {
+  /**
+   * La potencia activa total que el panel ya trajo en `/dashboard/summary`
+   * (en vatios). Así el hero no pregunta por su cuenta: cuando el socket está
+   * ocupado con otra variable muestra la última instantánea, no se congela.
+   */
+  seedWatts?: number | null;
+}
+
+export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
   const { status, subscribedVariable, latestData, subscribe, onDataEvent } = useRealtime();
   const { porNombre } = useVariablesDelMedidor();
-  const { selectedDeviceId } = useDevice();
   // Si este recuadro es el dueño de la suscripción del socket.
   const isLive = subscribedVariable === VARIABLE;
   const [lastKnown, setLastKnown] = useState<WsDataEvent | null>(null);
-  // El último valor conocido, pedido por HTTP al montar.
-  const [semilla, setSemilla] = useState<number | null>(null);
 
   useEffect(() => {
     return onDataEvent((event) => {
       if (event.variable === VARIABLE) setLastKnown(event);
     });
   }, [onDataEvent]);
-
-  // El socket sostiene una sola variable a la vez, y la gráfica de abajo puede
-  // llevársela a pedido de quien mira. Pero este recuadro existe para mostrar
-  // la potencia en la frontera: quedarse en «—» —o congelado— porque alguien
-  // eligió ver la tensión es perder justo lo que vino a mostrar.
-  //
-  // ApiEMS guarda la última lectura de cada equipo en RAM, así que preguntarle
-  // no toca InfluxDB. Mientras no tenga la suscripción, se pregunta cada pocos
-  // segundos; cuando la tiene, el socket manda y esto se apaga solo.
-  useEffect(() => {
-    let cancelled = false;
-    if (selectedDeviceId === null) return;
-
-    async function traerUltimo(deviceId: string) {
-      try {
-        const snapshot = await getRealtimeDevice(deviceId);
-        const valor = snapshot.data[VARIABLE];
-        if (!cancelled && typeof valor === 'number') setSemilla(valor);
-      } catch {
-        // Sin último valor no hay nada que mostrar, que es el estado de antes.
-      }
-    }
-
-    void traerUltimo(selectedDeviceId);
-    if (isLive) return () => {
-      cancelled = true;
-    };
-
-    const timer = setInterval(() => void traerUltimo(selectedDeviceId), REFRESCO_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [selectedDeviceId, isLive]);
 
   useEffect(() => {
     // Solo reclama la suscripción si nada más la está usando: el chart de abajo
@@ -142,18 +104,14 @@ export function EnergyFlowHero() {
     }
   }, [status, subscribedVariable, subscribe]);
 
-  // Con la suscripción, manda el socket. Sin ella manda la consulta, **no**
-  // `lastKnown`: ese es el último valor que llegó por el socket alguna vez, y
-  // al perder la suscripción queda congelado. Si tuviera prioridad, el número
-  // no volvería a moverse hasta recargar la página — que es exactamente lo que
-  // pasaba.
-  const crudo = isLive
-    ? (latestData?.value ?? lastKnown?.value ?? semilla)
-    : (semilla ?? lastKnown?.value ?? null);
-  // El medidor reporta `TotW` en kW. Todo lo de abajo —el formato y los dos
-  // umbrales— razona en vatios, así que la conversión va acá y una sola vez.
+  // El medidor reporta `TotW` en kW, así que el valor en vivo se convierte a
+  // vatios una sola vez. `lastKnown` es el último valor que llegó por el socket
+  // para esta variable (pase lo que pase con la suscripción). La semilla del
+  // resumen manda después: gana la instantánea fresca del /dashboard/summary.
   const unidad = porNombre.get(VARIABLE)?.unidad ?? '';
-  const value = crudo === null ? null : enWatts(crudo, unidad);
+  const ultimoWs = lastKnown ? enWatts(lastKnown.value, unidad) : null;
+  const enVivo = isLive ? (latestData?.value ?? null) : null;
+  const value = enVivo !== null ? enWatts(enVivo, unidad) : (seedWatts ?? ultimoWs ?? null);
   const isImporting = value !== null && value > 1;
   const isExporting = value !== null && value < -1;
   const direction: 'import' | 'export' | 'neutral' = isImporting
@@ -185,9 +143,7 @@ export function EnergyFlowHero() {
               </span>
             </span>
           ) : (
-            value !== null && (
-              <span className="text-[10px] text-slate-400">actualizando</span>
-            )
+            value !== null && <span className="text-[10px] text-slate-400">actualizando</span>
           )}
         </div>
         <span
@@ -270,7 +226,6 @@ export function EnergyFlowHero() {
           </span>
         </div>
       </div>
-
     </Card>
   );
 }

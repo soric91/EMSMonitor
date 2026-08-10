@@ -8,12 +8,7 @@ import { Badge } from '../ui/Badge';
 import { Skeleton } from '../ui/Skeleton';
 import { HourlyProfileChart } from '../charts/HourlyProfileChart';
 import { formatCop, formatKwh } from '../../utils/format';
-
-function monthLabel(month: string): string {
-  return new Intl.DateTimeFormat('es-CO', { month: 'long', year: 'numeric' }).format(
-    new Date(`${month}-01T12:00:00Z`),
-  );
-}
+import { monthLabel } from '../../utils/labels';
 
 const STAT_CARDS: { key: keyof AnalyticsSummaryData; label: string; tone: 'import' | 'export' }[] =
   [
@@ -177,7 +172,7 @@ export function AnalyticsSummary() {
                 {eff.stale && (
                   <Badge tone="amber">
                     <AlertTriangle className="h-3 w-3" /> tarifa desactualizada (
-                    {monthLabel(eff.tariff_month)})
+                    {monthLabel(eff.tariff_month, 'long')})
                   </Badge>
                 )}
               </div>

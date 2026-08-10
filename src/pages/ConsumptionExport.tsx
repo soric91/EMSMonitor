@@ -1,71 +1,34 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { ArrowDownToLine, ArrowUpFromLine, Scale } from 'lucide-react';
 import { getReport } from '../api/reports';
 import { useDevice } from '../hooks/useDevice';
-import type { Period, ReportData, ReportType } from '../api/types';
+import type { FixedPeriod } from '../domain/periods';
+import type { ReportData } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
-import {
-  ComparisonBarChart,
-  type ComparisonBarPoint,
-} from '../components/charts/ComparisonBarChart';
+import { TabPills } from '../components/ui/TabPills';
+import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
+import { mergeSeries } from '../utils/mergeSeries';
 import { formatCop, formatKwh, formatLocalDateTime } from '../utils/format';
 
-const TABS: { key: Period; label: string }[] = [
+const TABS: { key: FixedPeriod; label: string }[] = [
   { key: 'day', label: 'Día' },
   { key: 'week', label: 'Semana' },
   { key: 'month', label: 'Mes' },
   { key: 'year', label: 'Año' },
 ];
 
-// getReport usa ReportType ("daily"/"weekly"/...), esta página usa Period
-// ("day"/"week"/...) para las tabs — mismo periodo, dos convenciones de string
-// distintas ya establecidas en el backend (ver CostPeriod vs ReportType).
-const PERIOD_TO_REPORT_TYPE: Record<Period, Exclude<ReportType, 'custom'>> = {
-  day: 'daily',
-  week: 'weekly',
-  month: 'monthly',
-  year: 'yearly',
-};
-
-const BUCKET_FORMAT: Record<Period, string> = {
+const BUCKET_FORMAT: Record<FixedPeriod, string> = {
   day: 'HH:mm',
   week: 'EEE',
   month: 'd MMM',
   year: 'MMM',
 };
 
-function mergeSeries(report: ReportData, period: Period): ComparisonBarPoint[] {
-  const byTime = new Map<string, ComparisonBarPoint>();
-  for (const p of report.consumption_series) {
-    byTime.set(p.time, {
-      label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]),
-      a: p.value,
-      b: 0,
-    });
-  }
-  for (const p of report.export_series) {
-    const existing = byTime.get(p.time);
-    if (existing) {
-      existing.b = p.value;
-    } else {
-      byTime.set(p.time, {
-        label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]),
-        a: 0,
-        b: p.value,
-      });
-    }
-  }
-  return Array.from(byTime.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, point]) => point);
-}
-
 export default function ConsumptionExport() {
   const { selectedDeviceId } = useDevice();
-  const [period, setPeriod] = useState<Period>('day');
+  const [period, setPeriod] = useState<FixedPeriod>('day');
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -77,7 +40,7 @@ export default function ConsumptionExport() {
       setLoading(true);
       setError(false);
       try {
-        const data = await getReport(PERIOD_TO_REPORT_TYPE[period], selectedDeviceId ?? undefined);
+        const data = await getReport(period, selectedDeviceId ?? undefined);
         if (!cancelled) setReport(data);
       } catch {
         if (!cancelled) setError(true);
@@ -98,27 +61,12 @@ export default function ConsumptionExport() {
   return (
     <div className="space-y-6">
       <Card className="inline-flex w-fit gap-1 p-1.5">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setPeriod(tab.key)}
-            className={[
-              'relative rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
-              period === tab.key
-                ? 'text-slate-950'
-                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
-            ].join(' ')}
-          >
-            {period === tab.key && (
-              <motion.span
-                layoutId="consumption-tab-pill"
-                className="absolute inset-0 rounded-lg bg-emerald-500"
-                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-              />
-            )}
-            <span className="relative">{tab.label}</span>
-          </button>
-        ))}
+        <TabPills
+          layoutId="consumption-tab-pill"
+          options={TABS}
+          value={period}
+          onChange={setPeriod}
+        />
       </Card>
 
       {loading && (
@@ -213,7 +161,9 @@ export default function ConsumptionExport() {
               Importación vs. exportación
             </p>
             <ComparisonBarChart
-              data={mergeSeries(report, period)}
+              data={mergeSeries(report.consumption_series, report.export_series, (time) =>
+                formatLocalDateTime(time, BUCKET_FORMAT[period]),
+              )}
               labelA="Importado"
               labelB="Exportado"
               valueFormatter={(v) => formatKwh(v)}

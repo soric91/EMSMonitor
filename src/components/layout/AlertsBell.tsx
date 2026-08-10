@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, BellOff } from 'lucide-react';
 import { useAlerts } from '../../hooks/useAlerts';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import type { Alert, AlertSeverity } from '../../api/types';
 import { formatLocalDateTime } from '../../utils/format';
 
@@ -37,19 +38,7 @@ function AlertItem({ alert }: { alert: Alert }) {
 export function AlertsBell() {
   const { alerts, unreadCount, liveAlert, markAllSeen } = useAlerts();
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Cerrar al hacer click fuera del panel.
-  useEffect(() => {
-    if (!open) return;
-    const handler = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false), open);
 
   const toggle = () => {
     const next = !open;

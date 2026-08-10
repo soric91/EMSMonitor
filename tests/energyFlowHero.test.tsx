@@ -1,10 +1,12 @@
 /**
- * El recuadro de la frontera cuando no tiene la suscripción.
+ * El recuadro de la frontera, ahora alimentado por el payload consolidado.
  *
- * El WebSocket sostiene **una sola variable a la vez**. Si la gráfica de abajo
- * se quedó con otra, este componente no recibe datos; y al volver de otra
- * página perdió también lo que tenía en memoria, así que quedaba en «—» para
- * siempre aunque el medidor estuviera publicando.
+ * Desde F5.3 el hero no pregunta por su cuenta: `/dashboard/summary` ya trae la
+ * potencia activa total (`power_active_total_w`), y el WebSocket sostiene una
+ * sola variable a la vez —si la gráfica de abajo se quedó con otra, el hero usa
+ * la última instantánea que le llegó a él. Sin ninguna de las dos fuentes no
+ * inventa un valor: un medidor recién instalado que nunca publicó no está
+ * consumiendo ni dejó de consumir, no sabemos.
  */
 
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
@@ -37,68 +39,60 @@ const TOT_W = {
   con_datos: true,
 };
 
-/** El valor que devuelve la consulta; los tests lo cambian para ver si llega. */
-let valorActual = 520.8;
-
-/** Lo que ApiEMS guarda en memoria de la última lectura del equipo. */
-const ULTIMA_LECTURA = {
-  device_id: 'eq-1',
-  device_name: 'Tablero',
-  device_type: 'CT_Meter',
-  identify_device: 'eq-1',
-  timestamp: '2026-08-10T12:00:00Z',
-  received_at: '2026-08-10T12:00:01Z',
-  data: {} as Record<string, number>,
-  equipment_uuid: 'eq-1',
-  modbus_id: 10,
-};
-
-describe('sin la suscripción del socket', () => {
-  test('muestra el último valor que ApiEMS tiene guardado', async () => {
-    // El caso reportado: se entra al tablero, se cambia de página y se vuelve.
-    // El componente se remonta sin nada en memoria y la gráfica de abajo ya
-    // tiene la suscripción, así que por el socket no va a llegar nada.
+describe('con la potencia del resumen', () => {
+  test('muestra lo que trajo /dashboard/summary', async () => {
     servir();
 
-    montar();
+    montar({ seedWatts: 520.8 });
 
-    // El medidor entrega vatios; el panel escala solo al pasar de 1000.
     await waitFor(() => expect(screen.getByText('521 W')).toBeInTheDocument());
   });
 
-  test('lo pide del medidor elegido', async () => {
+  test('escala solo al cruzar el kilovatio', async () => {
     servir();
 
-    montar();
+    montar({ seedWatts: 1500 });
 
-    await waitFor(() =>
-      expect(
-        parametros.some(
-          (p) => String(p.url).includes('/realtime/device') && p.device_id === 'eq-1',
-        ),
-      ).toBe(true),
-    );
+    await waitFor(() => expect(screen.getByText('1.50 kW')).toBeInTheDocument());
   });
+});
 
-  test('si no hay último valor, no inventa uno', async () => {
-    // Un medidor recién instalado que nunca publicó. Mostrar un cero sería
-    // afirmar que no está consumiendo, que es distinto de no saber.
-    servir({ sinLectura: true });
+describe('sin el resumen y sin el socket', () => {
+  test('no inventa un valor', async () => {
+    // Sin `seedWatts` (resumen todavía cargando o fallido) y sin una última
+    // lectura por el socket, mostrar un cero afirmaría que no está consumiendo,
+    // que es distinto de no saber.
+    servir();
 
-    montar();
+    montar({ seedWatts: null });
 
     await waitFor(() => expect(screen.getByText('—')).toBeInTheDocument());
   });
 });
 
+describe('el resumen no vuelve a preguntar', () => {
+  test('el hero no hace peticiones propias', async () => {
+    servir();
+
+    montar({ seedWatts: 520.8 });
+
+    await waitFor(() => expect(screen.getByText('521 W')).toBeInTheDocument());
+
+    // El payload consolidado reemplazó la consulta puntual a /realtime/device.
+    // Pedirla de nuevo sería traer la misma potencia por duplicado.
+    const pedidos = parametros.filter((p) => String(p.url).includes('/realtime/device'));
+    expect(pedidos).toHaveLength(0);
+  });
+});
+
 // --- andamiaje ---------------------------------------------------------
 
-function montar(): void {
+function montar({ seedWatts }: { seedWatts?: number | null }): void {
   render(
     <VariablesProvider>
       <DeviceProvider>
         <RealtimeProvider>
-          <EnergyFlowHero />
+          <EnergyFlowHero seedWatts={seedWatts ?? null} />
         </RealtimeProvider>
       </DeviceProvider>
     </VariablesProvider>,
@@ -117,20 +111,13 @@ class WebSocketMudo {
   send(): void {}
 }
 
-function servir(options: { sinLectura?: boolean } = {}): void {
+function servir(): void {
   globalThis.WebSocket = WebSocketMudo as unknown as typeof WebSocket;
   apiClient.defaults.adapter = (config) => {
     const url = config.url ?? '';
     parametros.push({ url, ...(config.params ?? {}) });
 
-    const data =
-      url === '/devices'
-        ? [MEDIDOR]
-        : url === '/variables'
-          ? [TOT_W]
-          : options.sinLectura
-            ? { ...ULTIMA_LECTURA, data: {} }
-            : { ...ULTIMA_LECTURA, data: { TotW: valorActual } };
+    const data = url === '/devices' ? [MEDIDOR] : url === '/variables' ? [TOT_W] : [];
 
     return Promise.resolve({
       data: { success: true, message: '', data },
@@ -145,45 +132,9 @@ function servir(options: { sinLectura?: boolean } = {}): void {
 afterEach(() => {
   cleanup();
   parametros = [];
-  valorActual = 520.8;
 });
 
 afterAll(() => {
   apiClient.defaults.adapter = adapterOriginal;
   globalThis.WebSocket = WebSocketOriginal;
-});
-
-describe('mientras la gráfica tiene la suscripción', () => {
-  test('sigue actualizando en vez de quedarse congelado', async () => {
-    // El recuadro existe para mostrar la potencia en la frontera. Que alguien
-    // elija ver la tensión abajo no puede dejarlo mostrando un número viejo.
-    servir();
-
-    montar();
-
-    await waitFor(() => expect(screen.getByText('521 W')).toBeInTheDocument());
-
-    const consultas = () =>
-      parametros.filter((p) => String(p.url).includes('/realtime/device')).length;
-    const antes = consultas();
-
-    await new Promise((listo) => setTimeout(listo, 1200));
-
-    expect(consultas()).toBeGreaterThan(antes);
-  });
-
-  test('un valor viejo del socket no tapa al de la consulta', async () => {
-    // El bug reportado: `lastKnown` guarda el último valor que llegó por el
-    // socket, y al perder la suscripción queda congelado. Si tuviera
-    // prioridad, el número no se movería hasta recargar la página.
-    servir();
-
-    montar();
-
-    await waitFor(() => expect(screen.getByText('521 W')).toBeInTheDocument());
-
-    // Cruza los 1000 W, así que además comprueba que el panel escale solo.
-    valorActual = 1500;
-    await waitFor(() => expect(screen.getByText('1.50 kW')).toBeInTheDocument());
-  });
 });

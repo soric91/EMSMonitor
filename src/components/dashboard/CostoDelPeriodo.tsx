@@ -1,24 +1,29 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, PiggyBank, Wallet } from 'lucide-react';
 import { getCosts } from '../../api/costs';
-import type { CostBreakdown, Period } from '../../api/types';
+import type { CostBreakdown } from '../../api/types';
+import type { FixedPeriod } from '../../domain/periods';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { formatCop, formatKwh } from '../../utils/format';
+import { monthLabel } from '../../utils/labels';
 import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 import { useDevice } from '../../hooks/useDevice';
 
 interface CostoDelPeriodoProps {
   /** "hoy", "del mes" — se completa como "Importado hoy". */
   periodo: string;
-  period: Period;
-}
-
-function monthLabel(month: string): string {
-  // "2026-07" → "jul 2026" (mediodía UTC para esquivar corrimientos de zona)
-  return new Intl.DateTimeFormat('es-CO', { month: 'short', year: 'numeric' }).format(
-    new Date(`${month}-01T12:00:00Z`),
-  );
+  /**
+   * Solo en modo autónomo: el periodo que se pide a `/costs`.
+   * El panel (F5.3) ya no lo usa — pasa `costo` desde /dashboard/summary.
+   */
+  period?: FixedPeriod;
+  /**
+   * Costo ya cargado desde el payload consolidado. Sin este prop el
+   * componente se pide a sí mismo el costo (modo autónomo, para pruebas/uso
+   * aislado).
+   */
+  costo?: CostBreakdown | null;
 }
 
 /**
@@ -30,9 +35,9 @@ function monthLabel(month: string): string {
  * les da el color de lo que significan — ámbar lo que se paga, verde lo que se
  * acredita.
  *
- * Las dos salen de **una sola** petición: el backend ya devuelve importado,
- * exportado y neto juntos. Pedir dos veces sería traer el mismo cálculo por
- * duplicado, y con una latencia de ~190 ms contra la base eso se nota.
+ * El panel le pasa el costo ya calculado por `/dashboard/summary` (modo
+ * controlado): pedirlo dos veces sería traer el mismo cálculo por duplicado,
+ * y con una latencia de ~190 ms contra la base eso se nota.
  *
  * La de exportado aparece solo si el medidor mide exportación. Un cliente sin
  * paneles no entrega nada nunca, y una tarjeta en cero permanente ocupa la
@@ -43,14 +48,22 @@ function monthLabel(month: string): string {
  * paneles, exportar cero de noche es normal, y una tarjeta que aparece y
  * desaparece según la hora sería peor que cualquiera de las dos opciones.
  */
-export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
-  const [cost, setCost] = useState<CostBreakdown | null>(null);
+export function CostoDelPeriodo({ periodo, period, costo }: CostoDelPeriodoProps) {
+  const [autonomo, setAutonomo] = useState<CostBreakdown | null>(null);
   const [error, setError] = useState(false);
   const { porMagnitud } = useVariablesDelMedidor();
   const { selectedDeviceId, cargando: cargandoMedidores } = useDevice();
   const mideExportacion = porMagnitud.has('energia_exportada');
 
+  // Modo controlado: datos desde /dashboard/summary, sin petición propia.
+  const cost = costo !== undefined ? costo : autonomo;
+  const controlado = costo !== undefined;
+
   useEffect(() => {
+    // Modo controlado (datos desde /dashboard/summary) o autónomo sin periodo:
+    // en ambos casos no hay petición que hacer.
+    if (controlado || period === undefined) return;
+
     let cancelled = false;
 
     // Sin inventario todavía no se sabe qué medidor mirar, y preguntar sin él
@@ -63,8 +76,8 @@ export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
       try {
         // Con el medidor elegido: sin él el backend agrega TODOS los del
         // cliente, así que el importe no corresponde al que dice el selector.
-        const data = await getCosts(period, selectedDeviceId ?? undefined);
-        if (!cancelled) setCost(data);
+        const data = await getCosts(period!, selectedDeviceId ?? undefined);
+        if (!cancelled) setAutonomo(data);
       } catch {
         if (!cancelled) setError(true);
       }
@@ -74,13 +87,13 @@ export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
     return () => {
       cancelled = true;
     };
-  }, [period, selectedDeviceId, cargandoMedidores]);
+  }, [period, selectedDeviceId, cargandoMedidores, controlado]);
 
   if (error) {
     return <Card className="text-sm text-red-500">No se pudo cargar el costo {periodo}.</Card>;
   }
 
-  if (!cost) {
+  if (cost === null) {
     return (
       <>
         <Esqueleto />
@@ -180,8 +193,8 @@ function AvisoDeTarifa({ cost }: { cost: CostBreakdown }) {
     <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
       <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
       <span>
-        Tarifa estimada con datos de {cost.months_used.map(monthLabel).join(', ')} — actualiza la
-        tarifa de {staleMonths.map(monthLabel).join(', ')}
+        Tarifa estimada con datos de {cost.months_used.map((m) => monthLabel(m)).join(', ')} —
+        actualiza la tarifa de {staleMonths.map((m) => monthLabel(m)).join(', ')}
       </span>
     </p>
   );

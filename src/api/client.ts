@@ -92,9 +92,3 @@ export function unwrap<T>(response: ApiResponse<T>): T {
   }
   return response.data;
 }
-
-export function unwrapVoid(response: ApiResponse<unknown>): void {
-  if (!response.success) {
-    throw new ApiError(response.message || 'Request failed', undefined, response);
-  }
-}

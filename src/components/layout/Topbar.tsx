@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Menu, Wifi, WifiOff } from 'lucide-react';
 import { useLocalClock } from '../../hooks/useLocalClock';
 import { useRealtime } from '../../hooks/useRealtime';
@@ -6,6 +5,7 @@ import { AlertsBell } from './AlertsBell';
 import { SelectorDeMedidor } from './SelectorDeMedidor';
 import { NoticeBell } from './NoticeBell';
 import { UserMenu } from './UserMenu';
+import { OnlineDot } from '../ui/OnlineDot';
 import type { WsConnectionStatus } from '../../api/websocket';
 
 interface TopbarProps {
@@ -35,25 +35,16 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
         </button>
 
         <div className="flex items-center gap-2 rounded-full border border-slate-900/10 px-3 py-1.5 text-xs font-medium dark:border-white/10">
-          <span className="relative flex h-2 w-2">
-            {isLive && (
-              <motion.span
-                className="absolute inline-flex h-full w-full rounded-full bg-emerald-500"
-                animate={{ scale: [1, 2.2], opacity: [0.6, 0] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-              />
-            )}
-            <span
-              className={[
-                'relative inline-flex h-2 w-2 rounded-full',
-                isLive
-                  ? 'bg-emerald-500'
-                  : wsStatus === 'connecting' || wsStatus === 'reconnecting'
-                    ? 'bg-amber-500'
-                    : 'bg-slate-400',
-              ].join(' ')}
-            />
-          </span>
+          <OnlineDot
+            tone={
+              isLive
+                ? 'emerald'
+                : wsStatus === 'connecting' || wsStatus === 'reconnecting'
+                  ? 'amber'
+                  : 'slate'
+            }
+            pulse={isLive}
+          />
           {isLive ? (
             <Wifi className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           ) : (

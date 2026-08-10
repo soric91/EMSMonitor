@@ -4,18 +4,13 @@ import {
   nowLocalInput,
   utcIsoToLocalInput,
 } from '../../utils/timezone';
+import { RANGE_PRESETS } from '../../domain/periods';
 
 interface DateRangePickerProps {
   fromIso: string;
   toIso: string;
   onChange: (fromIso: string, toIso: string) => void;
 }
-
-const PRESETS = [
-  { label: 'Últimas 24h', hours: 24 },
-  { label: 'Últimos 7 días', hours: 24 * 7 },
-  { label: 'Últimos 30 días', hours: 24 * 30 },
-] as const;
 
 export function DateRangePicker({ fromIso, toIso, onChange }: DateRangePickerProps) {
   return (
@@ -34,7 +29,7 @@ export function DateRangePicker({ fromIso, toIso, onChange }: DateRangePickerPro
         className="rounded-lg border border-slate-900/10 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200"
       />
       <div className="flex gap-1.5">
-        {PRESETS.map((preset) => (
+        {RANGE_PRESETS.map((preset) => (
           <button
             key={preset.label}
             type="button"

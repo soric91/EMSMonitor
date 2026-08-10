@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import { ArrowDownToLine, ArrowUpFromLine, Minus } from 'lucide-react';
 import { useRealtime } from '../../hooks/useRealtime';
 import {
@@ -10,6 +9,8 @@ import {
 import { getHistoryDownsample } from '../../api/history';
 import { LiveLineChart, type LiveChartPoint, type LiveChartSeries } from '../charts/LiveLineChart';
 import { Card } from '../ui/Card';
+import { OnlineDot } from '../ui/OnlineDot';
+import { TabPills } from '../ui/TabPills';
 import { formatVariableValue } from '../../utils/format';
 import {
   colorModeFor,
@@ -277,16 +278,7 @@ export function LiveVariableChart() {
         <div>
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">Online</p>
-            {status === 'connected' && (
-              <span className="relative flex h-1.5 w-1.5">
-                <motion.span
-                  className="absolute inline-flex h-full w-full rounded-full bg-emerald-500"
-                  animate={{ scale: [1, 2.5], opacity: [0.7, 0] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-                />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              </span>
-            )}
+            {status === 'connected' && <OnlineDot pulse size="sm" />}
             {isPowerSigned && primaryValue !== null && (
               <span
                 className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
@@ -302,32 +294,17 @@ export function LiveVariableChart() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex gap-1 rounded-lg border border-slate-900/10 bg-slate-900/[0.03] p-1 dark:border-white/10 dark:bg-white/5">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => {
-                  setTabKey(tab.key);
-                  setCustomVariable(null);
-                }}
-                className={[
-                  'relative rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                  !customVariable && activeKey === tab.key
-                    ? 'text-slate-950'
-                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
-                ].join(' ')}
-              >
-                {!customVariable && activeKey === tab.key && (
-                  <motion.span
-                    layoutId="live-chart-tab-pill"
-                    className="absolute inset-0 rounded-md bg-white shadow-sm dark:bg-slate-700"
-                    transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                  />
-                )}
-                <span className="relative">{tab.label}</span>
-              </button>
-            ))}
-          </div>
+          <TabPills
+            layoutId="live-chart-tab-pill"
+            size="sm"
+            pillClassName="bg-white shadow-sm dark:bg-slate-700"
+            options={tabs.map((tab) => ({ key: tab.key, label: tab.label }))}
+            value={customVariable ? null : activeKey}
+            onChange={(key) => {
+              setTabKey(key);
+              setCustomVariable(null);
+            }}
+          />
           <select
             value={customVariable?.nombre ?? ''}
             onChange={(e) =>

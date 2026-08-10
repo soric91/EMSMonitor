@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Info } from 'lucide-react';
 import { useAlerts } from '../../hooks/useAlerts';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import { OnlineDot } from '../ui/OnlineDot';
 import { formatLocalDateTime } from '../../utils/format';
 
 /**
@@ -12,23 +14,11 @@ import { formatLocalDateTime } from '../../utils/format';
 export function NoticeBell() {
   const { dailyTotal } = useAlerts();
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false), open);
 
   if (!dailyTotal) return null;
 
   const isHigh = dailyTotal.severity === 'high';
-  const dotColor = isHigh ? 'bg-red-500' : 'bg-amber-500';
   const textColor = isHigh
     ? 'text-red-600 dark:text-red-400'
     : 'text-amber-600 dark:text-amber-400';
@@ -42,12 +32,12 @@ export function NoticeBell() {
       >
         <Info className="h-[18px] w-[18px]" />
         <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
-          <motion.span
-            className={['absolute inline-flex h-full w-full rounded-full', dotColor].join(' ')}
-            animate={{ scale: [1, 1.8], opacity: [0.7, 0] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+          <OnlineDot
+            tone={isHigh ? 'red' : 'amber'}
+            pulse
+            size="lg"
+            label={isHigh ? 'Desviación alta' : 'Desviación moderada'}
           />
-          <span className={['relative inline-flex h-2.5 w-2.5 rounded-full', dotColor].join(' ')} />
         </span>
       </button>
 

@@ -1,18 +1,8 @@
 import { useMemo } from 'react';
 import { useDevice } from './useDevice';
 import { useVariables } from './useVariables';
-import type { Magnitud, Variable, VariableDisponible } from '../api/types';
-
-const ORDEN_FASE: Record<string, number> = {
-  A: 0,
-  B: 1,
-  C: 2,
-  AB: 3,
-  BC: 4,
-  CA: 5,
-  N: 6,
-  total: 7,
-};
+import { agruparPorMagnitud } from '../types/variable';
+import type { Variable, VariableDisponible } from '../api/types';
 
 /**
  * Las variables que reporta **el medidor elegido**, no las de toda la empresa.
@@ -44,20 +34,9 @@ export function useVariablesDelMedidor() {
         : variables.filter((v) => v.equipos.includes(selectedDeviceId));
 
     const porNombreFiltrado: ReadonlyMap<Variable, VariableDisponible> =
-      selectedDeviceId === null
-        ? porNombre
-        : new Map(propias.map((v) => [v.nombre, v]));
+      selectedDeviceId === null ? porNombre : new Map(propias.map((v) => [v.nombre, v]));
 
-    const porMagnitud = new Map<Magnitud, VariableDisponible[]>();
-    for (const variable of propias) {
-      if (variable.magnitud === null) continue; // sin clasificar: no se agrupa
-      const grupo = porMagnitud.get(variable.magnitud) ?? [];
-      grupo.push(variable);
-      porMagnitud.set(variable.magnitud, grupo);
-    }
-    for (const grupo of porMagnitud.values()) {
-      grupo.sort((a, b) => (ORDEN_FASE[a.fase ?? ''] ?? 99) - (ORDEN_FASE[b.fase ?? ''] ?? 99));
-    }
+    const porMagnitud = agruparPorMagnitud(propias);
 
     return {
       variables: propias,

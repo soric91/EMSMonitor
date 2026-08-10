@@ -1,25 +1,13 @@
 import { apiClient, unwrap } from './client';
 import type {
-  AnalyticsOverview,
   AnalyticsRangeParams,
   AnalyticsSummary,
   ApiResponse,
-  BaseLoadParams,
-  BaseLoadResult,
   CompareParams,
   CompareResult,
   HourProfilePoint,
-  LoadFactorResult,
-  MaxDemandResult,
   WeekdayProfilePoint,
 } from './types';
-
-export async function getAnalyticsOverview(
-  params: AnalyticsRangeParams = {},
-): Promise<AnalyticsOverview> {
-  const { data } = await apiClient.get<ApiResponse<AnalyticsOverview>>('/analytics', { params });
-  return unwrap(data);
-}
 
 export async function getDailyProfile(
   params: AnalyticsRangeParams = {},
@@ -38,27 +26,6 @@ export async function getMonthlyProfile(
     '/analytics/monthly-profile',
     { params },
   );
-  return unwrap(data);
-}
-
-export async function getMaxDemand(params: AnalyticsRangeParams = {}): Promise<MaxDemandResult> {
-  const { data } = await apiClient.get<ApiResponse<MaxDemandResult>>('/analytics/max-demand', {
-    params,
-  });
-  return unwrap(data);
-}
-
-export async function getLoadFactor(params: AnalyticsRangeParams = {}): Promise<LoadFactorResult> {
-  const { data } = await apiClient.get<ApiResponse<LoadFactorResult>>('/analytics/load-factor', {
-    params,
-  });
-  return unwrap(data);
-}
-
-export async function getBaseLoad(params: BaseLoadParams = {}): Promise<BaseLoadResult> {
-  const { data } = await apiClient.get<ApiResponse<BaseLoadResult>>('/analytics/base-load', {
-    params,
-  });
   return unwrap(data);
 }
 

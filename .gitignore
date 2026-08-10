@@ -25,6 +25,7 @@ img_muestra/
 # Herramientas locales
 .tokensave/
 .claude/
+graphify-out/
 
 # Sistema operativo
 .DS_Store

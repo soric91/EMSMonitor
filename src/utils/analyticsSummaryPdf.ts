@@ -1,5 +1,6 @@
 import type { AnalyticsSummary } from '../api/types';
 import { formatCop, formatKwh, formatLocalDateTime, formatWatts } from './format';
+import { monthLabel } from './labels';
 
 // Paleta del informe (los mismos significados de color de la app)
 const INK = '#0f172a';
@@ -17,12 +18,6 @@ const CONTENT_W = PAGE_W - MARGIN * 2;
 /** Las fuentes estándar de jsPDF son WinAnsi: sin NBSP/espacio angosto de es-CO. */
 function t(s: string): string {
   return s.replace(/[\u00A0\u202F]/g, ' ');
-}
-
-function monthLabel(month: string): string {
-  return new Intl.DateTimeFormat('es-CO', { month: 'long', year: 'numeric' }).format(
-    new Date(`${month}-01T12:00:00Z`),
-  );
 }
 
 export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promise<void> {
@@ -184,7 +179,7 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
     const staleLine = eff.stale
       ? (pdf.splitTextToSize(
           t(
-            `Advertencia: cálculo hecho con la tarifa de ${monthLabel(eff.tariff_month)} (no hay tarifa del mes ` +
+            `Advertencia: cálculo hecho con la tarifa de ${monthLabel(eff.tariff_month, 'long')} (no hay tarifa del mes ` +
               `actual registrada). Actualiza la tarifa para un estimado preciso.`,
           ),
           CONTENT_W - 24,
@@ -276,7 +271,7 @@ function buildRecommendations(summary: AnalyticsSummary): string[] {
   if (eff?.stale) {
     recs.push(
       `Registrar la tarifa del mes en curso en el módulo Tarifa: los cálculos de este informe usan la de ` +
-        `${monthLabel(eff.tariff_month)} como referencia, lo que introduce imprecisión en los montos.`,
+        `${monthLabel(eff.tariff_month, 'long')} como referencia, lo que introduce imprecisión en los montos.`,
     );
   }
   recs.push(

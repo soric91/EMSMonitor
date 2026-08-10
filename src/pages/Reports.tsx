@@ -1,113 +1,84 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Battery,
-  Download,
-  FileText,
-  Gauge,
-  Scale,
-  TrendingUp,
-} from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Download, FileText, Scale } from 'lucide-react';
 import { getReport, getCustomReport } from '../api/reports';
 import { useDevice } from '../hooks/useDevice';
-import type { ReportData, ReportType } from '../api/types';
+import type { Period } from '../domain/periods';
+import type { ReportData } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
-import {
-  ComparisonBarChart,
-  type ComparisonBarPoint,
-} from '../components/charts/ComparisonBarChart';
+import { TabPills } from '../components/ui/TabPills';
+import { MetricsGrid } from '../components/ui/MetricsGrid';
+import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
-import { formatKwh, formatLocalDateTime, formatPercent, formatWatts } from '../utils/format';
+import { mergeSeries } from '../utils/mergeSeries';
+import { downloadCsv } from '../utils/downloadCsv';
+import { NOT_APPLICABLE } from '../utils/labels';
+import { formatKwh, formatLocalDateTime, formatWatts } from '../utils/format';
 import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
 
-const NOT_APPLICABLE = 'No aplica — exportando';
-
-const TABS: { key: ReportType; label: string }[] = [
-  { key: 'daily', label: 'Diario' },
-  { key: 'weekly', label: 'Semanal' },
-  { key: 'monthly', label: 'Mensual' },
-  { key: 'yearly', label: 'Anual' },
+const TABS: { key: Period; label: string }[] = [
+  { key: 'day', label: 'Diario' },
+  { key: 'week', label: 'Semanal' },
+  { key: 'month', label: 'Mensual' },
+  { key: 'year', label: 'Anual' },
   { key: 'custom', label: 'Personalizado' },
 ];
 
-function mergeSeries(report: ReportData): (ComparisonBarPoint & { time: string })[] {
-  const byTime = new Map<string, ComparisonBarPoint & { time: string }>();
-  for (const p of report.consumption_series) {
-    byTime.set(p.time, {
-      time: p.time,
-      label: formatLocalDateTime(p.time, 'd MMM HH:mm'),
-      a: p.value,
-      b: 0,
-    });
-  }
-  for (const p of report.export_series) {
-    const existing = byTime.get(p.time);
-    if (existing) {
-      existing.b = p.value;
-    } else {
-      byTime.set(p.time, {
-        time: p.time,
-        label: formatLocalDateTime(p.time, 'd MMM HH:mm'),
-        a: 0,
-        b: p.value,
-      });
-    }
-  }
-  return Array.from(byTime.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, point]) => point);
-}
-
-function downloadCsv(report: ReportData): void {
-  // costs.series trae kWh + COP por bucket (mismo bucketing que las series de energía).
-  const costByTime = new Map(report.costs.series.map((p) => [p.time, p]));
-  const rows = [
-    'hora_bogota,importado_kwh,exportado_kwh,costo_importado_cop,credito_exportado_cop,costo_neto_cop',
-    ...mergeSeries(report).map((p) => {
-      const cost = costByTime.get(p.time);
-      return [
-        p.label,
-        p.a,
-        p.b,
-        cost?.consumption_cost_cop ?? '',
-        cost?.export_credit_cop ?? '',
-        cost?.net_cost_cop ?? '',
-      ].join(',');
-    }),
-  ];
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `reporte_${report.report_type}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 export default function Reports() {
   const { selectedDeviceId } = useDevice();
-  const [reportType, setReportType] = useState<ReportType>('daily');
+  const [period, setPeriod] = useState<Period>('day');
   const [fromIso, setFromIso] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
   const [toIso, setToIso] = useState(() => localInputToUtcIso(nowLocalInput()));
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
+  // Una sola fusión sirve a la gráfica y al CSV: comparten los mismos buckets.
+  const merged = report
+    ? mergeSeries(report.consumption_series, report.export_series, (time) =>
+        formatLocalDateTime(time, 'd MMM HH:mm'),
+      )
+    : [];
+
+  const exportCsv = () => {
+    if (!report) return;
+    // costs.series trae kWh + COP por bucket (mismo bucketing que las series de energía).
+    const costByTime = new Map(report.costs.series.map((p) => [p.time, p]));
+    downloadCsv(`reporte_${report.report_type}.csv`, [
+      [
+        'hora_bogota',
+        'importado_kwh',
+        'exportado_kwh',
+        'costo_importado_cop',
+        'credito_exportado_cop',
+        'costo_neto_cop',
+      ],
+      ...merged.map((p) => {
+        const cost = costByTime.get(p.time);
+        return [
+          p.label,
+          String(p.a),
+          String(p.b),
+          String(cost?.consumption_cost_cop ?? ''),
+          String(cost?.export_credit_cop ?? ''),
+          String(cost?.net_cost_cop ?? ''),
+        ];
+      }),
+    ]);
+  };
+
   useEffect(() => {
-    if (reportType === 'custom') return;
-    const type = reportType;
+    if (period === 'custom') return;
+    const fixed = period;
     let cancelled = false;
 
     async function run() {
       setLoading(true);
       setError(false);
       try {
-        const data = await getReport(type, selectedDeviceId ?? undefined);
+        const data = await getReport(fixed, selectedDeviceId ?? undefined);
         if (!cancelled) setReport(data);
       } catch {
         if (!cancelled) setError(true);
@@ -120,7 +91,7 @@ export default function Reports() {
     return () => {
       cancelled = true;
     };
-  }, [reportType, selectedDeviceId]);
+  }, [period, selectedDeviceId]);
 
   const generateCustom = async () => {
     setLoading(true);
@@ -142,34 +113,18 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       <Card className="flex flex-wrap items-center justify-between gap-4">
-        <div className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-900/10 bg-slate-900/[0.03] p-1 dark:border-white/10 dark:bg-white/5">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setReportType(tab.key);
-                setReport(null);
-              }}
-              className={[
-                'relative rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                reportType === tab.key
-                  ? 'text-slate-950'
-                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white',
-              ].join(' ')}
-            >
-              {reportType === tab.key && (
-                <motion.span
-                  layoutId="report-tab-pill"
-                  className="absolute inset-0 rounded-md bg-emerald-500"
-                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-                />
-              )}
-              <span className="relative">{tab.label}</span>
-            </button>
-          ))}
-        </div>
+        <TabPills
+          layoutId="report-tab-pill"
+          size="sm"
+          options={TABS}
+          value={period}
+          onChange={(key) => {
+            setPeriod(key);
+            setReport(null);
+          }}
+        />
 
-        {reportType === 'custom' && (
+        {period === 'custom' && (
           <div className="flex flex-wrap items-center gap-2">
             <DateRangePicker
               fromIso={fromIso}
@@ -205,7 +160,7 @@ export default function Reports() {
         <Card className="text-sm text-red-500">No se pudo generar el reporte.</Card>
       )}
 
-      {!loading && !error && !report && reportType === 'custom' && (
+      {!loading && !error && !report && period === 'custom' && (
         <EmptyState
           icon={FileText}
           title="Reporte personalizado"
@@ -286,7 +241,7 @@ export default function Reports() {
                 Importación vs. exportación
               </p>
               <button
-                onClick={() => downloadCsv(report)}
+                onClick={exportCsv}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 <Download className="h-3.5 w-3.5" />
@@ -294,7 +249,7 @@ export default function Reports() {
               </button>
             </div>
             <ComparisonBarChart
-              data={mergeSeries(report)}
+              data={merged}
               labelA="Importado"
               labelB="Exportado"
               valueFormatter={(v) => formatKwh(v)}
@@ -344,51 +299,11 @@ export default function Reports() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <TrendingUp className="h-3.5 w-3.5" /> Demanda máxima
-              </div>
-              {report.max_demand.peak_power_w !== null ? (
-                <>
-                  <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                    {formatWatts(report.max_demand.peak_power_w)}
-                  </p>
-                  {report.max_demand.peak_at && (
-                    <p className="text-xs text-slate-400">
-                      {formatLocalDateTime(report.max_demand.peak_at)}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="mt-1.5 text-sm text-slate-400">{NOT_APPLICABLE}</p>
-              )}
-            </Card>
-            <Card>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <Gauge className="h-3.5 w-3.5" /> Factor de carga
-              </div>
-              {report.load_factor.load_factor !== null ? (
-                <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                  {formatPercent(report.load_factor.load_factor)}
-                </p>
-              ) : (
-                <p className="mt-1.5 text-sm text-slate-400">{NOT_APPLICABLE}</p>
-              )}
-            </Card>
-            <Card>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <Battery className="h-3.5 w-3.5" /> Carga base
-              </div>
-              {report.base_load.base_load_w !== null ? (
-                <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                  {formatWatts(report.base_load.base_load_w)}
-                </p>
-              ) : (
-                <p className="mt-1.5 text-sm text-slate-400">{NOT_APPLICABLE}</p>
-              )}
-            </Card>
-          </div>
+          <MetricsGrid
+            max_demand={report.max_demand}
+            load_factor={report.load_factor}
+            base_load={report.base_load}
+          />
         </>
       )}
     </div>

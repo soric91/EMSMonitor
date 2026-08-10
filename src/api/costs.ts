@@ -1,7 +1,8 @@
 import { apiClient, unwrap } from './client';
-import type { ApiResponse, CostBreakdown, CostsRangeParams, Period } from './types';
+import type { FixedPeriod } from '../domain/periods';
+import type { ApiResponse, CostBreakdown, CostsRangeParams } from './types';
 
-export async function getCosts(period: Period, deviceId?: string): Promise<CostBreakdown> {
+export async function getCosts(period: FixedPeriod, deviceId?: string): Promise<CostBreakdown> {
   const { data } = await apiClient.get<ApiResponse<CostBreakdown>>(`/costs/${period}`, {
     params: { device_id: deviceId },
   });

@@ -1,45 +1,34 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, Battery, Gauge, TrendingUp } from 'lucide-react';
-import {
-  compare,
-  getAnalyticsOverview,
-  getDailyProfile,
-  getMonthlyProfile,
-} from '../api/analytics';
+import { BarChart3 } from 'lucide-react';
+import { compare, getDailyProfile, getMonthlyProfile } from '../api/analytics';
 import { getCostsRange } from '../api/costs';
+import { getCustomReport } from '../api/reports';
 import { useDevice } from '../hooks/useDevice';
 import type {
-  AnalyticsOverview,
   CompareResult,
   CostBreakdown,
   HourProfilePoint,
+  ReportData,
   WeekdayProfilePoint,
 } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Badge } from '../components/ui/Badge';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
+import { MetricsGrid } from '../components/ui/MetricsGrid';
 import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
-import {
-  formatCop,
-  formatKwh,
-  formatLocalDateTime,
-  formatPercent,
-  formatWatts,
-} from '../utils/format';
+import { formatCop, formatKwh, formatWatts } from '../utils/format';
 import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
-
-const NOT_APPLICABLE = 'No aplica — exportando';
 
 export default function Analytics() {
   const { selectedDeviceId } = useDevice();
   const [fromIso, setFromIso] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
   const [toIso, setToIso] = useState(() => localInputToUtcIso(nowLocalInput()));
 
-  const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
+  const [report, setReport] = useState<ReportData | null>(null);
   const [dailyProfile, setDailyProfile] = useState<HourProfilePoint[] | null>(null);
   const [weeklyProfile, setWeeklyProfile] = useState<WeekdayProfilePoint[] | null>(null);
   const [rangeCosts, setRangeCosts] = useState<CostBreakdown | null>(null);
@@ -61,13 +50,13 @@ export default function Analytics() {
         })
         .catch(() => {});
       try {
-        const [o, daily, weekly] = await Promise.all([
-          getAnalyticsOverview(params),
+        const [r, daily, weekly] = await Promise.all([
+          getCustomReport(params),
           getDailyProfile(params),
           getMonthlyProfile(params),
         ]);
         if (!cancelled) {
-          setOverview(o);
+          setReport(r);
           setDailyProfile(daily);
           setWeeklyProfile(weekly);
         }
@@ -115,65 +104,28 @@ export default function Analytics() {
         <Card className="text-sm text-red-500">No se pudo cargar analytics.</Card>
       )}
 
-      {!loading && !error && overview && (
+      {!loading && !error && report && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Card>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Importado</p>
               <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                {formatKwh(overview.consumption_kwh)}
+                {formatKwh(report.consumption_kwh)}
               </p>
             </Card>
             <Card>
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Exportado</p>
               <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                {formatKwh(overview.export_kwh)}
+                {formatKwh(report.export_kwh)}
               </p>
             </Card>
-            <Card>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <TrendingUp className="h-3.5 w-3.5" /> Demanda máxima
-              </div>
-              {overview.max_demand.peak_power_w !== null ? (
-                <>
-                  <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                    {formatWatts(overview.max_demand.peak_power_w)}
-                  </p>
-                  {overview.max_demand.peak_at && (
-                    <p className="text-xs text-slate-400">
-                      {formatLocalDateTime(overview.max_demand.peak_at)}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="mt-1.5 text-sm text-slate-400">{NOT_APPLICABLE}</p>
-              )}
-            </Card>
-            <Card>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <Gauge className="h-3.5 w-3.5" /> Factor de carga
-              </div>
-              {overview.load_factor.load_factor !== null ? (
-                <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                  {formatPercent(overview.load_factor.load_factor)}
-                </p>
-              ) : (
-                <p className="mt-1.5 text-sm text-slate-400">{NOT_APPLICABLE}</p>
-              )}
-            </Card>
-            <Card>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                <Battery className="h-3.5 w-3.5" /> Carga base
-              </div>
-              {overview.base_load.base_load_w !== null ? (
-                <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
-                  {formatWatts(overview.base_load.base_load_w)}
-                </p>
-              ) : (
-                <p className="mt-1.5 text-sm text-slate-400">{NOT_APPLICABLE}</p>
-              )}
-            </Card>
           </div>
+
+          <MetricsGrid
+            max_demand={report.max_demand}
+            load_factor={report.load_factor}
+            base_load={report.base_load}
+          />
 
           {rangeCosts && <CostBreakdownSummary costs={rangeCosts} />}
 
