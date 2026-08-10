@@ -6,6 +6,7 @@ import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { formatCop, formatKwh } from '../../utils/format';
 import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
+import { useDevice } from '../../hooks/useDevice';
 
 interface CostoDelPeriodoProps {
   /** "hoy", "del mes" — se completa como "Importado hoy". */
@@ -46,15 +47,23 @@ export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
   const [cost, setCost] = useState<CostBreakdown | null>(null);
   const [error, setError] = useState(false);
   const { porMagnitud } = useVariablesDelMedidor();
+  const { selectedDeviceId, cargando: cargandoMedidores } = useDevice();
   const mideExportacion = porMagnitud.has('energia_exportada');
 
   useEffect(() => {
     let cancelled = false;
 
+    // Sin inventario todavía no se sabe qué medidor mirar, y preguntar sin él
+    // trae el agregado de toda la empresa: un importe que no corresponde a
+    // ninguno, y una petición que después hay que repetir.
+    if (cargandoMedidores) return;
+
     async function run() {
       setError(false);
       try {
-        const data = await getCosts(period);
+        // Con el medidor elegido: sin él el backend agrega TODOS los del
+        // cliente, así que el importe no corresponde al que dice el selector.
+        const data = await getCosts(period, selectedDeviceId ?? undefined);
         if (!cancelled) setCost(data);
       } catch {
         if (!cancelled) setError(true);
@@ -65,7 +74,7 @@ export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, selectedDeviceId, cargandoMedidores]);
 
   if (error) {
     return <Card className="text-sm text-red-500">No se pudo cargar el costo {periodo}.</Card>;

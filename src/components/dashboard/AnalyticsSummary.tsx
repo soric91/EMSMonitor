@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDevice } from '../../hooks/useDevice';
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Download, Lightbulb } from 'lucide-react';
 import { getAnalyticsSummary } from '../../api/analytics';
 import type { AnalyticsSummary as AnalyticsSummaryData } from '../../api/types';
@@ -24,6 +25,7 @@ const STAT_CARDS: { key: keyof AnalyticsSummaryData; label: string; tone: 'impor
   ];
 
 export function AnalyticsSummary() {
+  const { selectedDeviceId } = useDevice();
   const [summary, setSummary] = useState<AnalyticsSummaryData | null>(null);
   const [error, setError] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -46,7 +48,9 @@ export function AnalyticsSummary() {
     async function run() {
       try {
         // Sin from/to: el backend usa los últimos 30 días por defecto.
-        const data = await getAnalyticsSummary();
+        const data = await getAnalyticsSummary({
+          device_id: selectedDeviceId ?? undefined,
+        });
         if (!cancelled) setSummary(data);
       } catch {
         if (!cancelled) setError(true);
@@ -57,7 +61,9 @@ export function AnalyticsSummary() {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // Cambiar de medidor vuelve a pedir: los datos son de ese medidor, no de
+    // la empresa entera.
+  }, [selectedDeviceId]);
 
   if (error) {
     return <Card className="text-sm text-red-500">No se pudo cargar el resumen general.</Card>;

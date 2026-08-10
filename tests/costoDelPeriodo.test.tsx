@@ -135,20 +135,35 @@ const EXPORTA: VariableDisponible = {
   magnitud: 'energia_exportada',
   fase: 'total',
   acumulativa: true,
-  equipos: [],
+  equipos: ['eq-elegido'],
   con_datos: true,
+};
+
+/** El medidor que el selector va a elegir solo al cargar el inventario. */
+const MEDIDOR = {
+  device_id: 'eq-elegido',
+  nombre: 'Tablero',
+  modbus_id: 10,
+  sede_id: 's1',
+  sede: 'Planta',
+  gateway_id: 'g1',
+  gateway: 'GW-0001',
+  gateway_en_linea: true,
 };
 
 const adapterOriginal = apiClient.defaults.adapter;
 let pedidos: string[] = [];
+/** Los parámetros de cada petición, para comprobar qué se pidió y de quién. */
+let parametros: Record<string, unknown>[] = [];
 let variables: VariableDisponible[] = [EXPORTA];
 
 function servir(cost: CostBreakdown): void {
   apiClient.defaults.adapter = (config) => {
     const url = config.url ?? '';
     pedidos.push(url);
+    parametros.push({ url, ...(config.params ?? {}) });
     const data =
-      url === '/variables' ? variables : url === '/devices' ? [] : cost;
+      url === '/variables' ? variables : url === '/devices' ? [MEDIDOR] : cost;
     return Promise.resolve({
       data: { success: true, message: '', data },
       status: 200,
@@ -167,11 +182,31 @@ function sinPaneles(): void {
 afterEach(() => {
   cleanup();
   pedidos = [];
+  parametros = [];
   variables = [EXPORTA];
 });
 
 afterAll(() => {
   apiClient.defaults.adapter = adapterOriginal;
+});
+
+describe('los datos son del medidor elegido', () => {
+  test('la consulta lleva el equipo, no la empresa entera', async () => {
+    // Sin `device_id` el backend agrega TODOS los medidores del cliente: el
+    // importe mostrado no corresponde al medidor que dice el selector, y
+    // además obliga a InfluxDB a recorrer las series de todos en vez de una.
+    servir(COSTO);
+
+    montar();
+
+    await waitFor(() =>
+      expect(
+        parametros.some(
+          (p) => String(p.url).startsWith('/costs') && p.device_id === 'eq-elegido',
+        ),
+      ).toBe(true),
+    );
+  });
 });
 
 describe('un cliente sin paneles', () => {

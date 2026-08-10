@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useDevice } from '../hooks/useDevice';
 import { getAlerts } from '../api/alerts';
 import type { Alert } from '../api/types';
 import { RealtimeContext } from './RealtimeContext';
@@ -35,6 +36,7 @@ function dedupe(alerts: Alert[]): Alert[] {
 }
 
 export function AlertsProvider({ children }: { children: ReactNode }) {
+  const { selectedDeviceId } = useDevice();
   const realtime = useContext(RealtimeContext);
   if (!realtime) {
     throw new Error('AlertsProvider must be used within RealtimeProvider');
@@ -52,7 +54,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
 
     async function run() {
       try {
-        const data = await getAlerts();
+        const data = await getAlerts({ device_id: selectedDeviceId ?? undefined });
         if (cancelled) return;
         // Las que ya llegaron en vivo van primero; dedupe cubre el solape.
         setAlerts((prev) => dedupe([...prev, ...data.recent]));
@@ -66,7 +68,9 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // Cambiar de medidor vuelve a pedir: los datos son de ese medidor, no de
+    // la empresa entera.
+  }, [selectedDeviceId]);
 
   // Alertas en vivo por la conexión WS compartida.
   useEffect(() => {
