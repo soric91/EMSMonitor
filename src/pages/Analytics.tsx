@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { BarChart3 } from 'lucide-react';
-import { compare, getDailyProfile, getMonthlyProfile } from '../api/analytics';
+import { getDailyProfile, getMonthlyProfile } from '../api/analytics';
 import { getCostsRange } from '../api/costs';
 import { getCustomReport } from '../api/reports';
 import { useDevice } from '../hooks/useDevice';
 import type {
-  CompareResult,
   CostBreakdown,
   HourProfilePoint,
   ReportData,
@@ -13,14 +11,13 @@ import type {
 } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
-import { Badge } from '../components/ui/Badge';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
 import { MetricsGrid } from '../components/ui/MetricsGrid';
 import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
-import { formatCop, formatKwh, formatWatts } from '../utils/format';
+import { formatKwh, formatWatts } from '../utils/format';
 import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
 
 export default function Analytics() {
@@ -43,7 +40,7 @@ export default function Analytics() {
       setError(false);
       setRangeCosts(null);
       const params = { from: fromIso, to: toIso, device_id: selectedDeviceId ?? undefined };
-      // Costos aparte: si /costs/range falla, el resto de analytics no se afecta.
+      // Costos aparte: si /costs/range falla, el resto de la sección no se afecta.
       getCostsRange(params)
         .then((data) => {
           if (!cancelled) setRangeCosts(data);
@@ -101,7 +98,7 @@ export default function Analytics() {
       )}
 
       {!loading && error && (
-        <Card className="text-sm text-red-500">No se pudo cargar analytics.</Card>
+        <Card className="text-sm text-red-500">No se pudieron cargar los datos de análisis.</Card>
       )}
 
       {!loading && !error && report && (
@@ -168,159 +165,6 @@ export default function Analytics() {
           </div>
         </>
       )}
-
-      <ComparePeriods />
     </div>
-  );
-}
-
-function ComparePeriods() {
-  const [fromA, setFromA] = useState(() => localInputToUtcIso(hoursAgoLocalInput(48)));
-  const [toA, setToA] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
-  const [fromB, setFromB] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
-  const [toB, setToB] = useState(() => localInputToUtcIso(nowLocalInput()));
-  const [result, setResult] = useState<CompareResult | null>(null);
-  const [costsA, setCostsA] = useState<CostBreakdown | null>(null);
-  const [costsB, setCostsB] = useState<CostBreakdown | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
-  const runCompare = () => {
-    setLoading(true);
-    setError(false);
-    setCostsA(null);
-    setCostsB(null);
-    // Costos aparte: si /costs/range falla, la comparación de kWh sale igual.
-    getCostsRange({ from: fromA, to: toA })
-      .then(setCostsA)
-      .catch(() => {});
-    getCostsRange({ from: fromB, to: toB })
-      .then(setCostsB)
-      .catch(() => {});
-    compare({ from_a: fromA, to_a: toA, from_b: fromB, to_b: toB })
-      .then(setResult)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  };
-
-  const costDelta = costsA && costsB ? costsB.net_cost_cop - costsA.net_cost_cop : null;
-
-  return (
-    <Card className="space-y-4">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-        <BarChart3 className="h-3.5 w-3.5" /> Comparar periodos
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <p className="mb-1.5 text-xs text-slate-400">Periodo A</p>
-          <DateRangePicker
-            fromIso={fromA}
-            toIso={toA}
-            onChange={(f, t) => {
-              setFromA(f);
-              setToA(t);
-            }}
-          />
-        </div>
-        <div>
-          <p className="mb-1.5 text-xs text-slate-400">Periodo B</p>
-          <DateRangePicker
-            fromIso={fromB}
-            toIso={toB}
-            onChange={(f, t) => {
-              setFromB(f);
-              setToB(t);
-            }}
-          />
-        </div>
-      </div>
-
-      <button
-        onClick={runCompare}
-        disabled={loading}
-        className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
-      >
-        {loading ? 'Comparando…' : 'Comparar'}
-      </button>
-
-      {error && <p className="text-sm text-red-500">No se pudo comparar los periodos.</p>}
-
-      {result && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-900/5 p-4 dark:border-white/5">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Periodo A</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-              {formatKwh(result.period_a.consumption_kwh)} importado
-            </p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {formatKwh(result.period_a.export_kwh)} exportado
-            </p>
-            {costsA && (
-              <p
-                className={[
-                  'mt-2 text-sm font-medium',
-                  costsA.net_cost_cop < 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-slate-700 dark:text-slate-200',
-                ].join(' ')}
-              >
-                {formatCop(Math.abs(costsA.net_cost_cop))}
-                {costsA.net_cost_cop < 0 ? ' a tu favor' : ' costo neto'}
-              </p>
-            )}
-          </div>
-          <div className="rounded-xl border border-slate-900/5 p-4 dark:border-white/5">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Periodo B</p>
-              {result.consumption_delta_pct !== null && (
-                <Badge tone={result.consumption_delta_pct >= 0 ? 'amber' : 'emerald'}>
-                  {result.consumption_delta_pct >= 0 ? '+' : ''}
-                  {result.consumption_delta_pct.toFixed(1)}% importación
-                </Badge>
-              )}
-            </div>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-              {formatKwh(result.period_b.consumption_kwh)} importado
-            </p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {formatKwh(result.period_b.export_kwh)} exportado
-              {result.export_delta_pct !== null && (
-                <span className="ml-1">
-                  ({result.export_delta_pct >= 0 ? '+' : ''}
-                  {result.export_delta_pct.toFixed(1)}%)
-                </span>
-              )}
-            </p>
-            {costsB && (
-              <p
-                className={[
-                  'mt-2 text-sm font-medium',
-                  costsB.net_cost_cop < 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-slate-700 dark:text-slate-200',
-                ].join(' ')}
-              >
-                {formatCop(Math.abs(costsB.net_cost_cop))}
-                {costsB.net_cost_cop < 0 ? ' a tu favor' : ' costo neto'}
-                {costDelta !== null && (
-                  <span
-                    className={[
-                      'ml-1.5 text-xs',
-                      costDelta <= 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-amber-600 dark:text-amber-400',
-                    ].join(' ')}
-                  >
-                    ({costDelta >= 0 ? '+' : '−'}
-                    {formatCop(Math.abs(costDelta))} vs. A)
-                  </span>
-                )}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-    </Card>
   );
 }

@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/history', label: 'Histórico', icon: History },
   { to: '/consumption-export', label: 'Consumo / Exportación', icon: ArrowLeftRight },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/analytics', label: 'Análisis', icon: BarChart3 },
   { to: '/reports', label: 'Reportes', icon: FileText },
 ] as const;
 

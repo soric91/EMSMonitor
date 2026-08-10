@@ -32,12 +32,9 @@ const NEUTRAL_COLOR = '#3b82f6';
 // de antes. El backend (`/history`) ya acepta cualquier interval_seconds y protege
 // con MAX_POINTS=5000; acá solo se expone la elección.
 const INTERVAL_OPTIONS: { label: string; seconds: number }[] = [
-  { label: '1 min', seconds: 60 },
-  { label: '5 min', seconds: 300 },
   { label: '15 min', seconds: 900 },
   { label: '30 min', seconds: 1800 },
   { label: '1 hora', seconds: 3600 },
-  { label: '3 horas', seconds: 3 * 3600 },
   { label: '6 horas', seconds: 6 * 3600 },
   { label: '12 horas', seconds: 12 * 3600 },
   { label: '24 horas', seconds: 24 * 3600 },

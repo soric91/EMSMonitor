@@ -1,14 +1,15 @@
 /**
- * La página de analíticas tras la consolidación (F5.3).
+ * La página de analíticas tras la consolidación (F5.3) y el retiro de la
+ * comparación A vs B (2026-08).
  *
  * El resumen general de rango dejó de pedirse al deprecated `/analytics`: el
- * mismo cálculo ahora sale de `/reports/custom` (perfiles y compare se quedan).
+ * mismo cálculo ahora sale de `/reports/custom` (los perfiles se quedan).
  * Este test fija el recuento por sección para que la página no vuelva a crecer
  * una llamada sin que alguien lo decida.
  */
 
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '../src/api/client';
 import Analytics from '../src/pages/Analytics';
 import { DeviceContext } from '../src/context/DeviceContext';
@@ -16,7 +17,6 @@ import { RealtimeProvider } from '../src/context/RealtimeContext';
 import { VariablesProvider } from '../src/context/VariablesContext';
 import type {
   AnalyticsSummary,
-  CompareResult,
   CostBreakdown,
   KpiSummary,
   ReportData,
@@ -130,26 +130,6 @@ const RESUMEN_GENERAL: AnalyticsSummary = {
   efficiency: null,
 };
 
-const COMPARADO: CompareResult = {
-  device_id: 'eq-elegido',
-  period_a: {
-    period_start: '2026-08-08T12:00:00Z',
-    period_end: '2026-08-09T12:00:00Z',
-    consumption_kwh: 11,
-    export_kwh: 1.5,
-    peak_import_w: null,
-  },
-  period_b: {
-    period_start: '2026-08-09T12:00:00Z',
-    period_end: '2026-08-10T12:00:00Z',
-    consumption_kwh: 12.4,
-    export_kwh: 1.8,
-    peak_import_w: null,
-  },
-  consumption_delta_pct: 4,
-  export_delta_pct: 2,
-};
-
 describe('al montar', () => {
   test('el resumen de rango sale del reporte, no de /analytics', async () => {
     servir();
@@ -185,34 +165,13 @@ describe('cuánto pide al montar', () => {
     // El costo del rango, aparte (no afecta al resto si falla).
     expect(pedidos('/costs/range')).toHaveLength(1);
 
-    // Compare es a pedido: no dispara al montar.
+    // El compare ya no existe en la página (retirado 2026-08).
     expect(pedidos('/analytics/compare')).toHaveLength(0);
     // El endpoint deprecado y los reportes fijos no se tocan.
     expect(pedidos('/analytics')).toHaveLength(0);
     expect(
       parametros.filter((p) => String(p.url).startsWith('/reports/')).map((p) => p.url),
     ).toEqual(['/reports/custom']);
-  });
-});
-
-describe('la comparación de periodos', () => {
-  test('pide compare y los dos costos al darle al botón', async () => {
-    servir();
-
-    montar();
-    await waitFor(() => expect(screen.getByText('Importado')).toBeInTheDocument());
-
-    const antes = parametros.length;
-    fireEvent.click(screen.getByRole('button', { name: 'Comparar' }));
-
-    await waitFor(() =>
-      expect(parametros.filter((p) => String(p.url) === '/analytics/compare')).toHaveLength(1),
-    );
-
-    expect(
-      parametros.filter((p) => String(p.url) === '/costs/range').length -
-        parametros.slice(0, antes).filter((p) => String(p.url) === '/costs/range').length,
-    ).toBe(2);
   });
 });
 
@@ -285,9 +244,7 @@ function servir(): void {
                   ? []
                   : url === '/costs/range'
                     ? COSTO
-                    : url === '/analytics/compare'
-                      ? COMPARADO
-                      : null;
+                    : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },
