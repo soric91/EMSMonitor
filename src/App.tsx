@@ -8,6 +8,7 @@ import History from './pages/History';
 import ConsumptionExport from './pages/ConsumptionExport';
 import Analytics from './pages/Analytics';
 import Reports from './pages/Reports';
+import Reactiva from './pages/Reactiva';
 import ChangePassword from './pages/ChangePassword';
 
 const App = () => {
@@ -27,6 +28,7 @@ const App = () => {
           <Route path="/history" element={<History />} />
           <Route path="/consumption-export" element={<ConsumptionExport />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/reactive" element={<Reactiva />} />
           <Route path="/reports" element={<Reports />} />
         </Route>
       </Route>

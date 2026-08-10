@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Activity,
   ArrowLeftRight,
   BarChart3,
   ChevronsLeft,
@@ -14,6 +15,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useTheme } from '../../hooks/useTheme';
+import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -32,6 +34,21 @@ interface SidebarProps {
 
 function SidebarContent({ collapsed }: { collapsed: boolean }) {
   const { theme, toggleTheme } = useTheme();
+  const { variables: variablesMedidor } = useVariablesDelMedidor();
+
+  // La página de reactiva aparece solo cuando el medidor reporta cuadrantes
+  // (magnitud energía reactiva con lecturas); sin las variables Q1..Q4
+  // declaradas en el CRM no hay nada que dibujar.
+  const conReactiva = variablesMedidor.some(
+    (v) =>
+      v.con_datos &&
+      (v.magnitud === 'energia_reactiva_importada' || v.magnitud === 'energia_reactiva_exportada'),
+  );
+
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(conReactiva ? [{ to: '/reactive', label: 'Reactiva', icon: Activity } as const] : []),
+  ];
 
   return (
     <div className="flex h-full flex-col">
@@ -54,7 +71,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
-        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

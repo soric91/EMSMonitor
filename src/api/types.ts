@@ -347,6 +347,35 @@ export interface BaseLoadParams extends AnalyticsRangeParams {
   percentile?: number;
 }
 
+export interface ReactiveQuadrantPoint {
+  time: string;
+  q1_kvarh: number;
+  q2_kvarh: number;
+  q3_kvarh: number;
+  q4_kvarh: number;
+}
+
+export interface ReactiveQuadrantsResult {
+  period_start: string;
+  period_end: string;
+  device_id: string | null;
+  q1_kvarh: number;
+  q2_kvarh: number;
+  q3_kvarh: number;
+  q4_kvarh: number;
+  /** q1 + q2: reactiva importada de la red. */
+  total_import_kvarh: number;
+  /** q3 + q4: reactiva exportada a la red. */
+  total_export_kvarh: number;
+  /** importada - exportada. Positivo = la red le entrega reactiva al cliente. */
+  balance_kvarh: number;
+  /** "q1" | "q2" | "q3" | "q4", o null si no hubo reactiva en el período. */
+  dominant: string | null;
+  dominant_kvarh: number;
+  /** Un punto por ventana del período; las ventanas las decide el backend. */
+  trend: ReactiveQuadrantPoint[];
+}
+
 export interface CompareParams {
   from_a: string;
   to_a: string;

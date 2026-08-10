@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/react-19-61dafb.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/typescript-6.0-3178c6.svg)](https://www.typescriptlang.org/)
 [![Rsbuild](https://img.shields.io/badge/rsbuild-1.6-ff6b35.svg)](https://rsbuild.rs/)
-[![Tests](https://img.shields.io/badge/tests-149%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-157%20passed-brightgreen.svg)](tests/)
 
 [Qué hace](#qué-hace) •
 [Instalación](#instalación) •

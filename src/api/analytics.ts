@@ -6,6 +6,7 @@ import type {
   CompareParams,
   CompareResult,
   HourProfilePoint,
+  ReactiveQuadrantsResult,
   WeekdayProfilePoint,
 } from './types';
 
@@ -46,5 +47,15 @@ export async function compare(params: CompareParams): Promise<CompareResult> {
   const { data } = await apiClient.get<ApiResponse<CompareResult>>('/analytics/compare', {
     params,
   });
+  return unwrap(data);
+}
+
+export async function getReactiveQuadrants(
+  params: AnalyticsRangeParams = {},
+): Promise<ReactiveQuadrantsResult> {
+  const { data } = await apiClient.get<ApiResponse<ReactiveQuadrantsResult>>(
+    '/analytics/reactive-quadrants',
+    { params },
+  );
   return unwrap(data);
 }
