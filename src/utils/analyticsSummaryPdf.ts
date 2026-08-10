@@ -57,10 +57,22 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
   // ---------- KPIs de energía ----------
   y = sectionTitle(pdf, 'Energía del periodo', y);
   const kpis: { label: string; value: string; color: string }[] = [
-    { label: 'Consumo diario (prom.)', value: formatKwh(summary.consumption_daily_kwh), color: IMPORT },
-    { label: 'Consumo semanal (prom.)', value: formatKwh(summary.consumption_weekly_kwh), color: IMPORT },
+    {
+      label: 'Consumo diario (prom.)',
+      value: formatKwh(summary.consumption_daily_kwh),
+      color: IMPORT,
+    },
+    {
+      label: 'Consumo semanal (prom.)',
+      value: formatKwh(summary.consumption_weekly_kwh),
+      color: IMPORT,
+    },
     { label: 'Consumo mensual', value: formatKwh(summary.consumption_monthly_kwh), color: IMPORT },
-    { label: 'Exportación diaria (prom.)', value: formatKwh(summary.export_daily_kwh), color: EXPORT },
+    {
+      label: 'Exportación diaria (prom.)',
+      value: formatKwh(summary.export_daily_kwh),
+      color: EXPORT,
+    },
     { label: 'Exportación mensual', value: formatKwh(summary.export_monthly_kwh), color: EXPORT },
   ];
   const boxW = (CONTENT_W - 4 * 10) / 5;
@@ -159,9 +171,12 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
       t(
         `Podrías haber ahorrado hasta ~${formatCop(eff.potential_savings_cop)} este mes desplazando consumo ` +
           `a tus horas de mayor generación${
-            summary.peak_export_hour !== null ? ` (alrededor de las ${summary.peak_export_hour}:00)` : ''
-          }. Estimación tope: asume autoconsumir los ${formatKwh(eff.export_kwh)} exportados del mes en vez de ` +
-          `venderlos a ${formatCop(eff.excedente_cop_kwh)}/kWh (compras a ${formatCop(eff.cu_cop_kwh)}/kWh). ` +
+            summary.peak_export_hour !== null
+              ? ` (alrededor de las ${summary.peak_export_hour}:00)`
+              : ''
+          }. Estimación tope: solo cuenta el excedente que superó lo importado ese mes (el resto ya se ` +
+          `paga al precio de importación). Asume autoconsumirlo en vez de venderlo a ` +
+          `${formatCop(eff.excedente_cop_kwh)}/kWh (compras a ${formatCop(eff.cu_cop_kwh)}/kWh). ` +
           `El ahorro real depende de qué consumos puedas mover.`,
       ),
       CONTENT_W - 24,
@@ -175,7 +190,8 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
           CONTENT_W - 24,
         ) as string[])
       : [];
-    const boxH2 = 16 + lines.length * 11 + (staleLine.length > 0 ? staleLine.length * 10 + 8 : 0) + 10;
+    const boxH2 =
+      16 + lines.length * 11 + (staleLine.length > 0 ? staleLine.length * 10 + 8 : 0) + 10;
 
     pdf.setDrawColor(CARD_BORDER);
     pdf.setLineWidth(0.75);
@@ -220,7 +236,11 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
   pdf.line(MARGIN, pageH - 40, PAGE_W - MARGIN, pageH - 40);
   pdf.setFontSize(7.5);
   pdf.setTextColor(FAINT);
-  pdf.text('EMS Residencial · Informe generado automáticamente desde el panel de monitoreo', MARGIN, pageH - 28);
+  pdf.text(
+    'EMS Monitor · Informe generado automáticamente desde el panel de monitoreo',
+    MARGIN,
+    pageH - 28,
+  );
   pdf.text('Página 1 de 1', PAGE_W - MARGIN, pageH - 28, { align: 'right' });
 
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());

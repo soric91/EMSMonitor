@@ -19,7 +19,9 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Costo importado</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Costo importado
+            </p>
             <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
               {formatCop(costs.consumption_cost_cop)}
             </p>
@@ -30,7 +32,9 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
         </Card>
         <Card className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Crédito exportado</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Crédito exportado
+            </p>
             <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
               {formatCop(costs.export_credit_cop)}
             </p>
@@ -45,16 +49,13 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
             <p
               className={[
                 'mt-1.5 text-xl font-semibold',
-                inFavor ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-white',
+                inFavor
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-900 dark:text-white',
               ].join(' ')}
             >
               {formatCop(Math.abs(costs.net_cost_cop))}
               {inFavor && <span className="ml-1.5 text-xs font-medium">a tu favor</span>}
-            </p>
-            <p className="text-xs text-slate-400">
-              {costs.cargo_fijo_included
-                ? `incluye ${formatCop(costs.cargo_fijo_cop)} de cargo fijo`
-                : 'no incluye cargo fijo'}
             </p>
           </div>
           <div
@@ -74,8 +75,8 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
         <p className="flex items-start gap-1.5 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
           <span>
-            Tarifa estimada con datos de {costs.months_used.map(monthLabel).join(', ')} — actualiza la
-            tarifa de {staleMonths.map(monthLabel).join(', ')}
+            Tarifa estimada con datos de {costs.months_used.map(monthLabel).join(', ')} — actualiza
+            la tarifa de {staleMonths.map(monthLabel).join(', ')}
           </span>
         </p>
       )}

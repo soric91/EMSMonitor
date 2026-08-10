@@ -1,4 +1,9 @@
-import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput, utcIsoToLocalInput } from '../../utils/timezone';
+import {
+  hoursAgoLocalInput,
+  localInputToUtcIso,
+  nowLocalInput,
+  utcIsoToLocalInput,
+} from '../../utils/timezone';
 
 interface DateRangePickerProps {
   fromIso: string;
@@ -34,7 +39,10 @@ export function DateRangePicker({ fromIso, toIso, onChange }: DateRangePickerPro
             key={preset.label}
             type="button"
             onClick={() =>
-              onChange(localInputToUtcIso(hoursAgoLocalInput(preset.hours)), localInputToUtcIso(nowLocalInput()))
+              onChange(
+                localInputToUtcIso(hoursAgoLocalInput(preset.hours)),
+                localInputToUtcIso(nowLocalInput()),
+              )
             }
             className="rounded-lg border border-slate-900/10 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
           >

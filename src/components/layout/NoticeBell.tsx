@@ -29,7 +29,9 @@ export function NoticeBell() {
 
   const isHigh = dailyTotal.severity === 'high';
   const dotColor = isHigh ? 'bg-red-500' : 'bg-amber-500';
-  const textColor = isHigh ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400';
+  const textColor = isHigh
+    ? 'text-red-600 dark:text-red-400'
+    : 'text-amber-600 dark:text-amber-400';
 
   return (
     <div ref={containerRef} className="relative">

@@ -7,6 +7,7 @@ import {
   getMonthlyProfile,
 } from '../api/analytics';
 import { getCostsRange } from '../api/costs';
+import { useDevice } from '../hooks/useDevice';
 import type {
   AnalyticsOverview,
   CompareResult,
@@ -22,12 +23,19 @@ import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
-import { formatCop, formatKwh, formatLocalDateTime, formatPercent, formatWatts } from '../utils/format';
+import {
+  formatCop,
+  formatKwh,
+  formatLocalDateTime,
+  formatPercent,
+  formatWatts,
+} from '../utils/format';
 import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
 
 const NOT_APPLICABLE = 'No aplica — exportando';
 
 export default function Analytics() {
+  const { selectedDeviceId } = useDevice();
   const [fromIso, setFromIso] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
   const [toIso, setToIso] = useState(() => localInputToUtcIso(nowLocalInput()));
 
@@ -45,9 +53,9 @@ export default function Analytics() {
       setLoading(true);
       setError(false);
       setRangeCosts(null);
-      const params = { from: fromIso, to: toIso };
+      const params = { from: fromIso, to: toIso, device_id: selectedDeviceId ?? undefined };
       // Costos aparte: si /costs/range falla, el resto de analytics no se afecta.
-      getCostsRange({ from: fromIso, to: toIso })
+      getCostsRange(params)
         .then((data) => {
           if (!cancelled) setRangeCosts(data);
         })
@@ -74,7 +82,7 @@ export default function Analytics() {
     return () => {
       cancelled = true;
     };
-  }, [fromIso, toIso]);
+  }, [fromIso, toIso, selectedDeviceId]);
 
   return (
     <div className="space-y-6">
@@ -82,7 +90,14 @@ export default function Analytics() {
 
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Rango de análisis</p>
-        <DateRangePicker fromIso={fromIso} toIso={toIso} onChange={(f, t) => { setFromIso(f); setToIso(t); }} />
+        <DateRangePicker
+          fromIso={fromIso}
+          toIso={toIso}
+          onChange={(f, t) => {
+            setFromIso(f);
+            setToIso(t);
+          }}
+        />
       </Card>
 
       {loading && (
@@ -96,7 +111,9 @@ export default function Analytics() {
         </div>
       )}
 
-      {!loading && error && <Card className="text-sm text-red-500">No se pudo cargar analytics.</Card>}
+      {!loading && error && (
+        <Card className="text-sm text-red-500">No se pudo cargar analytics.</Card>
+      )}
 
       {!loading && !error && overview && (
         <>
@@ -123,7 +140,9 @@ export default function Analytics() {
                     {formatWatts(overview.max_demand.peak_power_w)}
                   </p>
                   {overview.max_demand.peak_at && (
-                    <p className="text-xs text-slate-400">{formatLocalDateTime(overview.max_demand.peak_at)}</p>
+                    <p className="text-xs text-slate-400">
+                      {formatLocalDateTime(overview.max_demand.peak_at)}
+                    </p>
                   )}
                 </>
               ) : (
@@ -220,8 +239,12 @@ function ComparePeriods() {
     setCostsA(null);
     setCostsB(null);
     // Costos aparte: si /costs/range falla, la comparación de kWh sale igual.
-    getCostsRange({ from: fromA, to: toA }).then(setCostsA).catch(() => {});
-    getCostsRange({ from: fromB, to: toB }).then(setCostsB).catch(() => {});
+    getCostsRange({ from: fromA, to: toA })
+      .then(setCostsA)
+      .catch(() => {});
+    getCostsRange({ from: fromB, to: toB })
+      .then(setCostsB)
+      .catch(() => {});
     compare({ from_a: fromA, to_a: toA, from_b: fromB, to_b: toB })
       .then(setResult)
       .catch(() => setError(true))
@@ -239,11 +262,25 @@ function ComparePeriods() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <p className="mb-1.5 text-xs text-slate-400">Periodo A</p>
-          <DateRangePicker fromIso={fromA} toIso={toA} onChange={(f, t) => { setFromA(f); setToA(t); }} />
+          <DateRangePicker
+            fromIso={fromA}
+            toIso={toA}
+            onChange={(f, t) => {
+              setFromA(f);
+              setToA(t);
+            }}
+          />
         </div>
         <div>
           <p className="mb-1.5 text-xs text-slate-400">Periodo B</p>
-          <DateRangePicker fromIso={fromB} toIso={toB} onChange={(f, t) => { setFromB(f); setToB(t); }} />
+          <DateRangePicker
+            fromIso={fromB}
+            toIso={toB}
+            onChange={(f, t) => {
+              setFromB(f);
+              setToB(t);
+            }}
+          />
         </div>
       </div>
 

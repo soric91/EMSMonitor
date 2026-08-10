@@ -45,7 +45,9 @@ export function AlertToast() {
             <div
               className={[
                 'rounded-lg p-1.5',
-                isHigh ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+                isHigh
+                  ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+                  : 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
               ].join(' ')}
             >
               <AlertTriangle className="h-4 w-4" />
@@ -55,7 +57,9 @@ export function AlertToast() {
                 <p
                   className={[
                     'text-[10px] font-semibold uppercase tracking-wide',
-                    isHigh ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400',
+                    isHigh
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-amber-600 dark:text-amber-400',
                   ].join(' ')}
                 >
                   Alerta {isHigh ? 'alta' : 'moderada'}
@@ -64,7 +68,9 @@ export function AlertToast() {
                   {formatLocalDateTime(visible.timestamp, 'HH:mm')}
                 </span>
               </div>
-              <p className="mt-1 text-xs leading-relaxed text-slate-700 dark:text-slate-200">{visible.message}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-700 dark:text-slate-200">
+                {visible.message}
+              </p>
             </div>
             <button
               onClick={() => setVisible(null)}

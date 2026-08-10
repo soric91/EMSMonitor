@@ -8,7 +8,7 @@ export async function getCosts(period: Period, deviceId?: string): Promise<CostB
   return unwrap(data);
 }
 
-/** Rango libre UTC ISO. A diferencia de day/week, aquí cargo_fijo_included es siempre true. */
+/** Rango libre UTC ISO, para Analytics o comparaciones. */
 export async function getCostsRange(params: CostsRangeParams): Promise<CostBreakdown> {
   const { data } = await apiClient.get<ApiResponse<CostBreakdown>>('/costs/range', { params });
   return unwrap(data);

@@ -1,4 +1,14 @@
-import { Bar, BarChart, Cell, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  Cell,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import type { HourProfilePoint } from '../../api/types';
 import { formatWatts } from '../../utils/format';
 
@@ -56,7 +66,10 @@ export function HourlyProfileChart({
           itemStyle={{ color: '#f1f5f9' }}
           formatter={(value) => {
             const v = Number(value);
-            return [`${formatWatts(Math.abs(v))} ${v >= 0 ? 'importando' : 'exportando'}`, 'Promedio'];
+            return [
+              `${formatWatts(Math.abs(v))} ${v >= 0 ? 'importando' : 'exportando'}`,
+              'Promedio',
+            ];
           }}
           labelFormatter={(h) => `${h}:00 — ${h}:59`}
         />

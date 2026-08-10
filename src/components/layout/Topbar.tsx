@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { LogOut, Menu, Wifi, WifiOff } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
+import { Menu, Wifi, WifiOff } from 'lucide-react';
 import { useLocalClock } from '../../hooks/useLocalClock';
 import { useRealtime } from '../../hooks/useRealtime';
 import { AlertsBell } from './AlertsBell';
+import { SelectorDeMedidor } from './SelectorDeMedidor';
 import { NoticeBell } from './NoticeBell';
+import { UserMenu } from './UserMenu';
 import type { WsConnectionStatus } from '../../api/websocket';
 
 interface TopbarProps {
@@ -19,7 +20,6 @@ const STATUS_LABEL: Record<WsConnectionStatus, string> = {
 };
 
 export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
-  const { user, logout } = useAuth();
   const { status: wsStatus } = useRealtime();
   const clock = useLocalClock();
   const isLive = wsStatus === 'connected';
@@ -46,7 +46,11 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
             <span
               className={[
                 'relative inline-flex h-2 w-2 rounded-full',
-                isLive ? 'bg-emerald-500' : wsStatus === 'connecting' || wsStatus === 'reconnecting' ? 'bg-amber-500' : 'bg-slate-400',
+                isLive
+                  ? 'bg-emerald-500'
+                  : wsStatus === 'connecting' || wsStatus === 'reconnecting'
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400',
               ].join(' ')}
             />
           </span>
@@ -59,6 +63,11 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
             {STATUS_LABEL[wsStatus]}
           </span>
         </div>
+
+        {/* Al lado del indicador: qué se está mirando va junto a si está
+            llegando. Separarlos obliga a cruzar la pantalla para saber si el
+            "Online" corresponde al medidor que se está viendo. */}
+        <SelectorDeMedidor />
       </div>
 
       <div className="flex items-center gap-4">
@@ -67,21 +76,7 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
         </span>
         <NoticeBell />
         <AlertsBell />
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            {(user?.username ?? '?').slice(0, 1).toUpperCase()}
-          </div>
-          <span className="hidden text-sm font-medium text-slate-700 sm:inline dark:text-slate-200">
-            {user?.username}
-          </span>
-        </div>
-        <button
-          onClick={() => void logout()}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-500/10 hover:text-red-500 dark:text-slate-400"
-          title="Cerrar sesión"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
+        <UserMenu />
       </div>
     </header>
   );

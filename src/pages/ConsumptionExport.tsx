@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDownToLine, ArrowUpFromLine, Scale } from 'lucide-react';
-import { getConsumption } from '../api/consumption';
-import { getExport } from '../api/export';
-import { getCosts } from '../api/costs';
-import type { CostBreakdown, EnergySummary, Period } from '../api/types';
+import { getReport } from '../api/reports';
+import { useDevice } from '../hooks/useDevice';
+import type { Period, ReportData, ReportType } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
-import { ComparisonBarChart, type ComparisonBarPoint } from '../components/charts/ComparisonBarChart';
+import {
+  ComparisonBarChart,
+  type ComparisonBarPoint,
+} from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { formatCop, formatKwh, formatLocalDateTime } from '../utils/format';
 
@@ -18,6 +20,16 @@ const TABS: { key: Period; label: string }[] = [
   { key: 'year', label: 'Año' },
 ];
 
+// getReport usa ReportType ("daily"/"weekly"/...), esta página usa Period
+// ("day"/"week"/...) para las tabs — mismo periodo, dos convenciones de string
+// distintas ya establecidas en el backend (ver CostPeriod vs ReportType).
+const PERIOD_TO_REPORT_TYPE: Record<Period, Exclude<ReportType, 'custom'>> = {
+  day: 'daily',
+  week: 'weekly',
+  month: 'monthly',
+  year: 'yearly',
+};
+
 const BUCKET_FORMAT: Record<Period, string> = {
   day: 'HH:mm',
   week: 'EEE',
@@ -25,21 +37,25 @@ const BUCKET_FORMAT: Record<Period, string> = {
   year: 'MMM',
 };
 
-function mergeSeries(
-  consumption: EnergySummary,
-  exportData: EnergySummary,
-  period: Period,
-): ComparisonBarPoint[] {
+function mergeSeries(report: ReportData, period: Period): ComparisonBarPoint[] {
   const byTime = new Map<string, ComparisonBarPoint>();
-  for (const p of consumption.series) {
-    byTime.set(p.time, { label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]), a: p.value, b: 0 });
+  for (const p of report.consumption_series) {
+    byTime.set(p.time, {
+      label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]),
+      a: p.value,
+      b: 0,
+    });
   }
-  for (const p of exportData.series) {
+  for (const p of report.export_series) {
     const existing = byTime.get(p.time);
     if (existing) {
       existing.b = p.value;
     } else {
-      byTime.set(p.time, { label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]), a: 0, b: p.value });
+      byTime.set(p.time, {
+        label: formatLocalDateTime(p.time, BUCKET_FORMAT[period]),
+        a: 0,
+        b: p.value,
+      });
     }
   }
   return Array.from(byTime.entries())
@@ -48,10 +64,9 @@ function mergeSeries(
 }
 
 export default function ConsumptionExport() {
+  const { selectedDeviceId } = useDevice();
   const [period, setPeriod] = useState<Period>('day');
-  const [consumption, setConsumption] = useState<EnergySummary | null>(null);
-  const [exportData, setExportData] = useState<EnergySummary | null>(null);
-  const [costs, setCosts] = useState<CostBreakdown | null>(null);
+  const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -61,19 +76,9 @@ export default function ConsumptionExport() {
     async function run() {
       setLoading(true);
       setError(false);
-      setCosts(null);
-      // Costos aparte: si /costs falla, los kWh se muestran igual que siempre.
-      getCosts(period)
-        .then((data) => {
-          if (!cancelled) setCosts(data);
-        })
-        .catch(() => {});
       try {
-        const [c, e] = await Promise.all([getConsumption(period), getExport(period)]);
-        if (!cancelled) {
-          setConsumption(c);
-          setExportData(e);
-        }
+        const data = await getReport(PERIOD_TO_REPORT_TYPE[period], selectedDeviceId ?? undefined);
+        if (!cancelled) setReport(data);
       } catch {
         if (!cancelled) setError(true);
       } finally {
@@ -85,9 +90,10 @@ export default function ConsumptionExport() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, selectedDeviceId]);
 
-  const net = consumption && exportData ? consumption.total_kwh - exportData.total_kwh : null;
+  const net = report ? report.net_balance_kwh : null;
+  const costs = report ? report.costs : null;
 
   return (
     <div className="space-y-6">
@@ -126,16 +132,18 @@ export default function ConsumptionExport() {
         </div>
       )}
 
-      {!loading && error && <Card className="text-sm text-red-500">No se pudo cargar la comparación.</Card>}
+      {!loading && error && (
+        <Card className="text-sm text-red-500">No se pudo cargar la comparación.</Card>
+      )}
 
-      {!loading && !error && consumption && exportData && (
+      {!loading && !error && report && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Importado</p>
                 <p className="mt-1.5 text-2xl font-semibold text-slate-900 dark:text-white">
-                  {formatKwh(consumption.total_kwh)}
+                  {formatKwh(report.consumption_kwh)}
                 </p>
               </div>
               <div className="rounded-xl bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
@@ -146,7 +154,7 @@ export default function ConsumptionExport() {
               <div>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Exportado</p>
                 <p className="mt-1.5 text-2xl font-semibold text-slate-900 dark:text-white">
-                  {formatKwh(exportData.total_kwh)}
+                  {formatKwh(report.export_kwh)}
                 </p>
               </div>
               <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400">
@@ -155,7 +163,9 @@ export default function ConsumptionExport() {
             </Card>
             <Card className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Balance neto</p>
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Balance neto
+                </p>
                 <p
                   className={[
                     'mt-1.5 text-2xl font-semibold',
@@ -203,7 +213,7 @@ export default function ConsumptionExport() {
               Importación vs. exportación
             </p>
             <ComparisonBarChart
-              data={mergeSeries(consumption, exportData, period)}
+              data={mergeSeries(report, period)}
               labelA="Importado"
               labelB="Exportado"
               valueFormatter={(v) => formatKwh(v)}

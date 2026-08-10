@@ -1,26 +1,65 @@
-import { apiClient, unwrap, unwrapVoid } from './client';
-import type { ApiResponse, LoginRequest, TokenPair, UserInfo } from './types';
+/**
+ * Autenticación contra CRMBackend.
+ *
+ * ApiEMS ya no emite tokens. El CRM es el único que sabe qué clientes existen,
+ * a qué empresa pertenece cada persona y si tiene permitido ver su consumo; el
+ * token que firma se manda tal cual a ApiEMS, que lo verifica con la clave
+ * pública del CRM.
+ *
+ * Las respuestas de acá NO vienen envueltas en `{success, data}` — eso es la
+ * convención de ApiEMS. El CRM devuelve el objeto directo.
+ */
+
+import { MONITOR_PREFIX, crmClient } from './crmClient';
+import type { LoginRequest, TokenPair, UserInfo } from './types';
 
 export async function login(payload: LoginRequest): Promise<TokenPair> {
-  const { data } = await apiClient.post<ApiResponse<TokenPair>>('/auth/login', payload);
-  return unwrap(data);
+  const { data } = await crmClient.post<TokenPair>(`${MONITOR_PREFIX}/login`, payload);
+  return data;
 }
 
 export async function refresh(refreshToken: string): Promise<TokenPair> {
-  const { data } = await apiClient.post<ApiResponse<TokenPair>>('/auth/refresh', {
+  const { data } = await crmClient.post<TokenPair>(`${MONITOR_PREFIX}/refresh`, {
     refresh_token: refreshToken,
   });
-  return unwrap(data);
+  return data;
 }
 
-export async function logout(refreshToken?: string | null): Promise<void> {
-  const { data } = await apiClient.post<ApiResponse<null>>('/auth/logout', {
-    refresh_token: refreshToken ?? null,
+export async function me(accessToken: string): Promise<UserInfo> {
+  const { data } = await crmClient.get<UserInfo>(`${MONITOR_PREFIX}/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
-  unwrapVoid(data);
+  return data;
 }
 
-export async function me(): Promise<UserInfo> {
-  const { data } = await apiClient.get<ApiResponse<UserInfo>>('/auth/me');
-  return unwrap(data);
+/**
+ * Cambia la contraseña propia y devuelve un par nuevo.
+ *
+ * El token viejo queda restringido al cambio de contraseña, así que el par que
+ * devuelve esta llamada es el que de verdad abre el consumo — hay que
+ * reemplazar el guardado, no conservarlo.
+ */
+export async function changePassword(
+  accessToken: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<TokenPair> {
+  const { data } = await crmClient.post<TokenPair>(
+    `${MONITOR_PREFIX}/password`,
+    { current_password: currentPassword, new_password: newPassword },
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  return data;
+}
+
+/**
+ * Cerrar sesión es local.
+ *
+ * El CRM no tiene revocación de refresh tokens en esta superficie, así que no
+ * hay a quién avisarle: se borran las credenciales del navegador y el token
+ * que quedara suelto muere solo al vencer. Existe como función para que
+ * `AuthContext` no tenga que saber eso.
+ */
+export function logout(): void {
+  // Sin llamada de red a propósito. Ver el comentario de arriba.
 }
