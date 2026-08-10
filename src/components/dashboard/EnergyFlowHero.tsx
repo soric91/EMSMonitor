@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Home, Minus, Zap } from 'lucide-react';
+import { getRealtimeDevice } from '../../api/realtime';
+import { useDevice } from '../../hooks/useDevice';
 import { useRealtime } from '../../hooks/useRealtime';
 import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 import { Card } from '../ui/Card';
@@ -77,13 +79,44 @@ function FlowArrowhead({
 export function EnergyFlowHero() {
   const { status, subscribedVariable, latestData, subscribe, onDataEvent } = useRealtime();
   const { porNombre } = useVariablesDelMedidor();
+  const { selectedDeviceId } = useDevice();
   const [lastKnown, setLastKnown] = useState<WsDataEvent | null>(null);
+  // El último valor conocido, pedido por HTTP al montar.
+  const [semilla, setSemilla] = useState<number | null>(null);
 
   useEffect(() => {
     return onDataEvent((event) => {
       if (event.variable === VARIABLE) setLastKnown(event);
     });
   }, [onDataEvent]);
+
+  // El socket sostiene una sola variable a la vez. Si la gráfica de abajo ya
+  // se quedó con otra, este componente nunca recibe datos — y al volver de otra
+  // página perdió también el último valor que tenía en memoria, así que
+  // quedaba en «—» para siempre.
+  //
+  // ApiEMS guarda la última lectura de cada equipo en RAM. Pedirla al montar da
+  // algo que mostrar sin competir por la suscripción; si después la consigue,
+  // sigue en vivo desde ahí.
+  useEffect(() => {
+    let cancelled = false;
+    if (selectedDeviceId === null) return;
+
+    async function traerUltimo(deviceId: string) {
+      try {
+        const snapshot = await getRealtimeDevice(deviceId);
+        const valor = snapshot.data[VARIABLE];
+        if (!cancelled && typeof valor === 'number') setSemilla(valor);
+      } catch {
+        // Sin último valor no hay nada que mostrar, que es el estado de antes.
+      }
+    }
+
+    void traerUltimo(selectedDeviceId);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDeviceId]);
 
   useEffect(() => {
     // Solo reclama la suscripción si nada más la está usando: el chart de abajo
@@ -94,9 +127,11 @@ export function EnergyFlowHero() {
   }, [status, subscribedVariable, subscribe]);
 
   const isLive = subscribedVariable === VARIABLE;
+  // En vivo manda lo que llega por el socket; si no, lo último que se vio en
+  // esta pantalla; y como piso, lo que ApiEMS tenía guardado.
   const crudo = isLive
-    ? (latestData?.value ?? lastKnown?.value ?? null)
-    : (lastKnown?.value ?? null);
+    ? (latestData?.value ?? lastKnown?.value ?? semilla)
+    : (lastKnown?.value ?? semilla);
   // El medidor reporta `TotW` en kW. Todo lo de abajo —el formato y los dos
   // umbrales— razona en vatios, así que la conversión va acá y una sola vez.
   const unidad = porNombre.get(VARIABLE)?.unidad ?? '';
