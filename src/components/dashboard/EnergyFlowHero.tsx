@@ -20,9 +20,12 @@ const IDLE_BORDER = 'rgba(148,163,184,0.2)';
 const VARIABLE = 'TotW';
 
 // Cada cuánto se pregunta el último valor cuando el socket está ocupado con
-// otra variable. Cinco segundos: la lectura sale de memoria, no de InfluxDB, y
-// para un número de titular no hace falta ir más seguido.
-const REFRESCO_MS = 5000;
+// otra variable. Un segundo, igual que el medidor: este recuadro es la cifra
+// que se mira de continuo, y a cinco segundos se notaba a saltos.
+//
+// El costo es una petición por segundo, pero la lectura sale de la memoria de
+// ApiEMS —no de InfluxDB— así que no toca nada de lo que costaba caro.
+const REFRESCO_MS = 1000;
 
 function FlowDots({
   direction,
@@ -139,11 +142,14 @@ export function EnergyFlowHero() {
     }
   }, [status, subscribedVariable, subscribe]);
 
-  // En vivo manda lo que llega por el socket; si no, lo último que se vio en
-  // esta pantalla; y como piso, lo que ApiEMS tenía guardado.
+  // Con la suscripción, manda el socket. Sin ella manda la consulta, **no**
+  // `lastKnown`: ese es el último valor que llegó por el socket alguna vez, y
+  // al perder la suscripción queda congelado. Si tuviera prioridad, el número
+  // no volvería a moverse hasta recargar la página — que es exactamente lo que
+  // pasaba.
   const crudo = isLive
     ? (latestData?.value ?? lastKnown?.value ?? semilla)
-    : (lastKnown?.value ?? semilla);
+    : (semilla ?? lastKnown?.value ?? null);
   // El medidor reporta `TotW` en kW. Todo lo de abajo —el formato y los dos
   // umbrales— razona en vatios, así que la conversión va acá y una sola vez.
   const unidad = porNombre.get(VARIABLE)?.unidad ?? '';
@@ -180,7 +186,7 @@ export function EnergyFlowHero() {
             </span>
           ) : (
             value !== null && (
-              <span className="text-[10px] text-slate-400">cada {REFRESCO_MS / 1000} s</span>
+              <span className="text-[10px] text-slate-400">actualizando</span>
             )
           )}
         </div>
@@ -265,22 +271,6 @@ export function EnergyFlowHero() {
         </div>
       </div>
 
-      {!isLive && (
-        <div className="mt-4 flex items-center gap-1.5 text-[11px] text-slate-400">
-          {direction === 'import' ? (
-            <ArrowDown className="h-3 w-3" />
-          ) : (
-            <ArrowUp className="h-3 w-3" />
-          )}
-          {/* Antes decía «en pausa», y desde que este recuadro consulta por su
-              cuenta dejó de ser cierto: el número se sigue actualizando. Lo
-              que cambia es cada cuánto, y eso sí conviene decirlo — quien mira
-              tiene que poder distinguir un valor de hace un segundo de uno de
-              hace cinco. */}
-          Actualiza cada {REFRESCO_MS / 1000} s — el gráfico de abajo tiene el
-          tiempo real
-        </div>
-      )}
     </Card>
   );
 }

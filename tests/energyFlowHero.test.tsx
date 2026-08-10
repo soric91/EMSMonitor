@@ -29,13 +29,16 @@ const MEDIDOR = {
 const TOT_W = {
   nombre: 'TotW',
   etiqueta: 'Potencia activa total',
-  unidad: 'kW',
+  unidad: 'W',
   magnitud: 'potencia_activa',
   fase: 'total',
   acumulativa: false,
   equipos: ['eq-1'],
   con_datos: true,
 };
+
+/** El valor que devuelve la consulta; los tests lo cambian para ver si llega. */
+let valorActual = 520.8;
 
 /** Lo que ApiEMS guarda en memoria de la última lectura del equipo. */
 const ULTIMA_LECTURA = {
@@ -45,7 +48,7 @@ const ULTIMA_LECTURA = {
   identify_device: 'eq-1',
   timestamp: '2026-08-10T12:00:00Z',
   received_at: '2026-08-10T12:00:01Z',
-  data: { TotW: 1.474 },
+  data: {} as Record<string, number>,
   equipment_uuid: 'eq-1',
   modbus_id: 10,
 };
@@ -59,8 +62,8 @@ describe('sin la suscripción del socket', () => {
 
     montar();
 
-    // 1.474 kW → 1474 W, con la conversión por unidad del catálogo.
-    await waitFor(() => expect(screen.getByText(/1\.47 kW/)).toBeInTheDocument());
+    // El medidor entrega vatios; el panel escala solo al pasar de 1000.
+    await waitFor(() => expect(screen.getByText('521 W')).toBeInTheDocument());
   });
 
   test('lo pide del medidor elegido', async () => {
@@ -127,7 +130,7 @@ function servir(options: { sinLectura?: boolean } = {}): void {
           ? [TOT_W]
           : options.sinLectura
             ? { ...ULTIMA_LECTURA, data: {} }
-            : ULTIMA_LECTURA;
+            : { ...ULTIMA_LECTURA, data: { TotW: valorActual } };
 
     return Promise.resolve({
       data: { success: true, message: '', data },
@@ -142,6 +145,7 @@ function servir(options: { sinLectura?: boolean } = {}): void {
 afterEach(() => {
   cleanup();
   parametros = [];
+  valorActual = 520.8;
 });
 
 afterAll(() => {
@@ -157,24 +161,29 @@ describe('mientras la gráfica tiene la suscripción', () => {
 
     montar();
 
-    await waitFor(() => expect(screen.getByText(/1\.47 kW/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('521 W')).toBeInTheDocument());
 
     const consultas = () =>
       parametros.filter((p) => String(p.url).includes('/realtime/device')).length;
     const antes = consultas();
 
-    await new Promise((listo) => setTimeout(listo, 5200));
+    await new Promise((listo) => setTimeout(listo, 1200));
 
     expect(consultas()).toBeGreaterThan(antes);
-    // El límite por defecto son 5 s y este test espera a que pase un ciclo
-    // completo de refresco, así que necesita más margen.
-  }, 15000);
+  });
 
-  test('lo dice, en vez de aparentar tiempo real', async () => {
+  test('un valor viejo del socket no tapa al de la consulta', async () => {
+    // El bug reportado: `lastKnown` guarda el último valor que llegó por el
+    // socket, y al perder la suscripción queda congelado. Si tuviera
+    // prioridad, el número no se movería hasta recargar la página.
     servir();
 
     montar();
 
-    await waitFor(() => expect(screen.getByText(/cada 5 s/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('521 W')).toBeInTheDocument());
+
+    // Cruza los 1000 W, así que además comprueba que el panel escale solo.
+    valorActual = 1500;
+    await waitFor(() => expect(screen.getByText('1.50 kW')).toBeInTheDocument());
   });
 });
