@@ -5,6 +5,7 @@ import type { CostBreakdown, Period } from '../../api/types';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { formatCop, formatKwh } from '../../utils/format';
+import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 
 interface CostoDelPeriodoProps {
   /** "hoy", "del mes" — se completa como "Importado hoy". */
@@ -31,10 +32,21 @@ function monthLabel(month: string): string {
  * Las dos salen de **una sola** petición: el backend ya devuelve importado,
  * exportado y neto juntos. Pedir dos veces sería traer el mismo cálculo por
  * duplicado, y con una latencia de ~190 ms contra la base eso se nota.
+ *
+ * La de exportado aparece solo si el medidor mide exportación. Un cliente sin
+ * paneles no entrega nada nunca, y una tarjeta en cero permanente ocupa la
+ * mitad del tablero para decir que no pasa nada. Es el mismo criterio que ya
+ * gobierna las gráficas: no se dibuja lo que ese medidor no mide.
+ *
+ * Se decide por lo que el medidor **declara**, no por el valor del período: con
+ * paneles, exportar cero de noche es normal, y una tarjeta que aparece y
+ * desaparece según la hora sería peor que cualquiera de las dos opciones.
  */
 export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
   const [cost, setCost] = useState<CostBreakdown | null>(null);
   const [error, setError] = useState(false);
+  const { porMagnitud } = useVariablesDelMedidor();
+  const mideExportacion = porMagnitud.has('energia_exportada');
 
   useEffect(() => {
     let cancelled = false;
@@ -56,19 +68,14 @@ export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
   }, [period]);
 
   if (error) {
-    return (
-      <>
-        <Card className="text-sm text-red-500">No se pudo cargar el costo {periodo}.</Card>
-        <Card className="text-sm text-red-500">No se pudo cargar el crédito {periodo}.</Card>
-      </>
-    );
+    return <Card className="text-sm text-red-500">No se pudo cargar el costo {periodo}.</Card>;
   }
 
   if (!cost) {
     return (
       <>
         <Esqueleto />
-        <Esqueleto />
+        {mideExportacion && <Esqueleto />}
       </>
     );
   }
@@ -85,21 +92,30 @@ export function CostoDelPeriodo({ periodo, period }: CostoDelPeriodoProps) {
         tono="importado"
         icono={<Wallet className="h-5 w-5" />}
         pie={
-          <>
-            Neto: {formatCop(Math.abs(cost.net_cost_cop))}
-            {aFavor && ' a tu favor'}
-          </>
+          // Sin exportación el neto es el mismo importe de arriba: repetirlo
+          // solo agrega un número que hay que comparar para descubrir que es
+          // igual.
+          mideExportacion ? (
+            <>
+              Neto: {formatCop(Math.abs(cost.net_cost_cop))}
+              {aFavor && ' a tu favor'}
+            </>
+          ) : (
+            'Lo que tomaste de la red en el período'
+          )
         }
         aviso={<AvisoDeTarifa cost={cost} />}
       />
-      <Recuadro
-        titulo={`Exportado ${periodo}`}
-        monto={cost.export_credit_cop}
-        energia={cost.export_kwh}
-        tono="exportado"
-        icono={<PiggyBank className="h-5 w-5" />}
-        pie="Crédito por lo que entregaste a la red"
-      />
+      {mideExportacion && (
+        <Recuadro
+          titulo={`Exportado ${periodo}`}
+          monto={cost.export_credit_cop}
+          energia={cost.export_kwh}
+          tono="exportado"
+          icono={<PiggyBank className="h-5 w-5" />}
+          pie="Crédito por lo que entregaste a la red"
+        />
+      )}
     </>
   );
 }

@@ -10,7 +10,9 @@ import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '../src/api/client';
 import { CostoDelPeriodo } from '../src/components/dashboard/CostoDelPeriodo';
-import type { CostBreakdown } from '../src/api/types';
+import { VariablesProvider } from '../src/context/VariablesContext';
+import { DeviceProvider } from '../src/context/DeviceContext';
+import type { CostBreakdown, VariableDisponible } from '../src/api/types';
 
 const COSTO: CostBreakdown = {
   period: 'day',
@@ -31,7 +33,7 @@ describe('qué se muestra', () => {
   test('un período pinta dos recuadros: importado y exportado', async () => {
     servir(COSTO);
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() => expect(screen.getByText('Importado hoy')).toBeInTheDocument());
     expect(screen.getByText('Exportado hoy')).toBeInTheDocument();
@@ -40,7 +42,7 @@ describe('qué se muestra', () => {
   test('los dos importes salen al mismo nivel, no uno escondido', async () => {
     servir(COSTO);
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() => expect(screen.getByText(/7\.751/)).toBeInTheDocument());
     expect(screen.getByText(/1\.142/)).toBeInTheDocument();
@@ -51,7 +53,7 @@ describe('qué se muestra', () => {
     // y que subiera la tarifa.
     servir(COSTO);
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() => expect(screen.getByText(/12\.40 kWh/)).toBeInTheDocument());
     expect(screen.getByText(/1\.80 kWh/)).toBeInTheDocument();
@@ -60,7 +62,7 @@ describe('qué se muestra', () => {
   test('el neto sigue estando, ahora al pie', async () => {
     servir(COSTO);
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() => expect(screen.getByText(/Neto: .*6\.608/)).toBeInTheDocument());
   });
@@ -73,10 +75,10 @@ describe('una sola petición', () => {
     // eso se nota.
     servir(COSTO);
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() => expect(screen.getByText('Exportado hoy')).toBeInTheDocument());
-    expect(pedidos).toHaveLength(1);
+    expect(pedidos.filter((url) => url.startsWith('/costs'))).toHaveLength(1);
   });
 });
 
@@ -84,7 +86,7 @@ describe('saldo a favor', () => {
   test('cuando el crédito supera al costo, el neto lo dice', async () => {
     servir({ ...COSTO, net_cost_cop: -1200 });
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() => expect(screen.getByText(/a tu favor/)).toBeInTheDocument());
   });
@@ -94,7 +96,7 @@ describe('el aviso de tarifa vieja', () => {
   test('aparece cuando el backend estimó con un mes anterior', async () => {
     servir({ ...COSTO, stale_months: ['2026-08'], months_used: ['2026-06'] });
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() =>
       expect(screen.getByText(/Tarifa estimada/)).toBeInTheDocument(),
@@ -106,7 +108,7 @@ describe('el aviso de tarifa vieja', () => {
     // ruido que se deja de leer.
     servir({ ...COSTO, stale_months: ['2026-08'], months_used: ['2026-06'] });
 
-    render(<CostoDelPeriodo periodo="hoy" period="day" />);
+    montar();
 
     await waitFor(() => expect(screen.getByText(/Tarifa estimada/)).toBeInTheDocument());
     expect(screen.getAllByText(/Tarifa estimada/)).toHaveLength(1);
@@ -115,14 +117,40 @@ describe('el aviso de tarifa vieja', () => {
 
 // --- andamiaje ---------------------------------------------------------
 
+function montar(): void {
+  render(
+    <VariablesProvider>
+      <DeviceProvider>
+        <CostoDelPeriodo periodo="hoy" period="day" />
+      </DeviceProvider>
+    </VariablesProvider>,
+  );
+}
+
+/** Una variable de exportación: es lo que decide si la tarjeta verde existe. */
+const EXPORTA: VariableDisponible = {
+  nombre: 'TotWh_export',
+  etiqueta: 'Energía exportada',
+  unidad: 'kWh',
+  magnitud: 'energia_exportada',
+  fase: 'total',
+  acumulativa: true,
+  equipos: [],
+  con_datos: true,
+};
+
 const adapterOriginal = apiClient.defaults.adapter;
 let pedidos: string[] = [];
+let variables: VariableDisponible[] = [EXPORTA];
 
 function servir(cost: CostBreakdown): void {
   apiClient.defaults.adapter = (config) => {
-    pedidos.push(config.url ?? '');
+    const url = config.url ?? '';
+    pedidos.push(url);
+    const data =
+      url === '/variables' ? variables : url === '/devices' ? [] : cost;
     return Promise.resolve({
-      data: { success: true, message: '', data: cost },
+      data: { success: true, message: '', data },
       status: 200,
       statusText: 'OK',
       headers: {},
@@ -131,11 +159,41 @@ function servir(cost: CostBreakdown): void {
   };
 }
 
+/** Un medidor sin paneles: no declara ninguna variable de exportación. */
+function sinPaneles(): void {
+  variables = [];
+}
+
 afterEach(() => {
   cleanup();
   pedidos = [];
+  variables = [EXPORTA];
 });
 
 afterAll(() => {
   apiClient.defaults.adapter = adapterOriginal;
+});
+
+describe('un cliente sin paneles', () => {
+  test('no ve una tarjeta de exportado en cero permanente', async () => {
+    // Nunca entrega nada. Media pantalla ocupada para decir que no pasa nada
+    // es peor que no mostrarlo.
+    sinPaneles();
+    servir(COSTO);
+
+    montar();
+
+    await waitFor(() => expect(screen.getByText('Importado hoy')).toBeInTheDocument());
+    expect(screen.queryByText('Exportado hoy')).toBeNull();
+  });
+
+  test('tampoco ve el neto, que sería el mismo importe repetido', async () => {
+    sinPaneles();
+    servir(COSTO);
+
+    montar();
+
+    await waitFor(() => expect(screen.getByText('Importado hoy')).toBeInTheDocument());
+    expect(screen.queryByText(/Neto:/)).toBeNull();
+  });
 });
