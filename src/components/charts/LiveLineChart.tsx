@@ -53,9 +53,13 @@ const THEME = {
   light: { text: '#64748b', grid: 'rgba(15,23,42,0.06)', border: 'rgba(15,23,42,0.1)' },
 };
 
-function toChartPoints(data: LiveChartPoint[]) {
+export function toChartPoints(data: LiveChartPoint[]) {
   const bySecond = new Map<number, number>();
   for (const p of data) {
+    // Un tick con valor no finito (null/NaN/Inf — el backend puede recibir
+    // NaN del medidor) rompe lightweight-charts con "Value is null"; se
+    // descarta el punto, no la serie entera.
+    if (!Number.isFinite(p.value) || !Number.isFinite(p.time)) continue;
     bySecond.set(Math.floor(p.time / 1000), p.value);
   }
   return Array.from(bySecond.entries())
