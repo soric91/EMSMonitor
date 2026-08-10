@@ -148,3 +148,33 @@ afterAll(() => {
   apiClient.defaults.adapter = adapterOriginal;
   globalThis.WebSocket = WebSocketOriginal;
 });
+
+describe('mientras la gráfica tiene la suscripción', () => {
+  test('sigue actualizando en vez de quedarse congelado', async () => {
+    // El recuadro existe para mostrar la potencia en la frontera. Que alguien
+    // elija ver la tensión abajo no puede dejarlo mostrando un número viejo.
+    servir();
+
+    montar();
+
+    await waitFor(() => expect(screen.getByText(/1\.47 kW/)).toBeInTheDocument());
+
+    const consultas = () =>
+      parametros.filter((p) => String(p.url).includes('/realtime/device')).length;
+    const antes = consultas();
+
+    await new Promise((listo) => setTimeout(listo, 5200));
+
+    expect(consultas()).toBeGreaterThan(antes);
+    // El límite por defecto son 5 s y este test espera a que pase un ciclo
+    // completo de refresco, así que necesita más margen.
+  }, 15000);
+
+  test('lo dice, en vez de aparentar tiempo real', async () => {
+    servir();
+
+    montar();
+
+    await waitFor(() => expect(screen.getByText(/cada 5 s/)).toBeInTheDocument());
+  });
+});

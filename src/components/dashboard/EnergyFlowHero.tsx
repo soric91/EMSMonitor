@@ -19,6 +19,11 @@ const IDLE_BORDER = 'rgba(148,163,184,0.2)';
 // existe para mostrar ese flujo — no es una lista que pueda quedar corta.
 const VARIABLE = 'TotW';
 
+// Cada cuánto se pregunta el último valor cuando el socket está ocupado con
+// otra variable. Cinco segundos: la lectura sale de memoria, no de InfluxDB, y
+// para un número de titular no hace falta ir más seguido.
+const REFRESCO_MS = 5000;
+
 function FlowDots({
   direction,
   color,
@@ -80,6 +85,8 @@ export function EnergyFlowHero() {
   const { status, subscribedVariable, latestData, subscribe, onDataEvent } = useRealtime();
   const { porNombre } = useVariablesDelMedidor();
   const { selectedDeviceId } = useDevice();
+  // Si este recuadro es el dueño de la suscripción del socket.
+  const isLive = subscribedVariable === VARIABLE;
   const [lastKnown, setLastKnown] = useState<WsDataEvent | null>(null);
   // El último valor conocido, pedido por HTTP al montar.
   const [semilla, setSemilla] = useState<number | null>(null);
@@ -90,14 +97,14 @@ export function EnergyFlowHero() {
     });
   }, [onDataEvent]);
 
-  // El socket sostiene una sola variable a la vez. Si la gráfica de abajo ya
-  // se quedó con otra, este componente nunca recibe datos — y al volver de otra
-  // página perdió también el último valor que tenía en memoria, así que
-  // quedaba en «—» para siempre.
+  // El socket sostiene una sola variable a la vez, y la gráfica de abajo puede
+  // llevársela a pedido de quien mira. Pero este recuadro existe para mostrar
+  // la potencia en la frontera: quedarse en «—» —o congelado— porque alguien
+  // eligió ver la tensión es perder justo lo que vino a mostrar.
   //
-  // ApiEMS guarda la última lectura de cada equipo en RAM. Pedirla al montar da
-  // algo que mostrar sin competir por la suscripción; si después la consigue,
-  // sigue en vivo desde ahí.
+  // ApiEMS guarda la última lectura de cada equipo en RAM, así que preguntarle
+  // no toca InfluxDB. Mientras no tenga la suscripción, se pregunta cada pocos
+  // segundos; cuando la tiene, el socket manda y esto se apaga solo.
   useEffect(() => {
     let cancelled = false;
     if (selectedDeviceId === null) return;
@@ -113,10 +120,16 @@ export function EnergyFlowHero() {
     }
 
     void traerUltimo(selectedDeviceId);
-    return () => {
+    if (isLive) return () => {
       cancelled = true;
     };
-  }, [selectedDeviceId]);
+
+    const timer = setInterval(() => void traerUltimo(selectedDeviceId), REFRESCO_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [selectedDeviceId, isLive]);
 
   useEffect(() => {
     // Solo reclama la suscripción si nada más la está usando: el chart de abajo
@@ -126,7 +139,6 @@ export function EnergyFlowHero() {
     }
   }, [status, subscribedVariable, subscribe]);
 
-  const isLive = subscribedVariable === VARIABLE;
   // En vivo manda lo que llega por el socket; si no, lo último que se vio en
   // esta pantalla; y como piso, lo que ApiEMS tenía guardado.
   const crudo = isLive
@@ -167,7 +179,9 @@ export function EnergyFlowHero() {
               </span>
             </span>
           ) : (
-            value !== null && <span className="text-[10px] text-slate-400">último valor</span>
+            value !== null && (
+              <span className="text-[10px] text-slate-400">cada {REFRESCO_MS / 1000} s</span>
+            )
           )}
         </div>
         <span
@@ -258,7 +272,13 @@ export function EnergyFlowHero() {
           ) : (
             <ArrowUp className="h-3 w-3" />
           )}
-          En pausa — el gráfico de abajo está mostrando otra variable
+          {/* Antes decía «en pausa», y desde que este recuadro consulta por su
+              cuenta dejó de ser cierto: el número se sigue actualizando. Lo
+              que cambia es cada cuánto, y eso sí conviene decirlo — quien mira
+              tiene que poder distinguir un valor de hace un segundo de uno de
+              hace cinco. */}
+          Actualiza cada {REFRESCO_MS / 1000} s — el gráfico de abajo tiene el
+          tiempo real
         </div>
       )}
     </Card>
