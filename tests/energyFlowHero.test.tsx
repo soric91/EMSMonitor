@@ -1,12 +1,14 @@
 /**
- * El recuadro de la frontera, ahora alimentado por el payload consolidado.
+ * El recuadro de la frontera, alimentado por su propia conexión WebSocket.
  *
- * Desde F5.3 el hero no pregunta por su cuenta: `/dashboard/summary` ya trae la
- * potencia activa total (`power_active_total_w`), y el WebSocket sostiene una
- * sola variable a la vez —si la gráfica de abajo se quedó con otra, el hero usa
- * la última instantánea que le llegó a él. Sin ninguna de las dos fuentes no
- * inventa un valor: un medidor recién instalado que nunca publicó no está
- * consumiendo ni dejó de consumir, no sabemos.
+ * Desde el fix del "valor congelado" el hero ya no compite por la conexión
+ * compartida del dashboard: como el backend sostiene una sola variable por
+ * conexión y la gráfica de abajo ocupa la compartida con lo que esté mirando,
+ * este recuadro abre la suya para `TotW`. Así el flujo de la frontera llega
+ * siempre en vivo, y `seedWatts` (la instantánea del `/dashboard/summary`)
+ * solo cubre la transición mientras la conexión abre. Sin ninguna de las dos
+ * fuentes no inventa un valor: un medidor recién instalado que nunca publicó
+ * no está consumiendo ni dejó de consumir, no sabemos.
  */
 
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
@@ -85,10 +87,60 @@ describe('el resumen no vuelve a preguntar', () => {
   });
 });
 
+describe('con su propia conexión WebSocket', () => {
+  test('abre una conexión dedicada suscrita a TotW', async () => {
+    servir();
+
+    montar({ seedWatts: null });
+
+    await socketDelHero();
+    // La compartida del dashboard también abre (RealtimeProvider) — que el
+    // hero tenga además la suya, aparte, es justo el punto del fix.
+    await waitFor(() => expect(instancias.length).toBeGreaterThanOrEqual(2));
+  });
+
+  test('muestra en vivo el valor que llega por su conexión', async () => {
+    servir();
+
+    montar({ seedWatts: 520.8 });
+
+    const ws = await socketDelHero();
+    leer(ws, {
+      type: 'data',
+      variable: 'TotW',
+      value: 750,
+      timestamp: new Date().toISOString(),
+    });
+
+    await waitFor(() => expect(screen.getByText('750 W')).toBeInTheDocument());
+  });
+
+  test('marca Online cuando su conexión está lista', async () => {
+    servir();
+
+    montar({ seedWatts: null });
+
+    await socketDelHero();
+
+    await waitFor(() => expect(screen.getByText('Online')).toBeInTheDocument());
+  });
+
+  test('cierra su conexión al desmontar', async () => {
+    servir();
+
+    const vista = montar({ seedWatts: null });
+
+    const ws = await socketDelHero();
+    vista.unmount();
+
+    expect(ws.cerrado).toBe(true);
+  });
+});
+
 // --- andamiaje ---------------------------------------------------------
 
-function montar({ seedWatts }: { seedWatts?: number | null }): void {
-  render(
+function montar({ seedWatts }: { seedWatts?: number | null }) {
+  return render(
     <VariablesProvider>
       <DeviceProvider>
         <RealtimeProvider>
@@ -102,17 +154,58 @@ function montar({ seedWatts }: { seedWatts?: number | null }): void {
 const adapterOriginal = apiClient.defaults.adapter;
 const WebSocketOriginal = globalThis.WebSocket;
 let parametros: Record<string, unknown>[] = [];
+let instancias: WebSocketEspia[] = [];
 
-class WebSocketMudo {
+class WebSocketEspia {
   static readonly CONNECTING = 0;
-  readyState = WebSocketMudo.CONNECTING;
-  close(): void {}
+  static readonly OPEN = 1;
+  readyState = WebSocketEspia.CONNECTING;
+  onopen: (() => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+  sent: string[] = [];
+  cerrado = false;
+  constructor() {
+    instancias.push(this);
+  }
+  send(data: string): void {
+    this.sent.push(data);
+  }
+  close(): void {
+    this.cerrado = true;
+  }
   addEventListener(): void {}
-  send(): void {}
+}
+
+function delHero(ws: WebSocketEspia): boolean {
+  // El medidor se elige apenas carga el inventario (null → 'eq-1'), y ese
+  // cambio re-abre la conexión del hero. El socket activo es el que suscribe
+  // con el equipo ya elegido; el que usó null en el arranque queda cerrado.
+  return ws.sent.some((m) => m.includes('TotW') && m.includes('eq-1'));
+}
+
+function abrir(ws: WebSocketEspia): void {
+  ws.readyState = WebSocketEspia.OPEN;
+  ws.onopen?.();
+}
+
+function leer(ws: WebSocketEspia, payload: unknown): void {
+  ws.onmessage?.({ data: JSON.stringify(payload) });
+}
+
+/** La conexión del hero: la que, al abrir, suscribe `TotW` del equipo elegido. */
+async function socketDelHero(): Promise<WebSocketEspia> {
+  await waitFor(
+    () => {
+      for (const ws of instancias) abrir(ws);
+      expect(instancias.some(delHero)).toBe(true);
+    },
+    { timeout: 3000 },
+  );
+  return instancias.find(delHero)!;
 }
 
 function servir(): void {
-  globalThis.WebSocket = WebSocketMudo as unknown as typeof WebSocket;
+  globalThis.WebSocket = WebSocketEspia as unknown as typeof WebSocket;
   apiClient.defaults.adapter = (config) => {
     const url = config.url ?? '';
     parametros.push({ url, ...(config.params ?? {}) });
@@ -132,6 +225,7 @@ function servir(): void {
 afterEach(() => {
   cleanup();
   parametros = [];
+  instancias = [];
 });
 
 afterAll(() => {

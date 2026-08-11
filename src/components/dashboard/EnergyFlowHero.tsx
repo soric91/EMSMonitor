@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Home, Minus, Zap } from 'lucide-react';
-import { useRealtime } from '../../hooks/useRealtime';
+import { createEmsWebSocket, type WsConnectionStatus } from '../../api/websocket';
+import { useDevice } from '../../hooks/useDevice';
 import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 import { Card } from '../ui/Card';
 import { enWatts, formatWatts } from '../../utils/format';
@@ -77,41 +78,47 @@ function FlowArrowhead({
 interface EnergyFlowHeroProps {
   /**
    * La potencia activa total que el panel ya trajo en `/dashboard/summary`
-   * (en vatios). Así el hero no pregunta por su cuenta: cuando el socket está
-   * ocupado con otra variable muestra la última instantánea, no se congela.
+   * (en vatios). Cubre la transición mientras la conexión propia del hero
+   * abre: hasta que llega el primer tick en vivo, se muestra la instantánea
+   * que el tablero ya tenía, no un cero.
    */
   seedWatts?: number | null;
 }
 
 export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
-  const { status, subscribedVariable, latestData, subscribe, onDataEvent } = useRealtime();
   const { porNombre } = useVariablesDelMedidor();
-  // Si este recuadro es el dueño de la suscripción del socket.
-  const isLive = subscribedVariable === VARIABLE;
+  const { selectedDeviceId } = useDevice();
+  const [estadoConexion, setEstadoConexion] = useState<WsConnectionStatus>('connecting');
   const [lastKnown, setLastKnown] = useState<WsDataEvent | null>(null);
 
+  // El backend sostiene una variable suscrita por conexión y la compartida del
+  // dashboard la ocupa la gráfica de abajo con lo que esté mirando. Si este
+  // recuadro esperara a que quedara libre, el valor se congelaría en la última
+  // instantánea del resumen —exactamente el bug que esto reemplaza—. Por eso
+  // abre su propia conexión para `TotW`: un socket más, a cambio de que el
+  // flujo de la frontera siempre llegue en vivo, sin depender de a qué
+  // variable haya movido el usuario la conexión compartida.
   useEffect(() => {
-    return onDataEvent((event) => {
-      if (event.variable === VARIABLE) setLastKnown(event);
+    const client = createEmsWebSocket({
+      onStatusChange: setEstadoConexion,
+      onData: (event) => setLastKnown(event),
     });
-  }, [onDataEvent]);
+    client.connect();
+    client.subscribe(VARIABLE, selectedDeviceId);
 
-  useEffect(() => {
-    // Solo reclama la suscripción si nada más la está usando: el chart de abajo
-    // puede haberla movido a otra variable a pedido explícito del usuario.
-    if (status === 'connected' && subscribedVariable === null) {
-      subscribe(VARIABLE);
-    }
-  }, [status, subscribedVariable, subscribe]);
+    return () => {
+      client.close();
+    };
+  }, [selectedDeviceId]);
 
-  // El medidor reporta `TotW` en kW, así que el valor en vivo se convierte a
-  // vatios una sola vez. `lastKnown` es el último valor que llegó por el socket
-  // para esta variable (pase lo que pase con la suscripción). La semilla del
-  // resumen manda después: gana la instantánea fresca del /dashboard/summary.
+  // El medidor reporta `TotW` en kW, así que el valor se convierte a vatios una
+  // sola vez. En vivo gana el último tick del socket; sin él, la instantánea
+  // fresca del `/dashboard/summary`, y como último recurso la última lectura
+  // que sí llegó por esta conexión.
   const unidad = porNombre.get(VARIABLE)?.unidad ?? '';
+  const isLive = estadoConexion === 'connected';
   const ultimoWs = lastKnown ? enWatts(lastKnown.value, unidad) : null;
-  const enVivo = isLive ? (latestData?.value ?? null) : null;
-  const value = enVivo !== null ? enWatts(enVivo, unidad) : (seedWatts ?? ultimoWs ?? null);
+  const value = isLive && ultimoWs !== null ? ultimoWs : (seedWatts ?? ultimoWs ?? null);
   const isImporting = value !== null && value > 1;
   const isExporting = value !== null && value < -1;
   const direction: 'import' | 'export' | 'neutral' = isImporting
@@ -143,7 +150,15 @@ export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
               </span>
             </span>
           ) : (
-            value !== null && <span className="text-[10px] text-slate-400">actualizando</span>
+            value !== null && (
+              <span className="text-[10px] text-slate-400">
+                {estadoConexion === 'reconnecting'
+                  ? 'reconectando'
+                  : estadoConexion === 'disconnected'
+                    ? 'desconectado'
+                    : 'conectando'}
+              </span>
+            )
           )}
         </div>
         <span
