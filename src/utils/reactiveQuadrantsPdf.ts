@@ -1,15 +1,20 @@
 import type { ReactiveQuadrantsResult } from '../api/types';
 import { formatLocalDateTime, formatPercent, formatVariableValue } from './format';
 
-// Paleta del informe (los mismos significados de color de la página Reactiva)
+// Paleta del informe (los mismos significados de color de la página Reactiva).
 const INK = '#0f172a';
 const MUTED = '#64748b';
 const FAINT = '#94a3b8';
 const CARD_BORDER = '#e2e8f0';
+// Importada / exportada agregadas (KPIs del encabezado).
 const IMPORT_COLOR = '#f59e0b';
-const IMPORT_SOFT_COLOR = '#fbbf24';
-const EXPORT_SOFT_COLOR = '#34d399';
 const EXPORT_COLOR = '#10b981';
+// Cuadrantes: un matiz por cuadrante, la misma paleta que la página — Q1 ámbar,
+// Q2 cian, Q3 esmeralda, Q4 violeta.
+const Q1_COLOR = IMPORT_COLOR;
+const Q2_COLOR = '#06b6d4';
+const Q3_COLOR = EXPORT_COLOR;
+const Q4_COLOR = '#8b5cf6';
 
 const PAGE_W = 595.28; // A4 pt
 const MARGIN = 48;
@@ -28,28 +33,28 @@ const CUADRANTES: {
     id: 'q1',
     etiqueta: 'Q1 · Importada inductiva',
     descripcion: 'Reactiva absorbida de la red con factor inductivo',
-    color: IMPORT_COLOR,
+    color: Q1_COLOR,
   },
   {
     key: 'q2_kvarh',
     id: 'q2',
     etiqueta: 'Q2 · Importada capacitiva',
     descripcion: 'Reactiva absorbida de la red con factor capacitivo',
-    color: IMPORT_SOFT_COLOR,
+    color: Q2_COLOR,
   },
   {
     key: 'q3_kvarh',
     id: 'q3',
     etiqueta: 'Q3 · Exportada capacitiva',
     descripcion: 'Reactiva devuelta a la red con factor capacitivo',
-    color: EXPORT_SOFT_COLOR,
+    color: Q3_COLOR,
   },
   {
     key: 'q4_kvarh',
     id: 'q4',
     etiqueta: 'Q4 · Exportada inductiva',
     descripcion: 'Reactiva devuelta a la red con factor inductivo',
-    color: EXPORT_COLOR,
+    color: Q4_COLOR,
   },
 ];
 

@@ -14,10 +14,12 @@ import { TabPills } from '../components/ui/TabPills';
 import { saveBlob } from '../utils/downloadCsv';
 import { formatLocalDateTime, formatPercent, formatVariableValue } from '../utils/format';
 
-const IMPORT_COLOR = '#f59e0b';
-const IMPORT_SOFT_COLOR = '#fbbf24';
-const EXPORT_SOFT_COLOR = '#34d399';
-const EXPORT_COLOR = '#10b981';
+// Cuatro matices bien diferenciados (accesibles en daltónicos): uno por
+// cuadrante, en vez de pares ámbar/verde casi iguales que no se distinguían.
+const Q1_COLOR = '#f59e0b';
+const Q2_COLOR = '#06b6d4';
+const Q3_COLOR = '#10b981';
+const Q4_COLOR = '#8b5cf6';
 
 /**
  * Los cuatro cuadrantes (IEC 60375) con su lectura física en la acometida.
@@ -38,28 +40,28 @@ const CUADRANTES: {
     id: 'q1',
     etiqueta: 'Q1 · Importada inductiva',
     descripcion: 'Reactiva absorbida de la red con factor inductivo',
-    color: IMPORT_COLOR,
+    color: Q1_COLOR,
   },
   {
     key: 'q2_kvarh',
     id: 'q2',
     etiqueta: 'Q2 · Importada capacitiva',
     descripcion: 'Reactiva absorbida de la red con factor capacitivo',
-    color: IMPORT_SOFT_COLOR,
+    color: Q2_COLOR,
   },
   {
     key: 'q3_kvarh',
     id: 'q3',
     etiqueta: 'Q3 · Exportada capacitiva',
     descripcion: 'Reactiva devuelta a la red con factor capacitivo',
-    color: EXPORT_SOFT_COLOR,
+    color: Q3_COLOR,
   },
   {
     key: 'q4_kvarh',
     id: 'q4',
     etiqueta: 'Q4 · Exportada inductiva',
     descripcion: 'Reactiva devuelta a la red con factor inductivo',
-    color: EXPORT_COLOR,
+    color: Q4_COLOR,
   },
 ];
 
