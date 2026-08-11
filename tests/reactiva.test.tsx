@@ -6,8 +6,8 @@
  * lo decida y que la lectura de los cuadrantes Q1..Q4 se muestre.
  */
 
-import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterAll, afterEach, beforeEach, describe, expect, test } from '@rstest/core';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '../src/api/client';
 import Reactiva from '../src/pages/Reactiva';
 import { DeviceContext } from '../src/context/DeviceContext';
@@ -97,6 +97,76 @@ describe('al montar', () => {
   });
 });
 
+describe('exportar', () => {
+  test('los botones de exportar solo aparecen con datos', async () => {
+    servir(SIN_REACTIVA);
+
+    montar();
+
+    await waitFor(() => expect(screen.getByText('Sin energía reactiva')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Exportar CSV/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Exportar PDF/ })).not.toBeInTheDocument();
+  });
+
+  test('el exportar CSV baja los puntos crudos de las últimas 24h del medidor', async () => {
+    servir(RESULT);
+
+    montar();
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar CSV/ })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Exportar CSV/ }));
+
+    await waitFor(() => {
+      expect(
+        parametros.filter((p) => String(p.url) === '/analytics/reactive-quadrants/csv'),
+      ).toHaveLength(1);
+    });
+    const pedido = parametros.find((p) => String(p.url) === '/analytics/reactive-quadrants/csv');
+    expect(pedido?.device_id).toBe('eq-elegido');
+    const from = new Date(String(pedido?.from)).getTime();
+    const to = new Date(String(pedido?.to)).getTime();
+    expect(Math.abs(to - from - 24 * 3600 * 1000)).toBeLessThan(1000);
+    // Y el stream se descargó como Blob con el nombre del día.
+    expect(savedBlobs).toHaveLength(1);
+    expect(descargas).toEqual([expect.stringMatching(/^reactiva_24h_/)]);
+  });
+
+  test('al cambiar a 7 días el CSV baja una semana', async () => {
+    servir(RESULT);
+
+    montar();
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar CSV/ })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Últimos 7 días' }));
+    fireEvent.click(screen.getByRole('button', { name: /Exportar CSV/ }));
+
+    await waitFor(() => {
+      expect(
+        parametros.filter((p) => String(p.url) === '/analytics/reactive-quadrants/csv'),
+      ).toHaveLength(1);
+    });
+    const pedido = parametros.find((p) => String(p.url) === '/analytics/reactive-quadrants/csv');
+    const from = new Date(String(pedido?.from)).getTime();
+    const to = new Date(String(pedido?.to)).getTime();
+    expect(Math.abs(to - from - 7 * 24 * 3600 * 1000)).toBeLessThan(1000);
+    expect(descargas).toEqual([expect.stringMatching(/^reactiva_7d_/)]);
+  });
+
+  test('el botón de PDF está presente con datos', async () => {
+    servir(RESULT);
+
+    montar();
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar PDF/ })).toBeInTheDocument(),
+    );
+  });
+});
+
 // --- andamiaje ---------------------------------------------------------
 
 function montar(): void {
@@ -128,14 +198,31 @@ const deviceContext = {
 
 const adapterOriginal = apiClient.defaults.adapter;
 let parametros: Record<string, unknown>[] = [];
+let savedBlobs: Blob[] = [];
+let descargas: string[] = [];
+const createObjectURLOriginal = URL.createObjectURL;
+const revokeObjectURLOriginal = URL.revokeObjectURL;
+const createElementOriginal = document.createElement;
 
 function servir(resultado: ReactiveQuadrantsResult): void {
   apiClient.defaults.adapter = (config) => {
     const url = config.url ?? '';
     parametros.push({ url, ...(config.params ?? {}) });
 
-    const data: unknown = url === '/analytics/reactive-quadrants' ? resultado : null;
+    if (url === '/analytics/reactive-quadrants/csv') {
+      // El endpoint responde un CSV crudo (Blob), no el envoltorio JSON.
+      return Promise.resolve({
+        data: new Blob(['fecha_hora_utc,campo,valor_kvarh\n...'], {
+          type: 'text/csv;charset=utf-8',
+        }),
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      });
+    }
 
+    const data: unknown = url === '/analytics/reactive-quadrants' ? resultado : null;
     return Promise.resolve({
       data: { success: true, message: '', data },
       status: 200,
@@ -146,9 +233,55 @@ function servir(resultado: ReactiveQuadrantsResult): void {
   };
 }
 
+/**
+ * Captura la descarga del Blob (saveBlob) sustituyendo createObjectURL y el
+ * click del link, como en downloadCsv.test — sin tocar el document real. El
+ * `download` se anota en el click: es el único momento en que se sabe qué
+ * archivo se bajó (framer-motion también crea anclas por render).
+ */
+function espiarDescargaBlob(): void {
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: (blob: Blob) => {
+      savedBlobs.push(blob);
+      return 'blob:mock';
+    },
+    configurable: true,
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    value: () => undefined,
+    configurable: true,
+  });
+  document.createElement = ((tag: string) => {
+    const el = createElementOriginal.call(document, tag);
+    el.click = () => {
+      descargas.push((el as HTMLAnchorElement).download);
+    };
+    return el;
+  }) as typeof document.createElement;
+}
+
+function restaurarDescargaBlob(): void {
+  Object.defineProperty(URL, 'createObjectURL', {
+    value: createObjectURLOriginal,
+    configurable: true,
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    value: revokeObjectURLOriginal,
+    configurable: true,
+  });
+  document.createElement = createElementOriginal;
+}
+
+beforeEach(() => {
+  savedBlobs = [];
+  descargas = [];
+  espiarDescargaBlob();
+});
+
 afterEach(() => {
   cleanup();
   parametros = [];
+  restaurarDescargaBlob();
 });
 
 afterAll(() => {

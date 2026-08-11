@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Activity, BadgeCheck } from 'lucide-react';
+import { Activity, BadgeCheck, Download, FileSpreadsheet } from 'lucide-react';
 import { DashboardFiltersProvider } from '../context/DashboardFiltersContext';
 import { useDashboardFilters } from '../hooks/useDashboardFilters';
 import { useDevice } from '../hooks/useDevice';
-import { getReactiveQuadrants } from '../api/analytics';
+import { downloadReactiveQuadrantsCsv, getReactiveQuadrants } from '../api/analytics';
 import type { ReactiveQuadrantPoint, ReactiveQuadrantsResult } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
+import { TabPills } from '../components/ui/TabPills';
+import { saveBlob } from '../utils/downloadCsv';
 import { formatLocalDateTime, formatPercent, formatVariableValue } from '../utils/format';
 
 const IMPORT_COLOR = '#f59e0b';
@@ -65,6 +67,25 @@ const DOMINANTE_LABEL: Record<string, string> = Object.fromEntries(
   CUADRANTES.map((c) => [c.id, c.etiqueta]),
 );
 
+/**
+ * El rango del EXPORTE (24h ó 7d) — independiente del DateRangePicker de la
+ * página y deliberadamente sin 30 días: el CSV baja todos los puntos reales
+ * (1 Hz), y una semana son ~2.4 millones de filas; un mes sería un archivo
+ * enorme con poco que aportar.
+ */
+const EXPORT_RANGE_OPTIONS = [
+  { key: '24h', label: 'Últimas 24h' },
+  { key: '7d', label: 'Últimos 7 días' },
+] as const;
+type ExportRangeKey = (typeof EXPORT_RANGE_OPTIONS)[number]['key'];
+
+const EXPORT_HOURS: Record<ExportRangeKey, number> = { '24h': 24, '7d': 24 * 7 };
+
+/** Fecha con la que se nombran los archivos, en hora Bogotá. */
+function hoyBogota(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
+}
+
 function totalDe(punto: ReactiveQuadrantPoint): number {
   return punto.q1_kvarh + punto.q2_kvarh + punto.q3_kvarh + punto.q4_kvarh;
 }
@@ -83,6 +104,10 @@ function ReactivaContent() {
   const [response, setResponse] = useState<ReactiveQuadrantsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exportRangeKey, setExportRangeKey] = useState<ExportRangeKey>('24h');
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +136,44 @@ function ReactivaContent() {
     };
   }, [fromIso, toIso, selectedDeviceId]);
 
+  const exportCsv = async () => {
+    if (exportingCsv) return;
+    setExportingCsv(true);
+    setExportError(null);
+    const now = new Date().toISOString();
+    const from = new Date(Date.now() - EXPORT_HOURS[exportRangeKey] * 3_600_000).toISOString();
+    try {
+      // El navegador recibe el stream de puntos crudos como Blob (sin JSON
+      // gigante en memoria) y lo descarga directo a disco.
+      const blob = await downloadReactiveQuadrantsCsv({
+        from,
+        to: now,
+        device_id: selectedDeviceId ?? undefined,
+      });
+      saveBlob(blob, `reactiva_${exportRangeKey}_${hoyBogota()}.csv`);
+    } catch (err) {
+      setExportError(extractErrorMessage(err, 'No se pudo exportar el CSV.'));
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
+  const exportPdf = async () => {
+    if (!response || exportingPdf) return;
+    setExportingPdf(true);
+    setExportError(null);
+    try {
+      // Informe vectorial programático; el `response` de la página ya tiene
+      // todo lo que dibuja el PDF — no hay consulta extra.
+      const { buildReactiveQuadrantsPdf } = await import('../utils/reactiveQuadrantsPdf');
+      await buildReactiveQuadrantsPdf(response);
+    } catch (err) {
+      setExportError(extractErrorMessage(err, 'No se pudo exportar el PDF.'));
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const total = response
     ? response.q1_kvarh + response.q2_kvarh + response.q3_kvarh + response.q4_kvarh
     : 0;
@@ -138,6 +201,47 @@ function ReactivaContent() {
         </div>
         <DateRangePicker fromIso={fromIso} toIso={toIso} onChange={setRange} />
       </Card>
+
+      {!loading && !error && response && total > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-900/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-800/50">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Datos a exportar
+            </span>
+            <TabPills
+              options={[...EXPORT_RANGE_OPTIONS]}
+              value={exportRangeKey}
+              onChange={setExportRangeKey}
+              layoutId="reactiva-export-range"
+              size="sm"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => void exportCsv()}
+              disabled={exportingCsv}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 disabled:opacity-60 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              {exportingCsv ? 'Exportando…' : 'Exportar CSV'}
+            </button>
+            <button
+              onClick={() => void exportPdf()}
+              disabled={exportingPdf}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 disabled:opacity-60 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {exportingPdf ? 'Exportando…' : 'Exportar PDF'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {exportError && (
+        <p className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+          {exportError}
+        </p>
+      )}
 
       {loading && <Skeleton className="h-[320px] w-full" />}
       {!loading && error && <p className="text-sm text-red-500">{error}</p>}

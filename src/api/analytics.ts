@@ -59,3 +59,19 @@ export async function getReactiveQuadrants(
   );
   return unwrap(data);
 }
+
+/**
+ * Descarga el CSV de puntos crudos (1 Hz) de los cuadrantes reactivos.
+ *
+ * El backend lo sirve con streaming (el CSV se arma del Influx hacia la
+ * descarga); acá el navegador recibe ese stream como Blob con
+ * `responseType: 'blob'`, sin parsear nunca un JSON con miles de puntos. El
+ * interceptor de `apiClient` renueva el token si hace falta, como en el resto.
+ */
+export async function downloadReactiveQuadrantsCsv(params: AnalyticsRangeParams): Promise<Blob> {
+  const { data } = await apiClient.get<Blob>('/analytics/reactive-quadrants/csv', {
+    params,
+    responseType: 'blob',
+  });
+  return data;
+}
