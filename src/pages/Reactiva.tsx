@@ -98,6 +98,36 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/** Ancho de ventana de la tendencia, inferido del intervalo real de los puntos. */
+function ventanaLabel(puntos: ReactiveQuadrantPoint[]): string {
+  if (puntos.length < 2) return '';
+  const primerPunto = puntos[0]!;
+  const segundoPunto = puntos[1]!;
+  const ms = new Date(segundoPunto.time).getTime() - new Date(primerPunto.time).getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return '';
+  const hours = ms / 3_600_000;
+  if (hours <= 1.5) return '1 hora';
+  if (hours <= 4) return '3 horas';
+  if (hours <= 8) return '6 horas';
+  return '1 día';
+}
+
+/** Número corto para el eje Y (2.4k, 123, 0.5) — en cuadrantes de kvarh vive bien sin "+00". */
+function formatKvarhAxis(value: number): string {
+  if (value >= 10_000) return `${(value / 1000).toFixed(0)}k`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  if (value >= 10) return value.toFixed(0);
+  return value.toFixed(1);
+}
+
+/** Tooltip de una ventana: cuánto total, y el desglose por cuadrante con lecturas. */
+function tooltipDe(punto: ReactiveQuadrantPoint): string {
+  const partes = CUADRANTES.filter((c) => punto[c.key] > 0).map(
+    (c) => `${c.etiqueta}: ${formatVariableValue('kvarh', punto[c.key])}`,
+  );
+  return [formatLocalDateTime(punto.time, 'd MMM yyyy, HH:mm'), ...partes].join('\n');
+}
+
 function ReactivaContent() {
   const { fromIso, toIso, setRange } = useDashboardFilters();
   const { selectedDeviceId } = useDevice();
@@ -346,66 +376,123 @@ function ReactivaContent() {
           </div>
 
           {response.trend.length > 0 && (
-            <Card>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Tendencia por ventana
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {CUADRANTES.map((c) => (
-                    <span
-                      key={c.id}
-                      className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"
-                    >
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: c.color }}
-                      />
-                      {c.etiqueta}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-end gap-1">
-                {response.trend.map((punto) => {
-                  const bucketTotal = totalDe(punto);
-                  return (
-                    <div key={punto.time} className="flex flex-1 flex-col items-center gap-1">
-                      <div className="flex w-full items-end justify-center" style={{ height: 160 }}>
-                        <div
-                          className="flex w-full max-w-8 flex-col-reverse overflow-hidden rounded-t"
-                          style={{
-                            height: maxBucket > 0 ? `${(bucketTotal / maxBucket) * 100}%` : '0%',
-                          }}
-                        >
-                          {CUADRANTES.map((c) => {
-                            const value = punto[c.key];
-                            if (value <= 0) return null;
-                            return (
-                              <div
-                                key={c.id}
-                                style={{
-                                  height: `${(value / bucketTotal) * 100}%`,
-                                  backgroundColor: c.color,
-                                }}
-                                title={`${c.etiqueta}: ${formatVariableValue('kvarh', value)}`}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <span className="whitespace-nowrap text-[10px] text-slate-400 dark:text-slate-500">
-                        {formatLocalDateTime(punto.time, 'd MMM, HH:mm')}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
+            <TendenciaPorVentana puntos={response.trend} maxBucket={maxBucket} />
           )}
         </>
       )}
     </div>
+  );
+}
+
+const TENDENCIA_TICKS = [0, 0.25, 0.5, 0.75, 1];
+
+/**
+ * La tendencia por ventana: cuánta reactiva cayó en cada ventana y en cuál
+ * cuadrante. Cada barra apilada es el total kvarh de su ventana partido en
+ * Q1–Q4; el eje Y y el valor sobre la barra la hacen legible sin depender del
+ * hover, y el tooltip da el desglose exacto por cuadrante.
+ */
+function TendenciaPorVentana({
+  puntos,
+  maxBucket,
+}: {
+  puntos: ReactiveQuadrantPoint[];
+  maxBucket: number;
+}) {
+  const xStride = Math.ceil(puntos.length / 8);
+  const ventanas = ventanaLabel(puntos);
+  const mostrarValor = puntos.length <= 24;
+
+  return (
+    <Card>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+            Tendencia por ventana
+          </p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            Reactiva acumulada por ventana{ventanas ? ` de ${ventanas}` : ''} — cada barra es el
+            total de su ventana partido en los cuatro cuadrantes; pase el cursor para el detalle.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {CUADRANTES.map((c) => (
+            <span
+              key={c.id}
+              className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400"
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+              {c.etiqueta}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-1.5">
+        <div className="relative h-[170px] w-10 shrink-0 sm:w-11">
+          {TENDENCIA_TICKS.map((f) => (
+            <span
+              key={f}
+              className="absolute right-0 top-0 -translate-y-1/2 text-[9px] tabular-nums text-slate-400 dark:text-slate-500"
+              style={{ top: `${(1 - f) * 100}%` }}
+            >
+              {formatKvarhAxis(maxBucket * f)}
+            </span>
+          ))}
+        </div>
+
+        <div className="relative h-[170px] flex-1">
+          {TENDENCIA_TICKS.map((f) => (
+            <div
+              key={f}
+              className="absolute left-0 right-0 border-t border-slate-900/5 dark:border-white/5"
+              style={{ top: `${(1 - f) * 100}%` }}
+            />
+          ))}
+          <div className="absolute inset-0 flex items-end gap-0.5 sm:gap-1">
+            {puntos.map((punto, i) => {
+              const bucketTotal = totalDe(punto);
+              const showEtiqueta = i % xStride === 0 || i === puntos.length - 1;
+              return (
+                <div key={punto.time} className="flex h-full flex-1 flex-col">
+                  {mostrarValor && bucketTotal > 0 && (
+                    <span className="pb-0.5 text-center text-[9px] font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                      {bucketTotal.toFixed(2)}
+                    </span>
+                  )}
+                  <div className="flex flex-1 items-end justify-center">
+                    <div
+                      className="flex w-full max-w-7 flex-col-reverse overflow-hidden rounded-t sm:max-w-9"
+                      style={{
+                        height: maxBucket > 0 ? `${(bucketTotal / maxBucket) * 100}%` : '0%',
+                      }}
+                      title={tooltipDe(punto)}
+                    >
+                      {CUADRANTES.map((c) => {
+                        const value = punto[c.key];
+                        if (value <= 0) return null;
+                        return (
+                          <div
+                            key={c.id}
+                            style={{
+                              height: `${(value / bucketTotal) * 100}%`,
+                              backgroundColor: c.color,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <span className="mt-1 whitespace-nowrap text-center text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
+                    {showEtiqueta ? formatLocalDateTime(punto.time, 'd MMM, HH:mm') : '\u00A0'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

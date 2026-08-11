@@ -167,6 +167,30 @@ describe('exportar', () => {
   });
 });
 
+describe('tendencia por ventana', () => {
+  test('muestra el total de cada ventana, la duración de la ventana y el desglose en el tooltip', async () => {
+    servir(RESULT);
+
+    montar();
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Exportar CSV/ })).toBeInTheDocument(),
+    );
+
+    // El subtítulo anuncia la duración real de la ventana (06:00 → 12:00 = 6h).
+    expect(screen.getByText(/Reactiva acumulada por ventana de 6 horas/)).toBeInTheDocument();
+
+    // Suma de la primera ventana (2+4+1) y de la segunda (1+3+1) sobre las barras.
+    expect(screen.getByText('7.00')).toBeInTheDocument();
+    expect(screen.getByText('5.00')).toBeInTheDocument();
+
+    // Las barras llevan el desglose por cuadrante en su tooltip (antes solo
+    // colores sin lectura; ahora el dato viaja en el title de la barra).
+    expect(screen.getAllByTitle(/Importada inductiva: 2\.00 kvarh/).length).toBeGreaterThan(0);
+    expect(screen.getAllByTitle(/Exportada inductiva: 1\.00 kvarh/).length).toBeGreaterThan(0);
+  });
+});
+
 // --- andamiaje ---------------------------------------------------------
 
 function montar(): void {
