@@ -7,6 +7,12 @@ import {
   type WsConnectionStatus,
 } from '../../api/websocket';
 import { getHistoryDownsample } from '../../api/history';
+import {
+  HISTORY_BUCKET_HOURS,
+  HISTORY_POINTS_PER_BUCKET,
+  LIVE_HISTORY_BUFFER_MS,
+  LIVE_HISTORY_WINDOW_HOURS,
+} from '../../config/liveChart';
 import { LiveLineChart, type LiveChartPoint, type LiveChartSeries } from '../charts/LiveLineChart';
 import { Card } from '../ui/Card';
 import { OnlineDot } from '../ui/OnlineDot';
@@ -32,8 +38,6 @@ interface Tab {
 // así que el límite es real y no estético: son sockets abiertos.
 const MAX_SERIES_POR_GRUPO = 3;
 
-const BUFFER_WINDOW_MS = 6 * 3_600_000; // 6 horas
-const BACKFILL_TARGET_POINTS = 360; // ~1min de resolución sobre 6h
 const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
 const NEUTRAL_COLOR_A = '#3b82f6';
@@ -43,7 +47,7 @@ const SERIE_COLORES = ['#06b6d4', '#a855f7'];
 type VariableBuffers = Partial<Record<Variable, LiveChartPoint[]>>;
 
 function pruneOld(points: LiveChartPoint[]): LiveChartPoint[] {
-  const cutoff = Date.now() - BUFFER_WINDOW_MS;
+  const cutoff = Date.now() - LIVE_HISTORY_BUFFER_MS;
   const idx = points.findIndex((p) => p.time >= cutoff);
   return idx <= 0 ? points : points.slice(idx);
 }
@@ -121,8 +125,10 @@ export function LiveVariableChart() {
   );
   const secondaryKey = secondaryVariables.join(',');
 
-  // Al activar una variable por primera vez, se rellena con 1h de historial real
-  // antes de seguir agregando los ticks en vivo por encima.
+  // Al activar una variable por primera vez, se rellena con historial real por
+  // buckets horarios secuenciales, de la hora más reciente a la más vieja: cada
+  // consulta es liviana (una hora, no la ventana completa) y la gráfica se va
+  // llenando hacia atrás hasta completar la ventana configurada.
   useEffect(() => {
     const toBackfill = [primaryVariable, ...secondaryVariables].filter(
       (v): v is Variable => !!v && !backfilledRef.current.has(v),
@@ -131,42 +137,56 @@ export function LiveVariableChart() {
 
     let cancelled = false;
 
+    const buckets = LIVE_HISTORY_WINDOW_HOURS / HISTORY_BUCKET_HOURS;
+
     async function run() {
       setBackfilling(true);
       await Promise.all(
         toBackfill.map(async (variable) => {
-          try {
-            const to = new Date();
-            const from = new Date(to.getTime() - BUFFER_WINDOW_MS);
-            const response = await getHistoryDownsample({
-              variable,
-              from: from.toISOString(),
-              to: to.toISOString(),
-              target_points: BACKFILL_TARGET_POINTS,
-            });
-            // Solo se marca como respaldada si el fetch llegó a aplicarse: en
-            // StrictMode (dev) el primer efecto se cancela antes de resolver, y
-            // si se marca antes del await, el segundo efecto (el que sí queda)
-            // la ve como "ya respaldada" y la salta sin haber traído nada.
+          let gotAny = false;
+          for (let i = 0; i < buckets; i++) {
             if (cancelled) return;
-            backfilledRef.current.add(variable);
-            const seeded = response.points.map((p) => ({
-              time: Date.parse(p.time),
-              value: p.value,
-            }));
-            setBuffers((prev) => {
-              const live = prev[variable] ?? [];
-              const liveStart = live.length > 0 ? live[0]!.time : Infinity;
-              const merged = pruneOld([...seeded.filter((p) => p.time < liveStart), ...live]);
-              return { ...prev, [variable]: merged };
-            });
-            // Marca la variable como "lista": el chart puede haberse montado antes
-            // con un par de ticks en vivo y ya haberse encuadrado a esa vista
-            // diminuta; esto dispara un re-encuadre real a las 6h ya cargadas.
-            setReadyVariables((prev) => new Set(prev).add(variable));
-          } catch {
-            // sin historial de respaldo disponible; el buffer sigue solo con datos en vivo
+            const to = new Date(Date.now() - i * HISTORY_BUCKET_HOURS * 3_600_000);
+            const from = new Date(to.getTime() - HISTORY_BUCKET_HOURS * 3_600_000);
+            try {
+              const response = await getHistoryDownsample({
+                variable,
+                from: from.toISOString(),
+                to: to.toISOString(),
+                target_points: HISTORY_POINTS_PER_BUCKET,
+              });
+              // Solo se considera cargada si al menos un bucket llegó a
+              // aplicarse: en StrictMode (dev) el primer efecto se cancela antes
+              // de resolver, y si se marca antes del await, el segundo efecto (el
+              // que sí queda) la ve como "ya cargada" y la salta sin haber
+              // traído nada.
+              if (cancelled) return;
+              gotAny = true;
+              const seeded = response.points.map((p) => ({
+                time: Date.parse(p.time),
+                value: p.value,
+              }));
+              setBuffers((prev) => {
+                const existentes = prev[variable] ?? [];
+                const inicio = existentes.length > 0 ? existentes[0]!.time : Infinity;
+                // La hora nueva se antepone a la izquierda: primero la más
+                // reciente, y las más viejas quedan delante en orden.
+                const merged = pruneOld([
+                  ...seeded.filter((p) => p.time < inicio),
+                  ...existentes,
+                ]);
+                return { ...prev, [variable]: merged };
+              });
+            } catch {
+              // una hora sin historial disponible; se salta y se sigue con la anterior
+            }
           }
+          if (!gotAny) return;
+          backfilledRef.current.add(variable);
+          // Marca la variable como "lista": el chart puede haberse montado antes
+          // con un par de ticks en vivo y ya haberse encuadrado a esa vista
+          // diminuta; esto dispara un re-encuadre real a la ventana ya cargada.
+          setReadyVariables((prev) => new Set(prev).add(variable));
         }),
       );
       if (!cancelled) setBackfilling(false);
