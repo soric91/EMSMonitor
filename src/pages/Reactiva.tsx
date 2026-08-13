@@ -431,7 +431,7 @@ function TendenciaPorVentana({
       </div>
 
       <div className="flex gap-1.5">
-        <div className="relative h-[170px] w-10 shrink-0 sm:w-11">
+        <div className="relative z-10 h-[170px] w-10 shrink-0 sm:w-11">
           {TENDENCIA_TICKS.map((f) => (
             <span
               key={f}
@@ -443,15 +443,21 @@ function TendenciaPorVentana({
           ))}
         </div>
 
-        <div className="relative h-[170px] flex-1">
-          {TENDENCIA_TICKS.map((f) => (
-            <div
-              key={f}
-              className="absolute left-0 right-0 border-t border-slate-900/5 dark:border-white/5"
-              style={{ top: `${(1 - f) * 100}%` }}
-            />
-          ))}
-          <div className="absolute inset-0 flex items-end gap-0.5 sm:gap-1">
+        {/* Con rangos largos (30 días → ~120 ventanas) las barras en flex-1
+            quedan de ~2px en celular: se les da un ancho mínimo y el bloque
+            desliza horizontalmente, con el eje Y fijo a la izquierda. */}
+        <div className="relative h-[170px] flex-1 overflow-x-auto">
+          <div
+            className="absolute inset-0 flex items-end gap-0.5 sm:gap-1"
+            style={{ minWidth: `${Math.max(puntos.length * 20, 100)}px` }}
+          >
+            {TENDENCIA_TICKS.map((f) => (
+              <div
+                key={f}
+                className="absolute left-0 right-0 border-t border-slate-900/5 dark:border-white/5"
+                style={{ top: `${(1 - f) * 100}%` }}
+              />
+            ))}
             {puntos.map((punto, i) => {
               const bucketTotal = totalDe(punto);
               const showEtiqueta = i % xStride === 0 || i === puntos.length - 1;
