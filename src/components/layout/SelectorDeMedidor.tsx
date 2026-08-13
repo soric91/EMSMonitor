@@ -124,13 +124,13 @@ function Desplegable({
   const contenido = (
     <>
       {icono}
-      <span className="truncate">{etiqueta}</span>
+      <span className="min-w-0 truncate">{etiqueta}</span>
       {aviso && <WifiOff className="h-3 w-3 shrink-0 text-amber-500" />}
       {hayQueElegir && <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
     </>
   );
   const clases =
-    'flex max-w-[8rem] items-center gap-1.5 rounded-full border border-slate-900/10 px-2.5 py-1.5 text-xs font-medium text-slate-600 sm:max-w-[12rem] dark:border-white/10 dark:text-slate-300';
+    'flex min-w-0 max-w-[7rem] items-center gap-1.5 rounded-full border border-slate-900/10 px-2.5 py-1.5 text-xs font-medium text-slate-600 sm:max-w-[12rem] dark:border-white/10 dark:text-slate-300';
 
   if (!hayQueElegir) {
     return (
@@ -141,7 +141,7 @@ function Desplegable({
   }
 
   return (
-    <div ref={contenedor} className="relative">
+    <div ref={contenedor} className="relative min-w-0">
       <button
         onClick={() => setAbierto((v) => !v)}
         aria-haspopup="listbox"

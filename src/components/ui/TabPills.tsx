@@ -59,7 +59,7 @@ export function TabPills<T extends string>({
   return (
     <div
       role="tablist"
-      className={`inline-flex w-fit gap-1 rounded-lg border border-slate-900/10 bg-slate-900/[0.03] p-1 dark:border-white/10 dark:bg-white/5 ${className}`}
+      className={`inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-slate-900/10 bg-slate-900/[0.03] p-1 dark:border-white/10 dark:bg-white/5 ${className}`}
     >
       {options.map((option, i) => {
         const selected = option.key === value;

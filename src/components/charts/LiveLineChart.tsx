@@ -315,11 +315,11 @@ export function LiveLineChart({
         </>
       )}
       {series.length > 1 && (
-        <div className="pointer-events-none absolute left-2 top-1 flex gap-3">
+        <div className="pointer-events-none absolute left-2 top-1 flex max-w-full flex-wrap gap-x-3 gap-y-1">
           {series.map((s) => (
             <span
               key={s.key}
-              className="flex items-center gap-1.5 text-[10px] font-medium text-slate-400"
+              className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-slate-400"
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
               {s.label}
