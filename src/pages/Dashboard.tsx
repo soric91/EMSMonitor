@@ -9,6 +9,13 @@ import { getDashboardSummary } from '../api/dashboard';
 import type { DashboardSummary } from '../api/types';
 import { useDevice } from '../hooks/useDevice';
 
+// Cascada en la primera carga: el resumen consolidado (que incluye el cálculo
+// de lo importado/exportado y cuesta ~20 consultas a InfluxDB) se pide unos
+// instantes después del arranque. Así el gráfico en vivo (variables + WS +
+// backfill) consigue las primeras consultas sin competir por el mismo backend,
+// y los recuadros de importado/exportado aparecen después, ya listos.
+const RESUMEN_CASCADA_MS = 1500;
+
 export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState(false);
@@ -18,7 +25,7 @@ export default function Dashboard() {
     if (!selectedDeviceId) return;
     let cancelled = false;
 
-    async function load() {
+    const timer = setTimeout(async () => {
       setError(false);
       try {
         const data = await getDashboardSummary({ device_id: selectedDeviceId ?? undefined });
@@ -26,11 +33,11 @@ export default function Dashboard() {
       } catch {
         if (!cancelled) setError(true);
       }
-    }
+    }, RESUMEN_CASCADA_MS);
 
-    void load();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [selectedDeviceId]);
 
