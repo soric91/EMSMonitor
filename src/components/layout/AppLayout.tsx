@@ -28,7 +28,7 @@ export function AppLayout() {
       <DeviceProvider>
         <RealtimeProvider>
           <AlertsProvider>
-            <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+            <div className="min-h-screen overflow-x-clip bg-slate-50 dark:bg-slate-950">
               {/* Arriba de todo, antes que cualquier dato: si aparece debajo de
                 una gráfica, ya se leyó la gráfica sin saber de quién era. */}
               <ImpersonationBanner />

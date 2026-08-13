@@ -319,12 +319,14 @@ export function LiveLineChart({
           {series.map((s) => (
             <span
               key={s.key}
-              className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-slate-400"
+              className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-slate-400"
             >
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
-              {s.label}
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+              {/* La etiqueta se recorta: un nombre largo no debe empujar la
+                  leyenda más allá de la tarjeta (desborde horizontal). */}
+              <span className="max-w-[6rem] truncate">{s.label}</span>
               {s.data.length > 0 && (
-                <span className="text-slate-500 dark:text-slate-300">
+                <span className="shrink-0 text-slate-500 dark:text-slate-300">
                   {valueFormatter(s.data[s.data.length - 1]!.value)}
                 </span>
               )}

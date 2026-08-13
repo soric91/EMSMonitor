@@ -25,18 +25,23 @@ import {
   ordenarMagnitudes,
 } from '../../types/variable';
 import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
-import type { Variable, VariableDisponible } from '../../api/types';
-
-interface Tab {
-  key: string;
-  label: string;
-  variables: VariableDisponible[];
-}
+import type { Magnitud, Variable, VariableDisponible } from '../../api/types';
 
 // Cuántas fases se dibujan juntas en una pestaña. Cada variable extra necesita
 // su propia conexión WebSocket —el backend acepta una variable por conexión—
 // así que el límite es real y no estético: son sockets abiertos.
 const MAX_SERIES_POR_GRUPO = 3;
+
+// Las magnitudes que viven como pestañas en el main. El resto (frecuencia,
+// factor de potencia, aparente, reactiva…) va a "Más variables…", para que el
+// panel no abra una pestaña por cada magnitud del catálogo. Si un medidor no
+// reporta NINGUNA de estas, se vuelve al comportamiento anterior (todo en
+// pestañas) para no esconder variables que sí existen.
+const MAGNITUDES_PRINCIPALES: ReadonlySet<Magnitud> = new Set([
+  'potencia_activa',
+  'tension',
+  'corriente',
+]);
 
 const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
@@ -80,13 +85,16 @@ export function LiveVariableChart() {
   const secondaryClientsRef = useRef<EmsWebSocketClient[]>([]);
   const backfilledRef = useRef(new Set<Variable>());
 
-  // Una pestaña por magnitud que este cliente realmente reporta. Un medidor
-  // monofásico ve "Voltaje" con una sola serie; uno trifásico, con tres. La
-  // pestaña de una magnitud que no llega simplemente no existe, en vez de
-  // abrirse a una gráfica vacía.
-  const tabs = useMemo<Tab[]>(() => {
-    const magnitudes = ordenarMagnitudes([...porMagnitud.keys()]);
-    return magnitudes
+  // Una pestaña por magnitud PRINCIPAL que este cliente realmente reporta. Un
+  // medidor monofásico ve "Voltaje" con una sola serie; uno trifásico, con
+  // tres. Las magnitudes que no están en MAGNITUDES_PRINCIPALES (y las fases
+  // que exceden el tope del grupo) van a "Más variables…".
+  const { tabs, variablesSueltas } = useMemo(() => {
+    const claves = [...porMagnitud.keys()];
+    const hayPrincipales = claves.some((m) => MAGNITUDES_PRINCIPALES.has(m));
+    const fuentes = hayPrincipales ? claves.filter((m) => MAGNITUDES_PRINCIPALES.has(m)) : claves;
+
+    const pestanas = ordenarMagnitudes(fuentes)
       .map((magnitud) => ({
         key: magnitud,
         label: etiquetaMagnitud(magnitud),
@@ -95,16 +103,14 @@ export function LiveVariableChart() {
           .slice(0, MAX_SERIES_POR_GRUPO),
       }))
       .filter((tab) => tab.variables.length > 0);
-  }, [porMagnitud]);
 
-  // Lo que no entró en ninguna pestaña: magnitudes con más fases que el tope
-  // del grupo. Sigue siendo alcanzable, solo que un paso más lejos.
-  const variablesSueltas = useMemo(() => {
-    const enPestanas = new Set(tabs.flatMap((t) => t.variables.map((v) => v.nombre)));
-    return [...porMagnitud.values()]
+    const enPestanas = new Set(pestanas.flatMap((t) => t.variables.map((v) => v.nombre)));
+    const sueltas = [...porMagnitud.values()]
       .flat()
       .filter((v) => !enPestanas.has(v.nombre) && esGraficableEnVivo(v));
-  }, [tabs, porMagnitud]);
+
+    return { tabs: pestanas, variablesSueltas: sueltas };
+  }, [porMagnitud]);
 
   // La pestaña activa se deriva, no se guarda: si la elegida no está entre las
   // que este medidor reporta —al arrancar, o al cambiar de equipo— cae sola a
