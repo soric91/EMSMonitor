@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
 import * as authApi from '../api/auth';
-import { entrarAProyecto, salirDeProyecto } from '../api/proyectos';
+import { entrarAProyecto, listProyectos, salirDeProyecto } from '../api/proyectos';
 import {
   clearSession,
   getAccessToken,
@@ -94,6 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const entrarA = useCallback(async (clientId: string) => {
     const stored = getAccessToken();
     if (!stored) throw new Error('no_session');
+
+    // Defensa en profundidad: no se pide el token acotado para una empresa que
+    // la sesión no listó. El CRM ya scope el listado por rol; esto evita que un
+    // clientId adivinado llegue siquiera al endpoint de impersonación.
+    const proyectos = await listProyectos(stored);
+    if (!proyectos.some((p) => p.id === clientId)) {
+      throw new Error('proyecto_no_permitido');
+    }
 
     const pair = await entrarAProyecto(stored, clientId);
     setAccessToken(pair.access_token);

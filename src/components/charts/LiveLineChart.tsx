@@ -144,27 +144,54 @@ export function LiveLineChart({
         return;
       }
       const { series: currentSeries, valueFormatter: format } = hoverPropsRef.current;
-      const rows: string[] = [];
+      // Tooltip construido con nodos, nunca con innerHTML: la etiqueta de cada
+      // serie viene del catálogo del backend y el formatter puede mostrar
+      // texto; inyectarla como HTML convertiría esa cadena en un sink XSS.
+      tooltip.replaceChildren();
+      const timeLabel = document.createElement('div');
+      timeLabel.style.opacity = '0.6';
+      timeLabel.style.marginBottom = '2px';
+      timeLabel.textContent = bogotaTime(param.time as Time, 'd MMM, HH:mm:ss');
+      tooltip.appendChild(timeLabel);
+
+      let rows = 0;
       for (const spec of currentSeries) {
         const entry = seriesMapRef.current.get(spec.key);
         if (!entry) continue;
         const point = param.seriesData.get(entry.api) as { value?: number } | undefined;
         if (point?.value === undefined) continue;
-        rows.push(
-          `<div style="display:flex;align-items:center;gap:6px;">` +
-            `<span style="width:6px;height:6px;border-radius:9999px;background:${spec.color};"></span>` +
-            (currentSeries.length > 1 ? `<span style="opacity:.7">${spec.label}</span>` : '') +
-            `<span style="font-weight:600">${format(point.value)}</span>` +
-            `</div>`,
-        );
+        rows += 1;
+
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.gap = '6px';
+
+        const dot = document.createElement('span');
+        dot.style.width = '6px';
+        dot.style.height = '6px';
+        dot.style.borderRadius = '9999px';
+        dot.style.background = spec.color;
+        row.appendChild(dot);
+
+        if (currentSeries.length > 1) {
+          const label = document.createElement('span');
+          label.style.opacity = '0.7';
+          label.textContent = spec.label;
+          row.appendChild(label);
+        }
+
+        const value = document.createElement('span');
+        value.style.fontWeight = '600';
+        value.textContent = format(point.value);
+        row.appendChild(value);
+
+        tooltip.appendChild(row);
       }
-      if (rows.length === 0) {
+      if (rows === 0) {
         tooltip.style.display = 'none';
         return;
       }
-      tooltip.innerHTML =
-        `<div style="opacity:.6;margin-bottom:2px">${bogotaTime(param.time as Time, 'd MMM, HH:mm:ss')}</div>` +
-        rows.join('');
       tooltip.style.display = 'block';
       const containerWidth = container.clientWidth;
       const tooltipWidth = tooltip.offsetWidth;
