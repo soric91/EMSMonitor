@@ -296,7 +296,6 @@ export interface ComparePeriod {
   period_end: string;
   consumption_kwh: number;
   export_kwh: number;
-  peak_import_w: number | null;
 }
 
 export interface CompareResult {
