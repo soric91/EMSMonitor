@@ -22,10 +22,15 @@ npm-debug.log*
 # Capturas de referencia de diseño (material local, no código)
 img_muestra/
 
+# Documentos de trabajo (planes, notas) — no se versionan
+PLAN_REFACTORIZACION.md
+
 # Herramientas locales
 .tokensave/
 .claude/
 graphify-out/
+.opencode/
+.agents/
 
 # Sistema operativo
 .DS_Store
