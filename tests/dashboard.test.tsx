@@ -132,19 +132,20 @@ const COMPARADO: CompareResult = {
 };
 
 describe('qué muestra el tablero', () => {
-  test('la potencia del resumen, el costo del día y el del mes', async () => {
+  test('la potencia del resumen y los KPIs del día y del mes', async () => {
     servir();
 
     montar();
 
-    await waitFor(() => expect(screen.getByText('Importado hoy')).toBeInTheDocument(), {
+    await waitFor(() => expect(screen.getByText('Consumido hoy')).toBeInTheDocument(), {
       timeout: 3000,
     });
     // Potencia activa desde /dashboard/summary, no desde el socket.
     expect(screen.getByText('5.21 kW')).toBeInTheDocument();
-    // Costo del día y del mes, cargados del mismo payload.
+    // Consumo/exportación/neto del día y del mes, cargados del mismo payload.
     expect(screen.getByText('Exportado hoy')).toBeInTheDocument();
-    expect(screen.getByText('Importado del mes')).toBeInTheDocument();
+    expect(screen.getByText('Consumido mes')).toBeInTheDocument();
+    expect(screen.getByText('Neto mes')).toBeInTheDocument();
   });
 
   test('arranca en esqueleto hasta que llega el resumen', async () => {
@@ -152,9 +153,9 @@ describe('qué muestra el tablero', () => {
 
     montar();
 
-    // En el primer render el resumen todavía no resolvió: no hay costos aún.
-    expect(screen.queryByText('Importado hoy')).toBeNull();
-    await waitFor(() => expect(screen.getByText('Importado hoy')).toBeInTheDocument(), {
+    // En el primer render el resumen todavía no resolvió: no hay KPIs aún.
+    expect(screen.queryByText('Consumido hoy')).toBeNull();
+    await waitFor(() => expect(screen.getByText('Consumido hoy')).toBeInTheDocument(), {
       timeout: 3000,
     });
   });
@@ -168,7 +169,7 @@ describe('qué muestra el tablero', () => {
       () => expect(screen.getByText('No se pudo cargar el resumen del tablero.')).toBeInTheDocument(),
       { timeout: 3000 },
     );
-    expect(screen.queryByText(/Importado/)).toBeNull();
+    expect(screen.queryByText(/Consumido/)).toBeNull();
   });
 });
 
@@ -178,7 +179,7 @@ describe('cuánto pide la red', () => {
 
     montar();
 
-    await waitFor(() => expect(screen.getByText('Importado hoy')).toBeInTheDocument(), {
+    await waitFor(() => expect(screen.getByText('Consumido hoy')).toBeInTheDocument(), {
       timeout: 3000,
     });
     await waitFor(() => expect(screen.getByText('Últimos 7 días')).toBeInTheDocument(), {
