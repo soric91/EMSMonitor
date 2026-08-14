@@ -53,7 +53,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 shrink-0 items-center gap-3 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30">
           <Zap className="h-5 w-5 text-slate-950" strokeWidth={2.5} />
         </div>
         <AnimatePresence initial={false}>
@@ -79,7 +79,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
               [
                 'group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-accent-500/10 text-accent-600 dark:text-accent-400'
                   : 'text-slate-500 hover:bg-slate-900/5 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white',
               ].join(' ')
             }
@@ -89,7 +89,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
                 {isActive && (
                   <motion.span
                     layoutId="sidebar-active-pill"
-                    className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-emerald-500"
+                    className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent-500"
                     transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                   />
                 )}
@@ -151,7 +151,7 @@ export function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile
         <SidebarContent collapsed={collapsed} />
         <button
           onClick={onToggleCollapse}
-          className="absolute -right-3 top-16 flex h-6 w-6 items-center justify-center rounded-full border border-slate-900/10 bg-white text-slate-500 shadow-sm transition hover:text-emerald-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-emerald-400"
+          className="absolute -right-3 top-16 flex h-6 w-6 items-center justify-center rounded-full border border-slate-900/10 bg-white text-slate-500 shadow-sm transition hover:text-accent-600 dark:border-white/10 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-accent-400"
         >
           {collapsed ? (
             <ChevronsRight className="h-3.5 w-3.5" />

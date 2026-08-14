@@ -219,7 +219,7 @@ function ReactivaContent() {
     <div className="space-y-6">
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-500/10 text-accent-600 dark:text-accent-400">
             <Activity className="h-[18px] w-[18px]" />
           </div>
           <div>

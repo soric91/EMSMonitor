@@ -91,7 +91,7 @@ export function Proyectos() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-slate-900/5 bg-white/80 px-4 backdrop-blur-xl sm:px-6 dark:border-white/5 dark:bg-slate-950/80">
         <span className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
-          <Building2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <Building2 className="h-4 w-4 text-accent-600 dark:text-accent-400" />
           Proyectos
         </span>
         {/* Sin esto no había forma de saber con qué cuenta entraste ni de
@@ -120,7 +120,7 @@ export function Proyectos() {
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar empresa…"
                 aria-label="Buscar empresa"
-                className="w-56 rounded-lg border border-slate-900/10 bg-white py-1.5 pr-2.5 pl-8 text-xs text-slate-700 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                className="w-56 rounded-lg border border-slate-900/10 bg-white py-1.5 pr-2.5 pl-8 text-xs text-slate-700 outline-none transition focus:border-accent-500/60 focus:ring-2 focus:ring-accent-500/20 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
               />
             </label>
           )}
@@ -254,10 +254,10 @@ function Tarjeta({
       onClick={onClick}
       disabled={bloqueada}
       whileHover={{ y: -2 }}
-      className={`${MARCO} flex flex-col items-start gap-3 text-left transition hover:border-emerald-500/40 disabled:opacity-60`}
+      className={`${MARCO} flex flex-col items-start gap-3 text-left transition hover:border-accent-500/40 disabled:opacity-60`}
     >
       <span className="flex w-full items-start justify-between gap-2">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600 dark:text-accent-400">
           <Building2 className="h-4 w-4" />
         </span>
         {estado && <Etiqueta className={estado.clase}>{estado.texto}</Etiqueta>}

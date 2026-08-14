@@ -137,7 +137,7 @@ export default function Reports() {
             <button
               onClick={generateCustom}
               disabled={loading}
-              className="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+              className="rounded-lg bg-accent-500 px-4 py-2 text-xs font-medium text-slate-950 transition hover:bg-accent-400 disabled:opacity-60"
             >
               {loading ? 'Generando…' : 'Generar'}
             </button>

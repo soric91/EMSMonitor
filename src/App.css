@@ -2,6 +2,17 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Acento de marca del panel: azul industrial/SCADA. El verde (emerald) se
+   reserva para lo semántico (exportación, acreditación, online). Así el azul
+   marca la identidad y la interacción, y el verde solo significa "positivo". */
+@theme {
+  --color-accent-300: var(--color-blue-300);
+  --color-accent-400: var(--color-blue-400);
+  --color-accent-500: var(--color-blue-500);
+  --color-accent-600: var(--color-blue-600);
+  --color-accent-700: var(--color-blue-700);
+}
+
 body {
   margin: 0;
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;

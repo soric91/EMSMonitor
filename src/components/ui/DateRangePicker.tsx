@@ -14,7 +14,7 @@ interface DateRangePickerProps {
 
 export function DateRangePicker({ fromIso, toIso, onChange }: DateRangePickerProps) {
   const inputClases =
-    'min-w-0 flex-1 rounded-lg border border-slate-900/10 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 sm:flex-none sm:w-44 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200';
+    'min-w-0 flex-1 rounded-lg border border-slate-900/10 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none transition focus:border-accent-500/60 focus:ring-2 focus:ring-accent-500/20 sm:flex-none sm:w-44 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200';
 
   return (
     <div className="flex w-full flex-wrap items-center gap-2">

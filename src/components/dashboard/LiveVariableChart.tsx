@@ -336,7 +336,7 @@ export function LiveVariableChart() {
             onChange={(e) =>
               setCustomVariable(variablesSueltas.find((v) => v.nombre === e.target.value) ?? null)
             }
-            className="rounded-lg border border-slate-900/10 bg-white px-2 py-1.5 text-xs font-medium text-slate-600 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300"
+            className="rounded-lg border border-slate-900/10 bg-white px-2 py-1.5 text-xs font-medium text-slate-600 outline-none transition focus:border-accent-500/60 focus:ring-2 focus:ring-accent-500/20 dark:border-white/10 dark:bg-slate-800 dark:text-slate-300"
           >
             <option value="" disabled>
               Más variables…

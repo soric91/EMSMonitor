@@ -197,7 +197,7 @@ function Desplegable({
                   className={[
                     'flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-xs transition',
                     esElegido
-                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                      ? 'bg-accent-500/10 text-accent-700 dark:text-accent-400'
                       : 'text-slate-600 hover:bg-slate-900/5 dark:text-slate-300 dark:hover:bg-white/5',
                   ].join(' ')}
                 >

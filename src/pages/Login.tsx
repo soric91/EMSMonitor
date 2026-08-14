@@ -42,7 +42,7 @@ export default function Login() {
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-emerald-500/20 blur-[120px]"
+          className="absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-accent-500/20 blur-[120px]"
           animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
           transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -72,7 +72,7 @@ export default function Login() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.4 }}
-            className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30"
+            className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30"
           >
             <Zap className="h-7 w-7 text-slate-950" strokeWidth={2.5} />
           </motion.div>
@@ -100,7 +100,7 @@ export default function Login() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-10 pr-3 text-sm text-white outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
+                className="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-10 pr-3 text-sm text-white outline-none transition focus:border-accent-500/60 focus:ring-2 focus:ring-accent-500/20"
                 placeholder="cliente@empresa.com"
               />
             </div>
@@ -119,7 +119,7 @@ export default function Login() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-10 pr-10 text-sm text-white outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
+                className="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-10 pr-10 text-sm text-white outline-none transition focus:border-accent-500/60 focus:ring-2 focus:ring-accent-500/20"
                 placeholder="••••••••"
               />
               <button
@@ -151,7 +151,7 @@ export default function Login() {
             disabled={submitting}
             whileHover={{ scale: submitting ? 1 : 1.01 }}
             whileTap={{ scale: submitting ? 1 : 0.98 }}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-500 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? (
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/30 border-t-slate-950" />

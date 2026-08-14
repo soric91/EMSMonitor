@@ -67,7 +67,7 @@ export default function ChangePassword() {
     <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900/60 p-8">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <span className="grid h-11 w-11 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400">
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-accent-500/10 text-accent-400">
             <KeyRound className="h-5 w-5" />
           </span>
           <h1 className="text-lg font-semibold text-white">Elegí tu contraseña</h1>
@@ -110,7 +110,7 @@ export default function ChangePassword() {
           <button
             type="submit"
             disabled={saving}
-            className="mt-1 rounded-lg bg-emerald-500 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-emerald-400 disabled:opacity-60"
+            className="mt-1 rounded-lg bg-accent-500 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-accent-400 disabled:opacity-60"
           >
             {saving ? 'Guardando…' : 'Guardar y entrar'}
           </button>
@@ -152,7 +152,7 @@ function Field({ id, label, value, autoComplete, hint, onChange }: FieldProps) {
           required
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-10 pr-3 text-sm text-white outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
+          className="w-full rounded-lg border border-white/10 bg-slate-900/60 py-2.5 pl-10 pr-3 text-sm text-white outline-none transition focus:border-accent-500/60 focus:ring-2 focus:ring-accent-500/20"
         />
       </div>
       {hint && <p className="text-xs text-slate-500">{hint}</p>}

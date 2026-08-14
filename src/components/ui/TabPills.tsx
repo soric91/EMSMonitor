@@ -15,7 +15,7 @@ interface TabPillsProps<T extends string> {
    * intercambian sus animaciones. El test exige que no se repita.
    */
   layoutId: string;
-  /** Clases de la píldora activa (por defecto verde, emerald-500). */
+  /** Clases de la píldora activa (por defecto el acento azul). */
   pillClassName?: string;
   className?: string;
   size?: 'sm' | 'md';
@@ -38,7 +38,7 @@ export function TabPills<T extends string>({
   value,
   onChange,
   layoutId,
-  pillClassName = 'bg-emerald-500',
+  pillClassName = 'bg-accent-500',
   className = '',
   size = 'md',
 }: TabPillsProps<T>) {

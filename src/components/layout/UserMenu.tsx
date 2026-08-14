@@ -14,7 +14,7 @@ export function UserMenu() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-500/15 text-xs font-semibold text-accent-600 dark:text-accent-400">
         {(user?.email ?? '?').slice(0, 1).toUpperCase()}
       </div>
       <span className="hidden text-sm font-medium text-slate-700 sm:inline dark:text-slate-200">
