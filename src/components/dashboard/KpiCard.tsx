@@ -97,7 +97,9 @@ export function KpiCard({
       </div>
 
       <div className="flex items-baseline gap-1.5">
-        <span className={`text-2xl font-semibold tracking-tight ${tono.value}`}>
+        <span
+          className={`text-2xl font-semibold tabular-nums tracking-tight ${tono.value}`}
+        >
           {empty ? '—' : value}
         </span>
         {unit && !empty && <span className="text-xs text-slate-400">{unit}</span>}
