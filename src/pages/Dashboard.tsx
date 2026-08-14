@@ -4,6 +4,8 @@ import { EnergyFlowHero } from '../components/dashboard/EnergyFlowHero';
 import { LiveVariableChart } from '../components/dashboard/LiveVariableChart';
 import { PeriodComparisonCard } from '../components/dashboard/PeriodComparisonCard';
 import { KpiCard } from '../components/dashboard/KpiCard';
+import { DeviceStatus } from '../components/dashboard/DeviceStatus';
+import { AlarmPanel } from '../components/dashboard/AlarmPanel';
 import { Card } from '../components/ui/Card';
 import { getDashboardSummary } from '../api/dashboard';
 import type { CostBreakdown, DashboardSummary } from '../api/types';
@@ -151,6 +153,15 @@ export default function Dashboard() {
       <section aria-label="Gráfica en vivo" className="space-y-4">
         <TituloSeccion>Gráfica en vivo</TituloSeccion>
         <LiveVariableChart />
+      </section>
+
+      {/* OPERACIÓN: dispositivos y alarmas */}
+      <section aria-label="Operación" className="space-y-4">
+        <TituloSeccion>Operación</TituloSeccion>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <DeviceStatus />
+          <AlarmPanel />
+        </div>
       </section>
 
       {/* ANÁLISIS: comparación de períodos */}

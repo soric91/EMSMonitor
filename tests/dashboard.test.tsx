@@ -15,6 +15,7 @@ import Dashboard from '../src/pages/Dashboard';
 import { DeviceProvider } from '../src/context/DeviceContext';
 import { RealtimeProvider } from '../src/context/RealtimeContext';
 import { VariablesProvider } from '../src/context/VariablesContext';
+import { AlertsProvider } from '../src/context/AlertsContext';
 import type {
   CompareResult,
   CostBreakdown,
@@ -146,6 +147,11 @@ describe('qué muestra el tablero', () => {
     expect(screen.getByText('Exportado hoy')).toBeInTheDocument();
     expect(screen.getByText('Consumido mes')).toBeInTheDocument();
     expect(screen.getByText('Neto mes')).toBeInTheDocument();
+    // OPERACIÓN: el inventario y las alertas (sin nuevas peticiones).
+    expect(screen.getByText('Dispositivos')).toBeInTheDocument();
+    expect(screen.getByText('GW-0001')).toBeInTheDocument();
+    expect(screen.getByText('Alertas recientes')).toBeInTheDocument();
+    expect(screen.getByText('Sin alertas — consumo dentro de lo normal')).toBeInTheDocument();
   });
 
   test('arranca en esqueleto hasta que llega el resumen', async () => {
@@ -189,11 +195,14 @@ describe('cuánto pide la red', () => {
     const pedidos = (url: string) => parametros.filter((p) => String(p.url).startsWith(url));
     const todos = parametros.length;
 
-    // El panel completo son 5 peticiones: inventario, variables, el resumen
-    // consolidado y las dos comparaciones. Todo lo demás dejó de pedirse.
-    expect(todos).toBe(5);
+    // El panel completo son 7 peticiones: inventario, variables, alertas (dos
+    // veces: una al montar sin medidor y otra cuando el inventario elige el
+    // primero), el resumen consolidado y las dos comparaciones. Todo lo demás
+    // dejó de pedirse.
+    expect(todos).toBe(7);
     expect(pedidos('/devices')).toHaveLength(1);
     expect(pedidos('/variables')).toHaveLength(1);
+    expect(pedidos('/alerts')).toHaveLength(2);
     expect(pedidos('/dashboard/summary')).toHaveLength(1);
     expect(pedidos('/analytics/compare')).toHaveLength(2);
 
@@ -216,7 +225,9 @@ function montar(): void {
     <VariablesProvider>
       <DeviceProvider>
         <RealtimeProvider>
-          <Dashboard />
+          <AlertsProvider>
+            <Dashboard />
+          </AlertsProvider>
         </RealtimeProvider>
       </DeviceProvider>
     </VariablesProvider>,
@@ -250,11 +261,13 @@ function servir(options: { fallaResumen?: boolean } = {}): void {
         ? [MEDIDOR]
         : url === '/variables'
           ? [EXPORTA]
-          : url === '/dashboard/summary'
-            ? RESUMEN
-            : url === '/analytics/compare'
-              ? COMPARADO
-              : null;
+          : url === '/alerts'
+            ? { recent: [], daily_total: null }
+            : url === '/dashboard/summary'
+              ? RESUMEN
+              : url === '/analytics/compare'
+                ? COMPARADO
+                : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },
