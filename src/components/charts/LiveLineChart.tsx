@@ -233,6 +233,8 @@ export function LiveLineChart({
       }
     }
 
+    let anyBars = false;
+
     for (const spec of series) {
       let entry = seriesMap.get(spec.key);
       if (!entry) {
@@ -255,6 +257,7 @@ export function LiveLineChart({
 
       const points = toChartPoints(spec.data);
       if (points.length === 0) continue;
+      anyBars = true;
       entry.api.setData(points);
 
       if (series.length === 1) {
@@ -287,11 +290,20 @@ export function LiveLineChart({
     }
 
     if (lastSeriesKeyRef.current !== seriesKey) {
+      // fitContent()/setVisibleRange() lanzan "Value is null" en
+      // lightweight-charts cuando no hay barras todavía, o cuando el rango
+      // guardado no aplica a los datos nuevos (p. ej. al cambiar de pestaña).
+      // Sin barras se sale sin marcar la clave: cuando lleguen, se reintenta.
+      if (!anyBars) return;
       lastSeriesKeyRef.current = seriesKey;
-      if (visibleRangeRef.current && !forceFit) {
-        chart.timeScale().setVisibleRange(visibleRangeRef.current);
-      } else {
-        chart.timeScale().fitContent();
+      try {
+        if (visibleRangeRef.current && !forceFit) {
+          chart.timeScale().setVisibleRange(visibleRangeRef.current);
+        } else {
+          chart.timeScale().fitContent();
+        }
+      } catch {
+        // un encuadre fallido no debe tumbar la gráfica ni la página
       }
     }
   }, [series, seriesKey, forceFit, valueFormatter]);
