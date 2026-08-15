@@ -12,6 +12,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
 import { TabPills } from '../components/ui/TabPills';
 import { saveBlob } from '../utils/downloadCsv';
+import { combinarResultados, dividirEnDias } from '../utils/reactivaCascada';
 import { formatLocalDateTime, formatPercent, formatVariableValue } from '../utils/format';
 
 // Cuatro matices bien diferenciados (accesibles en daltónicos): uno por
@@ -136,6 +137,7 @@ function ReactivaContent() {
   const [response, setResponse] = useState<ReactiveQuadrantsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progreso, setProgreso] = useState<string | null>(null);
   const [exportRangeKey, setExportRangeKey] = useState<ExportRangeKey>('24h');
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -147,13 +149,35 @@ function ReactivaContent() {
     async function run() {
       setLoading(true);
       setError(null);
+      setProgreso(null);
       try {
-        const data = await getReactiveQuadrants({
-          from: fromIso,
-          to: toIso,
-          device_id: selectedDeviceId ?? undefined,
-        });
-        if (!cancelled) setResponse(data);
+        // Rangos largos: una sola consulta a InfluxDB puede pasarse del límite
+        // de tiempo. Se parte por día y se combina (ver dividirEnDias).
+        const dias = dividirEnDias(fromIso, toIso);
+        if (dias.length === 1) {
+          const data = await getReactiveQuadrants({
+            from: fromIso,
+            to: toIso,
+            device_id: selectedDeviceId ?? undefined,
+          });
+          if (!cancelled) setResponse(data);
+        } else {
+          let hechos = 0;
+          const total = dias.length;
+          const partes = await Promise.all(
+            dias.map(async (dia) => {
+              const parte = await getReactiveQuadrants({
+                from: dia.from,
+                to: dia.to,
+                device_id: selectedDeviceId ?? undefined,
+              });
+              hechos += 1;
+              if (!cancelled) setProgreso(`Cargando día ${hechos} de ${total}…`);
+              return parte;
+            }),
+          );
+          if (!cancelled) setResponse(combinarResultados(partes));
+        }
       } catch (err) {
         if (!cancelled)
           setError(extractErrorMessage(err, 'No se pudo cargar la energía reactiva.'));
@@ -275,7 +299,12 @@ function ReactivaContent() {
         </p>
       )}
 
-      {loading && <Skeleton className="h-[320px] w-full" />}
+      {loading && (
+        <div className="space-y-2">
+          {progreso && <p className="text-xs text-slate-400">{progreso}</p>}
+          <Skeleton className="h-[320px] w-full" />
+        </div>
+      )}
       {!loading && error && <p className="text-sm text-red-500">{error}</p>}
 
       {!loading && !error && response && total === 0 && (
