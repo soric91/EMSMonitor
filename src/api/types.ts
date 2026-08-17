@@ -240,6 +240,31 @@ export interface HistoryParams {
   aggregation?: Aggregation;
 }
 
+/**
+ * Reducciones EXACTAS del rango, calculadas por InfluxDB sobre los datos
+ * crudos. No confundir con reducir los puntos de `HistoryResponse`: esos ya
+ * vienen agregados por ventana, así que su máximo es el mayor de unos
+ * promedios. Solo aplica a variables instantáneas (un contador acumulativo
+ * devuelve 400).
+ */
+export interface HistoryStats {
+  variable: Variable;
+  device_id: string | null;
+  period_start: string;
+  period_end: string;
+  min: number | null;
+  max: number | null;
+  mean: number | null;
+  last: number | null;
+}
+
+export interface HistoryStatsParams {
+  variable: Variable;
+  from: string;
+  to: string;
+  device_id?: string;
+}
+
 export interface HistoryDownsampleParams {
   variable: Variable;
   from: string;
@@ -575,9 +600,4 @@ export interface WsAlertEvent extends Alert {
 }
 
 export type WsServerEvent =
-  | WsSubscribedEvent
-  | WsDataEvent
-  | WsUnsubscribedEvent
-  | WsPongEvent
-  | WsErrorEvent
-  | WsAlertEvent;
+  WsSubscribedEvent | WsDataEvent | WsUnsubscribedEvent | WsPongEvent | WsErrorEvent | WsAlertEvent;

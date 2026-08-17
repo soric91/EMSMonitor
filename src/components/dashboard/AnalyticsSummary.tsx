@@ -3,21 +3,13 @@ import { useDevice } from '../../hooks/useDevice';
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Download, Lightbulb } from 'lucide-react';
 import { getAnalyticsSummary } from '../../api/analytics';
 import type { AnalyticsSummary as AnalyticsSummaryData } from '../../api/types';
+import { KPIS_ENERGIA } from '../../domain/kpisEnergia';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Skeleton } from '../ui/Skeleton';
 import { HourlyProfileChart } from '../charts/HourlyProfileChart';
 import { formatCop, formatKwh } from '../../utils/format';
 import { monthLabel } from '../../utils/labels';
-
-const STAT_CARDS: { key: keyof AnalyticsSummaryData; label: string; tone: 'import' | 'export' }[] =
-  [
-    { key: 'consumption_daily_kwh', label: 'Consumo diario (prom.)', tone: 'import' },
-    { key: 'consumption_weekly_kwh', label: 'Consumo semanal (prom.)', tone: 'import' },
-    { key: 'consumption_monthly_kwh', label: 'Consumo mensual', tone: 'import' },
-    { key: 'export_daily_kwh', label: 'Exportación diaria (prom.)', tone: 'export' },
-    { key: 'export_monthly_kwh', label: 'Exportación mensual', tone: 'export' },
-  ];
 
 export function AnalyticsSummary() {
   const { selectedDeviceId } = useDevice();
@@ -108,7 +100,7 @@ export function AnalyticsSummary() {
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {STAT_CARDS.map(({ key, label, tone }) => (
+          {KPIS_ENERGIA.map(({ key, label, tone }) => (
             <Card key={key} className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>

@@ -5,6 +5,9 @@ import type { CompareResult } from '../../api/types';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { formatKwh } from '../../utils/format';
+import { startOfLocalDay } from '../../utils/timezone';
+
+const DAY_MS = 86_400_000;
 
 interface PeriodComparisonCardProps {
   label: string;
@@ -20,13 +23,17 @@ export function PeriodComparisonCard({ label, days }: PeriodComparisonCardProps)
 
     async function run() {
       setError(false);
-      const now = Date.now();
-      const dayMs = 86_400_000;
+      // F0.4: los dos rangos terminan en la medianoche local de HOY, no en
+      // "ahora". Antes el periodo B llegaba hasta el instante actual, así que
+      // su último día estaba a medio consumir y el delta salía siempre a favor:
+      // a las 9 a.m. comparaba 6 días y pico contra 7 completos.
+      const finB = startOfLocalDay();
+      const finA = new Date(finB.getTime() - days * DAY_MS);
       const params = {
-        from_a: new Date(now - 2 * days * dayMs).toISOString(),
-        to_a: new Date(now - days * dayMs).toISOString(),
-        from_b: new Date(now - days * dayMs).toISOString(),
-        to_b: new Date(now).toISOString(),
+        from_a: new Date(finA.getTime() - days * DAY_MS).toISOString(),
+        to_a: finA.toISOString(),
+        from_b: finA.toISOString(),
+        to_b: finB.toISOString(),
       };
       try {
         const data = await compare(params);
@@ -85,7 +92,8 @@ export function PeriodComparisonCard({ label, days }: PeriodComparisonCardProps)
         )}
       </div>
       <p className="mt-1 text-xs text-slate-400">
-        vs. {formatKwh(result.period_a.consumption_kwh)} periodo anterior · importado
+        vs. {formatKwh(result.period_a.consumption_kwh)} periodo anterior · importado · días
+        completos (sin contar hoy)
       </p>
     </Card>
   );

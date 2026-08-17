@@ -12,8 +12,14 @@ import {
 import { DashboardFiltersProvider } from '../context/DashboardFiltersContext';
 import { useDashboardFilters } from '../hooks/useDashboardFilters';
 import { useDevice } from '../hooks/useDevice';
-import { getHistory } from '../api/history';
-import type { HistoryResponse, TimeSeriesPoint, Variable, VariableDisponible } from '../api/types';
+import { getHistory, getHistoryStats } from '../api/history';
+import type {
+  HistoryResponse,
+  HistoryStats,
+  TimeSeriesPoint,
+  Variable,
+  VariableDisponible,
+} from '../api/types';
 import { colorModeFor } from '../types/variable';
 import { useVariablesDelMedidor } from '../hooks/useVariablesDelMedidor';
 import { Card } from '../components/ui/Card';
@@ -22,6 +28,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
 import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { formatVariableValue, formatLocalDateTime } from '../utils/format';
+import { NOT_APPLICABLE } from '../utils/labels';
 import { downloadCsv } from '../utils/downloadCsv';
 
 const IMPORT_COLOR = '#f59e0b';
@@ -118,15 +125,69 @@ function HistoryContent() {
   const chartData = points.map((p) => ({ time: Date.parse(p.time), value: p.value }));
   const color = colorForSeries(info, points);
 
-  const stats = useMemo(() => {
+  // F0.2: los cuatro números de abajo salían de reducir `points`, que YA viene
+  // agregado por ventana — con "agrupar cada 24 h", el "Máximo" era el mayor de
+  // los promedios diarios, varias veces menor que el pico real. Para una
+  // variable instantánea se piden a `/history/stats`, que reduce sobre los datos
+  // crudos. Un contador acumulativo no admite esa reducción (solo
+  // difference()/last()); ahí la serie ya ES energía por ventana, así que sus
+  // extremos son legítimos y se rotulan como lo que son.
+  const esAcumulativa = info?.acumulativa ?? false;
+  const variableConocida = info !== undefined;
+  const [stats, setStats] = useState<HistoryStats | null>(null);
+
+  useEffect(() => {
+    // Mientras la variable seleccionada no esté en el catálogo del medidor no
+    // se pregunta nada: al montar, el filtro trae la variable por defecto de la
+    // app, que este medidor puede no reportar (el efecto de arriba la cambia
+    // por la primera que sí). Preguntar antes gastaba una consulta por un
+    // rango que nadie iba a ver.
+    if (!variableConocida || esAcumulativa) return;
+    let cancelled = false;
+
+    async function run() {
+      try {
+        const data = await getHistoryStats({
+          variable,
+          from: fromIso,
+          to: toIso,
+          device_id: selectedDeviceId ?? undefined,
+        });
+        if (!cancelled) setStats(data);
+      } catch {
+        // El resumen es accesorio: si falla, la gráfica se queda igual.
+        if (!cancelled) setStats(null);
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [variable, fromIso, toIso, selectedDeviceId, esAcumulativa, variableConocida]);
+
+  const statsPorVentana = useMemo(() => {
     if (points.length === 0) return null;
     const values = points.map((p) => p.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-    const last = points[points.length - 1]!.value;
-    return { min, max, mean, last };
+    return {
+      min: Math.min(...values),
+      max: Math.max(...values),
+      mean: values.reduce((sum, v) => sum + v, 0) / values.length,
+      last: points[points.length - 1]!.value,
+    };
   }, [points]);
+
+  // `stats.variable === variable` evita mostrar los estadísticos de la variable
+  // anterior mientras llega la nueva respuesta: el estado sobrevive al cambio
+  // de selección, la consulta no es instantánea.
+  const resumen = esAcumulativa ? statsPorVentana : stats?.variable === variable ? stats : null;
+  const sufijo = esAcumulativa ? ' por ventana' : '';
+  const TARJETAS = [
+    { clave: 'min', etiqueta: `Mínimo${sufijo}`, icono: TrendingDown },
+    { clave: 'max', etiqueta: `Máximo${sufijo}`, icono: TrendingUp },
+    { clave: 'mean', etiqueta: `Promedio${sufijo}`, icono: Sigma },
+    { clave: 'last', etiqueta: 'Último', icono: Clock },
+  ] as const;
 
   return (
     <div className="space-y-6">
@@ -189,49 +250,31 @@ function HistoryContent() {
         )}
       </Card>
 
-      {!loading && !error && stats && (
+      {!loading && !error && resumen && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
           className="grid grid-cols-2 gap-4 sm:grid-cols-4"
         >
-          <Card className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Mínimo</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(info?.unidad ?? '', stats.min)}
-              </p>
-            </div>
-            <TrendingDown className="h-4 w-4 text-slate-400" />
-          </Card>
-          <Card className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Máximo</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(info?.unidad ?? '', stats.max)}
-              </p>
-            </div>
-            <TrendingUp className="h-4 w-4 text-slate-400" />
-          </Card>
-          <Card className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Promedio</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(info?.unidad ?? '', stats.mean)}
-              </p>
-            </div>
-            <Sigma className="h-4 w-4 text-slate-400" />
-          </Card>
-          <Card className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Último</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {formatVariableValue(info?.unidad ?? '', stats.last)}
-              </p>
-            </div>
-            <Clock className="h-4 w-4 text-slate-400" />
-          </Card>
+          {TARJETAS.map(({ clave, etiqueta, icono: Icono }) => {
+            const valor = resumen[clave];
+            return (
+              <Card key={clave} className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {etiqueta}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+                    {valor === null
+                      ? NOT_APPLICABLE
+                      : formatVariableValue(info?.unidad ?? '', valor)}
+                  </p>
+                </div>
+                <Icono className="h-4 w-4 text-slate-400" />
+              </Card>
+            );
+          })}
         </motion.div>
       )}
 

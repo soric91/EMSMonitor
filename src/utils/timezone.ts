@@ -17,6 +17,17 @@ export function nowLocalInput(): string {
   return utcIsoToLocalInput(new Date().toISOString());
 }
 
+/**
+ * La medianoche de hoy en hora Bogotá, como instante UTC.
+ *
+ * Para comparar periodos entre sí: un rango que termina "ahora" arrastra un
+ * día a medio consumir y ensucia cualquier delta contra un rango completo.
+ */
+export function startOfLocalDay(reference: Date = new Date()): Date {
+  const localMidnight = format(toZonedTime(reference, TIME_ZONE), "yyyy-MM-dd'T'00:00");
+  return fromZonedTime(localMidnight, TIME_ZONE);
+}
+
 export function hoursAgoLocalInput(hours: number): string {
   return utcIsoToLocalInput(new Date(Date.now() - hours * 3_600_000).toISOString());
 }

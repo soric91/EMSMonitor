@@ -10,6 +10,18 @@ interface DemandaFactorCarga {
   base_load: BaseLoadResult;
 }
 
+// F0.5: los tres indicadores se calculan SOLO sobre las muestras de
+// importación (TotW > 0). Con generación solar, durante la exportación no hay
+// consumo medible en la acometida —no hay medidor en el inversor— y esas
+// ventanas se excluyen en vez de inventar un proxy. Sin decirlo, "carga base"
+// se lee como el consumo de la casa, que es otra cosa.
+const SOLO_IMPORTACION = 'Calculado solo sobre las horas en que se importa de la red.';
+const AYUDA = {
+  max_demand: `La potencia más alta importada del periodo. ${SOLO_IMPORTACION} La hora indicada es el inicio de la ventana donde ocurrió el pico.`,
+  load_factor: `Importación media dividida por la demanda pico: qué tan pareja es la carga. ${SOLO_IMPORTACION}`,
+  base_load: `El consumo de fondo que nunca baja de ahí. ${SOLO_IMPORTACION}`,
+};
+
 /**
  * Demanda máxima, factor de carga y carga base.
  *
@@ -21,7 +33,10 @@ export function MetricsGrid({ max_demand, load_factor, base_load }: DemandaFacto
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <Card>
-        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div
+          title={AYUDA.max_demand}
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
           <TrendingUp className="h-3.5 w-3.5" /> Demanda máxima
         </div>
         {max_demand.peak_power_w !== null ? (
@@ -38,7 +53,10 @@ export function MetricsGrid({ max_demand, load_factor, base_load }: DemandaFacto
         )}
       </Card>
       <Card>
-        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div
+          title={AYUDA.load_factor}
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
           <Gauge className="h-3.5 w-3.5" /> Factor de carga
         </div>
         {load_factor.load_factor !== null ? (
@@ -50,7 +68,10 @@ export function MetricsGrid({ max_demand, load_factor, base_load }: DemandaFacto
         )}
       </Card>
       <Card>
-        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+        <div
+          title={AYUDA.base_load}
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"
+        >
           <Battery className="h-3.5 w-3.5" /> Carga base
         </div>
         {base_load.base_load_w !== null ? (

@@ -1,4 +1,5 @@
 import type { AnalyticsSummary } from '../api/types';
+import { KPIS_ENERGIA } from '../domain/kpisEnergia';
 import { formatCop, formatKwh, formatLocalDateTime, formatWatts } from './format';
 import { monthLabel } from './labels';
 
@@ -51,25 +52,14 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
 
   // ---------- KPIs de energía ----------
   y = sectionTitle(pdf, 'Energía del periodo', y);
-  const kpis: { label: string; value: string; color: string }[] = [
-    {
-      label: 'Consumo diario (prom.)',
-      value: formatKwh(summary.consumption_daily_kwh),
-      color: IMPORT,
-    },
-    {
-      label: 'Consumo semanal (prom.)',
-      value: formatKwh(summary.consumption_weekly_kwh),
-      color: IMPORT,
-    },
-    { label: 'Consumo mensual', value: formatKwh(summary.consumption_monthly_kwh), color: IMPORT },
-    {
-      label: 'Exportación diaria (prom.)',
-      value: formatKwh(summary.export_daily_kwh),
-      color: EXPORT,
-    },
-    { label: 'Exportación mensual', value: formatKwh(summary.export_monthly_kwh), color: EXPORT },
-  ];
+  // Las etiquetas salen de `KPIS_ENERGIA`, la misma lista que pinta la tarjeta
+  // en pantalla: estaban copiadas acá y el PDF quedó diciendo "(prom.)" sobre
+  // valores que no lo son.
+  const kpis = KPIS_ENERGIA.map(({ key, label, tone }) => ({
+    label,
+    value: formatKwh(summary[key] as number),
+    color: tone === 'import' ? IMPORT : EXPORT,
+  }));
   const boxW = (CONTENT_W - 4 * 10) / 5;
   const boxH = 52;
   kpis.forEach((kpi, i) => {
