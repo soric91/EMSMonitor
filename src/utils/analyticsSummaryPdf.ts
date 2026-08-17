@@ -11,73 +11,73 @@ import {
   IMPORT,
   INK,
   MARGIN,
-  MUTED,
-  PAGE_W,
+  bulletList,
+  drawFooters,
+  ensureSpace,
+  kpiCards,
   legendDot,
+  methodologyNote,
+  nombreDeArchivo,
+  reportHeader,
   sectionTitle,
   t,
 } from './pdfKit';
 
+/**
+ * Informe ejecutivo del periodo, en PDF vectorial.
+ *
+ * Misma anatomía que los demás (`pdfKit`): identificación y alcance, resumen,
+ * cuerpo, hallazgos, acciones y nota metodológica.
+ */
 export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-  let y = MARGIN;
+  renderAnalyticsSummary(pdf, summary);
+  pdf.save(nombreDeArchivo('informe_energia'));
+}
 
-  // ---------- Encabezado ----------
-  pdf.setFillColor(EXPORT);
-  pdf.rect(MARGIN, y, 26, 4, 'F');
-  y += 18;
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(19);
-  pdf.setTextColor(INK);
-  pdf.text('Informe ejecutivo de energía', MARGIN, y);
-  y += 16;
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED);
-  pdf.text(
-    t(
-      `Periodo: ${formatLocalDateTime(summary.period_start, 'd MMM yyyy')} — ${formatLocalDateTime(
+/** Dibuja el informe y devuelve las secciones que quedaron en él. */
+export function renderAnalyticsSummary(
+  pdf: import('jspdf').jsPDF,
+  summary: AnalyticsSummary,
+): string[] {
+  const secciones: string[] = [];
+
+  let y = reportHeader(
+    pdf,
+    {
+      titulo: 'Informe ejecutivo de energía',
+      periodo: `Periodo: ${formatLocalDateTime(summary.period_start, 'd MMM yyyy')} — ${formatLocalDateTime(
         summary.period_end,
         'd MMM yyyy',
-      )}  ·  Generado: ${formatLocalDateTime(new Date().toISOString(), 'd MMM yyyy, HH:mm')} (hora Bogotá)`,
-    ),
+      )}`,
+      alcance:
+        'medidor bidireccional en la acometida. Se mide la energía importada de la red y la exportada ' +
+        'hacia ella; no hay medición en el inversor, así que el consumo propio cubierto por la ' +
+        'generación no se observa directamente.',
+    },
     MARGIN,
-    y,
   );
-  y += 24;
 
-  // ---------- KPIs de energía ----------
+  // ---------- Resumen ejecutivo ----------
+  secciones.push('energia');
   y = sectionTitle(pdf, 'Energía del periodo', y);
   // Las etiquetas salen de `KPIS_ENERGIA`, la misma lista que pinta la tarjeta
   // en pantalla: estaban copiadas acá y el PDF quedó diciendo "(prom.)" sobre
   // valores que no lo son.
-  const kpis = KPIS_ENERGIA.map(({ key, label, tone }) => ({
-    label,
-    value: formatKwh(summary[key] as number),
-    color: tone === 'import' ? IMPORT : EXPORT,
-  }));
-  const boxW = (CONTENT_W - 4 * 10) / 5;
-  const boxH = 52;
-  kpis.forEach((kpi, i) => {
-    const x = MARGIN + i * (boxW + 10);
-    pdf.setDrawColor(CARD_BORDER);
-    pdf.setLineWidth(0.75);
-    pdf.roundedRect(x, y, boxW, boxH, 4, 4, 'S');
-    pdf.setFillColor(kpi.color);
-    pdf.rect(x, y, 3, boxH, 'F');
-    pdf.setFontSize(6.5);
-    pdf.setTextColor(MUTED);
-    pdf.text(pdf.splitTextToSize(t(kpi.label), boxW - 14) as string[], x + 9, y + 13);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.setTextColor(INK);
-    pdf.text(t(kpi.value), x + 9, y + boxH - 11);
-    pdf.setFont('helvetica', 'normal');
-  });
-  y += boxH + 26;
+  y = kpiCards(
+    pdf,
+    KPIS_ENERGIA.map(({ key, label, tone }) => ({
+      label,
+      value: formatKwh(summary[key] as number),
+      color: tone === 'import' ? IMPORT : EXPORT,
+    })),
+    y,
+  );
 
   // ---------- Perfil horario ----------
+  secciones.push('perfil');
+  y = ensureSpace(pdf, y, 210);
   y = sectionTitle(pdf, 'Perfil horario promedio (hora Bogotá)', y);
 
   // leyenda + picos
@@ -147,6 +147,8 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
   // ---------- Eficiencia (condicional) ----------
   const eff = summary.efficiency;
   if (eff) {
+    secciones.push('eficiencia');
+    y = ensureSpace(pdf, y, 110);
     y = sectionTitle(pdf, 'Oportunidad de eficiencia', y);
     const boxTop = y;
     const lines = pdf.splitTextToSize(
@@ -195,38 +197,32 @@ export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promi
     y = boxTop + boxH2 + 20;
   }
 
-  // ---------- Recomendaciones ----------
+  // ---------- Acciones ----------
   const recommendations = buildRecommendations(summary);
   if (recommendations.length > 0) {
-    y = sectionTitle(pdf, 'Recomendaciones', y);
-    pdf.setFontSize(9);
-    for (const rec of recommendations) {
-      const lines = pdf.splitTextToSize(t(rec), CONTENT_W - 18) as string[];
-      pdf.setFillColor(EXPORT);
-      pdf.circle(MARGIN + 3, y - 2.5, 1.8, 'F');
-      pdf.setTextColor(INK);
-      pdf.text(lines, MARGIN + 12, y);
-      y += lines.length * 11 + 5;
-    }
-    y += 8;
+    secciones.push('acciones');
+    y = ensureSpace(pdf, y, 80);
+    y = sectionTitle(pdf, 'Qué hacer con esto', y);
+    y = bulletList(pdf, recommendations, y);
   }
 
-  // ---------- Pie ----------
-  const pageH = pdf.internal.pageSize.getHeight();
-  pdf.setDrawColor(CARD_BORDER);
-  pdf.setLineWidth(0.5);
-  pdf.line(MARGIN, pageH - 40, PAGE_W - MARGIN, pageH - 40);
-  pdf.setFontSize(7.5);
-  pdf.setTextColor(FAINT);
-  pdf.text(
-    'EMS Monitor · Informe generado automáticamente desde el panel de monitoreo',
-    MARGIN,
-    pageH - 28,
+  // ---------- Nota metodológica ----------
+  secciones.push('metodologia');
+  methodologyNote(
+    pdf,
+    [
+      'El perfil horario promedia la potencia neta de cada hora local sobre todos los días del periodo. ' +
+        'Positivo significa importar de la red; negativo, exportar excedente.',
+      'La energía del periodo sale de los contadores acumulativos del medidor (diferencia entre lectura ' +
+        'final e inicial), no de integrar la potencia instantánea.',
+      'El ahorro potencial es una COTA SUPERIOR: asume que todo el excedente del tramo 2 pudo desplazarse ' +
+        'a consumo propio. El ahorro real depende de qué cargas se puedan mover de hora.',
+    ],
+    y,
   );
-  pdf.text('Página 1 de 1', PAGE_W - MARGIN, pageH - 28, { align: 'right' });
 
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
-  pdf.save(`informe_energia_${today}.pdf`);
+  drawFooters(pdf, 'EMS Monitor · Informe ejecutivo generado desde el panel de monitoreo');
+  return secciones;
 }
 
 /** Recomendaciones derivadas exclusivamente de los datos del periodo — nada inventado. */

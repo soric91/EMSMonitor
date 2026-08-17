@@ -13,7 +13,10 @@ import {
   MUTED,
   drawFooters,
   ensureSpace,
+  methodologyNote,
+  nombreDeArchivo,
   paragraph,
+  reportHeader,
   sectionTitle,
   t,
 } from './pdfKit';
@@ -34,9 +37,16 @@ const PIE = 'EMS Monitor · Informe mensual generado desde el panel de monitoreo
 export async function buildMonthlyReportPdf(datos: DatosInformeMensual): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-  let y = MARGIN;
+  renderMonthlyReport(pdf, datos);
+  pdf.save(nombreDeArchivo('informe_mensual', datos.mes));
+}
 
-  y = encabezado(pdf, datos, y);
+/** Dibuja el informe y devuelve las secciones que quedaron en él. */
+export function renderMonthlyReport(
+  pdf: import('jspdf').jsPDF,
+  datos: DatosInformeMensual,
+): SeccionInforme[] {
+  let y = encabezado(pdf, datos, MARGIN);
 
   const dibujo: Record<SeccionInforme, () => void> = {
     resumen: () => {
@@ -73,39 +83,73 @@ export async function buildMonthlyReportPdf(datos: DatosInformeMensual): Promise
     },
   };
 
-  for (const seccion of seccionesDelInforme(datos)) {
+  const secciones = seccionesDelInforme(datos);
+  for (const seccion of secciones) {
     dibujo[seccion]();
   }
 
+  // La nota metodológica cierra siempre: es lo que hace reproducible cada
+  // cifra de arriba y separa lo medido de lo estimado.
+  methodologyNote(pdf, notasMetodologicas(datos), y);
   drawFooters(pdf, PIE);
-  pdf.save(`informe_mensual_${datos.mes}.pdf`);
+  return secciones;
+}
+
+/** Cómo se calculó lo que se acaba de leer, y qué parte es estimación. */
+function notasMetodologicas(datos: DatosInformeMensual): string[] {
+  const notas = [
+    'La energía sale de los contadores acumulativos del medidor de frontera (diferencia entre lectura ' +
+      'final e inicial de cada ventana), nunca de promediar potencia.',
+    'El costo usa la tarifa del mes correspondiente. El crédito por exportar se reparte en dos tramos: ' +
+      'lo exportado hasta lo importado en el mismo mes se paga al precio de compra, y solo el excedente ' +
+      'restante al precio de excedente.',
+  ];
+  if (datos.proyeccion?.method === 'ewma_por_tipo_de_dia') {
+    notas.push(
+      'La proyección de cierre es una ESTIMACIÓN: media exponencial de las últimas cuatro semanas por ' +
+        'tipo de día (laboral, sábado, domingo), con banda p10–p90 tomada de la dispersión real de esos días.',
+    );
+  }
+  if (datos.cargaBase?.window === 'noche') {
+    notas.push(
+      'El consumo de fondo se midió solo en la franja nocturna: de día la generación propia enmascara ' +
+        'el consumo real en un medidor de frontera.',
+    );
+  }
+  if (datos.comparacion?.enough_peers) {
+    notas.push(
+      'La comparación entre sedes usa únicamente sedes del mismo cliente y del mismo tipo (con o sin ' +
+        'generación propia). No se compara contra instalaciones de otros clientes.',
+    );
+  }
+  return notas;
 }
 
 type Pdf = import('jspdf').jsPDF;
 
 function encabezado(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
-  pdf.setFillColor(EXPORT);
-  pdf.rect(MARGIN, y, 26, 4, 'F');
-  let cursor = y + 18;
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(19);
-  pdf.setTextColor(INK);
-  pdf.text(t(`Informe de energía · ${monthLabel(datos.mes, 'long')}`), MARGIN, cursor);
-  cursor += 16;
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED);
-  pdf.text(
-    t(
-      `${datos.sede}  ·  Generado: ${formatLocalDateTime(
-        new Date().toISOString(),
-        'd MMM yyyy, HH:mm',
-      )} (hora Bogotá)`,
-    ),
-    MARGIN,
-    cursor,
+  // Con generación propia el alcance cambia de verdad, no de redacción: el
+  // medidor de frontera solo ve el balance neto y "consumo" deja de ser
+  // sinónimo de "energía importada".
+  const conGeneracion = datos.cargaBase?.window === 'noche';
+  return reportHeader(
+    pdf,
+    {
+      titulo: `Informe de energía · ${monthLabel(datos.mes, 'long')}`,
+      sede: datos.sede,
+      periodo: `Periodo: ${formatLocalDateTime(datos.reporte.period_start, 'd MMM yyyy')} — ${formatLocalDateTime(
+        datos.reporte.period_end,
+        'd MMM yyyy',
+      )}`,
+      alcance: conGeneracion
+        ? 'medidor bidireccional en la acometida, en una instalación con generación propia. Se mide el ' +
+          'balance neto: la energía importada de la red y la exportada hacia ella, no el consumo bruto ' +
+          'de la instalación ni la generación.'
+        : 'medidor bidireccional en la acometida. Toda la energía que pasa por él es consumo de la ' +
+          'instalación tomado de la red.',
+    },
+    y,
   );
-  return cursor + 24;
 }
 
 function seccionResumen(pdf: Pdf, datos: DatosInformeMensual, y: number): number {

@@ -1,12 +1,26 @@
 import type { ReactiveQuadrantsResult } from '../api/types';
 import { formatLocalDateTime, formatPercent, formatVariableValue } from './format';
+import {
+  CARD_BORDER,
+  CONTENT_W,
+  FAINT,
+  INK,
+  MARGIN,
+  MUTED,
+  bulletList,
+  drawFooters,
+  ensureSpace,
+  kpiCards,
+  methodologyNote,
+  nombreDeArchivo,
+  reportHeader,
+  sectionTitle,
+  t,
+} from './pdfKit';
 
-// Paleta del informe (los mismos significados de color de la página Reactiva).
-const INK = '#0f172a';
-const MUTED = '#64748b';
-const FAINT = '#94a3b8';
-const CARD_BORDER = '#e2e8f0';
-// Importada / exportada agregadas (KPIs del encabezado).
+// Los cuadrantes conservan su paleta propia: son cuatro categorías que se
+// distinguen entre sí, no los significados de importación/exportación del
+// resto de la app.
 const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
 // Cuadrantes: un matiz por cuadrante, la misma paleta que la página — Q1 ámbar,
@@ -15,10 +29,6 @@ const Q1_COLOR = IMPORT_COLOR;
 const Q2_COLOR = '#06b6d4';
 const Q3_COLOR = EXPORT_COLOR;
 const Q4_COLOR = '#8b5cf6';
-
-const PAGE_W = 595.28; // A4 pt
-const MARGIN = 48;
-const CONTENT_W = PAGE_W - MARGIN * 2;
 
 /** Los cuatro cuadrantes (IEC 60375) con su lectura en la acometida. */
 const CUADRANTES: {
@@ -62,11 +72,6 @@ const DOMINANTE_DESCRIPCION: Record<string, string> = Object.fromEntries(
   CUADRANTES.map((c) => [c.id, c.descripcion]),
 );
 
-/** Las fuentes estándar de jsPDF son WinAnsi: sin NBSP/espacio angosto de es-CO. */
-function t(s: string): string {
-  return s.replace(/[\u00A0\u202F]/g, ' ');
-}
-
 /**
  * Informe de energía reactiva del periodo, en PDF vectorial.
  *
@@ -75,83 +80,91 @@ function t(s: string): string {
  * sale del `response` que la página de Reactiva ya cargó — ninguna consulta
  * extra.
  */
+/**
+ * Informe de energía reactiva del periodo, en PDF vectorial.
+ *
+ * Misma anatomía que los otros informes (`pdfKit`): identificación y alcance,
+ * resumen ejecutivo, cuerpo, hallazgos, acciones y nota metodológica. Todo
+ * sale del `response` que la página de Reactiva ya cargó — ninguna consulta
+ * extra.
+ */
 export async function buildReactiveQuadrantsPdf(result: ReactiveQuadrantsResult): Promise<void> {
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-  let y = MARGIN;
+  renderReactiveQuadrants(pdf, result);
+  pdf.save(nombreDeArchivo('informe_reactiva'));
+}
 
-  // ---------- Encabezado ----------
-  pdf.setFillColor(EXPORT_COLOR);
-  pdf.rect(MARGIN, y, 26, 4, 'F');
-  y += 18;
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(19);
-  pdf.setTextColor(INK);
-  pdf.text('Informe de energía reactiva', MARGIN, y);
-  y += 16;
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(MUTED);
+/**
+ * Dibuja el informe y devuelve las secciones que quedaron en él.
+ *
+ * Separado de `build*` para que se pueda verificar sin descargar nada: el
+ * manifiesto es lo que los tests revisan, y `pdf.save()` en un test solo
+ * dispararía una descarga.
+ */
+export function renderReactiveQuadrants(
+  pdf: import('jspdf').jsPDF,
+  result: ReactiveQuadrantsResult,
+): string[] {
+  const secciones: string[] = [];
   const total = result.total_import_kvarh + result.total_export_kvarh;
-  pdf.text(
-    t(
-      `Periodo: ${formatLocalDateTime(result.period_start, 'd MMM yyyy')} — ${formatLocalDateTime(
+
+  let y = reportHeader(
+    pdf,
+    {
+      titulo: 'Informe de energía reactiva',
+      periodo: `Periodo: ${formatLocalDateTime(result.period_start, 'd MMM yyyy')} — ${formatLocalDateTime(
         result.period_end,
         'd MMM yyyy',
-      )}  ·  Generado: ${formatLocalDateTime(new Date().toISOString(), 'd MMM yyyy, HH:mm')} (hora Bogotá)`,
-    ),
+      )}`,
+      alcance:
+        'contadores de energía reactiva por cuadrante (Q1–Q4, IEC 60375) del medidor bidireccional ' +
+        'instalado en la acometida. Q1/Q2 es reactiva que la instalación absorbe de la red; Q3/Q4 la que devuelve.',
+    },
     MARGIN,
+  );
+
+  // ---------- Resumen ejecutivo ----------
+  secciones.push('resumen');
+  y = sectionTitle(pdf, 'Resumen del periodo', y);
+  y = kpiCards(
+    pdf,
+    [
+      {
+        label: 'Reactiva importada (Q1+Q2)',
+        value: formatVariableValue('kvarh', result.total_import_kvarh),
+        color: IMPORT_COLOR,
+        hint: 'absorbida de la red',
+      },
+      {
+        label: 'Reactiva exportada (Q3+Q4)',
+        value: formatVariableValue('kvarh', result.total_export_kvarh),
+        color: EXPORT_COLOR,
+        hint: 'devuelta a la red',
+      },
+      {
+        label: 'Balance neto',
+        value: `${result.balance_kvarh >= 0 ? '+' : ''}${formatVariableValue('kvarh', result.balance_kvarh)}`,
+        color: INK,
+        hint: result.balance_kvarh >= 0 ? 'la red le entrega' : 'la instalación devuelve',
+      },
+      {
+        label: 'Cuadrante dominante',
+        value: result.dominant
+          ? `Q${result.dominant.slice(1)} · ${formatVariableValue('kvarh', result.dominant_kvarh)}`
+          : 'Sin reactiva',
+        color: CUADRANTES.find((c) => c.id === result.dominant)?.color ?? FAINT,
+        hint: result.dominant ? DOMINANTE_DESCRIPCION[result.dominant] : 'ninguna ventana con dato',
+      },
+    ],
     y,
   );
-  y += 24;
-
-  // ---------- KPIs del periodo ----------
-  y = sectionTitle(pdf, 'Resumen del periodo', y);
-  const kpis: { label: string; value: string; color: string }[] = [
-    {
-      label: 'Reactiva importada (Q1+Q2)',
-      value: formatVariableValue('kvarh', result.total_import_kvarh),
-      color: IMPORT_COLOR,
-    },
-    {
-      label: 'Reactiva exportada (Q3+Q4)',
-      value: formatVariableValue('kvarh', result.total_export_kvarh),
-      color: EXPORT_COLOR,
-    },
-    {
-      label: 'Balance (importada - exportada)',
-      value: `${result.balance_kvarh >= 0 ? '+' : ''}${formatVariableValue('kvarh', result.balance_kvarh)}`,
-      color: INK,
-    },
-    {
-      label: 'Cuadrante dominante',
-      value: result.dominant
-        ? `Q${result.dominant.slice(1)} · ${formatVariableValue('kvarh', result.dominant_kvarh)}`
-        : 'Sin reactiva',
-      color: CUADRANTES.find((c) => c.id === result.dominant)?.color ?? FAINT,
-    },
-  ];
-  const boxW = (CONTENT_W - 3 * 10) / 4;
-  const boxH = 56;
-  kpis.forEach((kpi, i) => {
-    const x = MARGIN + i * (boxW + 10);
-    pdf.setDrawColor(CARD_BORDER);
-    pdf.setLineWidth(0.75);
-    pdf.roundedRect(x, y, boxW, boxH, 4, 4, 'S');
-    pdf.setFillColor(kpi.color);
-    pdf.rect(x, y, 3, boxH, 'F');
-    pdf.setFontSize(6.5);
-    pdf.setTextColor(MUTED);
-    pdf.text(pdf.splitTextToSize(t(kpi.label), boxW - 14) as string[], x + 9, y + 13);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.setTextColor(INK);
-    pdf.text(t(kpi.value), x + 9, y + boxH - 12);
-    pdf.setFont('helvetica', 'normal');
-  });
-  y += boxH + 26;
 
   // ---------- Comportamiento por cuadrante (4 gráficas) ----------
+  secciones.push('cuadrantes');
+  // Las cuatro gráficas van juntas o no van: partirlas entre dos páginas deja
+  // media rejilla arriba y media abajo, que es peor que empezar en la siguiente.
+  y = ensureSpace(pdf, y, 2 * (118 + 22) + 40);
   y = sectionTitle(pdf, 'Comportamiento por cuadrante', y);
   pdf.setFontSize(8);
   pdf.setTextColor(MUTED);
@@ -200,66 +213,42 @@ export async function buildReactiveQuadrantsPdf(result: ReactiveQuadrantsResult)
   });
   y += 2 * (chartH + 22) - 6;
 
-  // ---------- Explicación de los cuadrantes ----------
-  y = sectionTitle(pdf, 'Lectura de los cuadrantes', y);
-  const explicacion = buildExplicacion(result);
-  pdf.setFontSize(9);
-  for (const line of explicacion) {
-    const lines = pdf.splitTextToSize(t(line), CONTENT_W - 22) as string[];
-    pdf.setFillColor(EXPORT_COLOR);
-    pdf.circle(MARGIN + 3, y - 2.5, 1.8, 'F');
-    pdf.setTextColor(INK);
-    pdf.text(lines, MARGIN + 12, y);
-    y += lines.length * 11 + 5;
-  }
-  y += 8;
+  // ---------- Lectura ----------
+  secciones.push('lectura');
+  y = ensureSpace(pdf, y, 90);
+  y = sectionTitle(pdf, 'Qué muestran estos cuadrantes', y);
+  y = bulletList(pdf, buildExplicacion(result), y);
 
-  // ---------- Recomendaciones ----------
+  // ---------- Acciones ----------
   const recomendaciones = buildRecomendaciones(result);
   if (recomendaciones.length > 0) {
-    y = sectionTitle(pdf, 'Recomendaciones', y);
-    pdf.setFontSize(9);
-    for (const rec of recomendaciones) {
-      const lines = pdf.splitTextToSize(t(rec), CONTENT_W - 18) as string[];
-      pdf.setFillColor(EXPORT_COLOR);
-      pdf.circle(MARGIN + 3, y - 2.5, 1.8, 'F');
-      pdf.setTextColor(INK);
-      pdf.text(lines, MARGIN + 12, y);
-      y += lines.length * 11 + 5;
-    }
-    y += 8;
+    secciones.push('acciones');
+    y = ensureSpace(pdf, y, 70);
+    y = sectionTitle(pdf, 'Qué hacer con esto', y);
+    y = bulletList(pdf, recomendaciones, y);
   }
 
-  // Si la lectura + recomendaciones se pasan del alto, la última sección puede
-  // quedar cortada; el informe completo de 24h/7d/30d cabe en una hoja.
-  if (y > pdf.internal.pageSize.getHeight() - 60) {
-    pdf.addPage();
-    y = MARGIN + 12;
-  }
-
-  // ---------- Pie ----------
-  const pageH = pdf.internal.pageSize.getHeight();
-  pdf.setDrawColor(CARD_BORDER);
-  pdf.setLineWidth(0.5);
-  pdf.line(MARGIN, pageH - 40, PAGE_W - MARGIN, pageH - 40);
-  pdf.setFontSize(7.5);
-  pdf.setTextColor(FAINT);
-  pdf.text(
-    'EMS Monitor · Informe generado automáticamente desde el panel de monitoreo',
-    MARGIN,
-    pageH - 28,
-  );
-  pdf.text(
-    `Página ${pdf.getNumberOfPages()} de ${pdf.getNumberOfPages()}`,
-    PAGE_W - MARGIN,
-    pageH - 28,
-    {
-      align: 'right',
-    },
+  // ---------- Nota metodológica ----------
+  secciones.push('metodologia');
+  methodologyNote(
+    pdf,
+    [
+      'Los cuadrantes son contadores acumulativos: la energía del periodo es la diferencia entre el ' +
+        'valor final y el inicial de cada uno, nunca un promedio.',
+      'Las gráficas por cuadrante muestran la reactiva de cada ventana del periodo; con más de 24 ' +
+        'ventanas la serie se submuestrea para dibujarla, pero los totales usan todos los puntos.',
+      'Este informe describe lo medido en la acometida. No calcula penalización tarifaria: el umbral y ' +
+        'el precio del kvarh dependen de la regulación vigente y del tipo de usuario, y no están cargados ' +
+        'en el sistema.',
+    ],
+    y,
   );
 
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
-  pdf.save(`informe_reactiva_${today}.pdf`);
+  drawFooters(
+    pdf,
+    'EMS Monitor · Informe de energía reactiva generado desde el panel de monitoreo',
+  );
+  return secciones;
 }
 
 /** La serie de un cuadrante dentro de la tendencia (q1_kvarh…q4_kvarh). */
@@ -378,13 +367,4 @@ function buildRecomendaciones(result: ReactiveQuadrantsResult): string[] {
       'las cargas que justifican mover la compensación reactiva.',
   );
   return recs;
-}
-
-function sectionTitle(pdf: import('jspdf').jsPDF, title: string, y: number): number {
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(11);
-  pdf.setTextColor(INK);
-  pdf.text(t(title), MARGIN, y);
-  pdf.setFont('helvetica', 'normal');
-  return y + 16;
 }
