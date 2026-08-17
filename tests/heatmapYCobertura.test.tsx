@@ -11,6 +11,7 @@
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '../src/api/client';
+import { clearSiteModeCache } from '../src/hooks/useSiteMode';
 import { CalendarHeatmap } from '../src/components/charts/CalendarHeatmap';
 import { DataCoverageBadge } from '../src/components/dashboard/DataCoverageBadge';
 import { HeatmapCard } from '../src/components/dashboard/HeatmapCard';
@@ -208,6 +209,7 @@ function servir({
 
 afterEach(() => {
   cleanup();
+  clearSiteModeCache();
   parametros = [];
 });
 

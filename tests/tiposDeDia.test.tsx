@@ -10,6 +10,7 @@
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '../src/api/client';
+import { clearSiteModeCache } from '../src/hooks/useSiteMode';
 import { DayArchetypesCard } from '../src/components/dashboard/DayArchetypesCard';
 import { DeviceContext } from '../src/context/DeviceContext';
 import type { DayArchetypesResult } from '../src/api/types';
@@ -140,6 +141,7 @@ function servir(resultado: DayArchetypesResult): void {
 
 afterEach(() => {
   cleanup();
+  clearSiteModeCache();
 });
 
 afterAll(() => {

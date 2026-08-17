@@ -11,6 +11,7 @@
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '../src/api/client';
+import { clearSiteModeCache } from '../src/hooks/useSiteMode';
 import Dashboard from '../src/pages/Dashboard';
 import { DeviceProvider } from '../src/context/DeviceContext';
 import { RealtimeProvider } from '../src/context/RealtimeContext';
@@ -19,6 +20,7 @@ import { AlertsProvider } from '../src/context/AlertsContext';
 import type {
   BillForecast,
   PowerForecast,
+  SiteModeResult,
   CompareResult,
   CostBreakdown,
   DashboardSummary,
@@ -147,6 +149,13 @@ const PRONOSTICO: PowerForecast = {
   backtest: { hours: 168, mae_kwh: 0.31, naive_mae_kwh: 0.47 },
 };
 
+const MODO_SEDE: SiteModeResult = {
+  device_id: 'eq-elegido',
+  mode: 'generacion',
+  source: 'crm',
+  capacity_kwp: 5.5,
+};
+
 const COMPARADO: CompareResult = {
   device_id: 'eq-elegido',
   period_a: {
@@ -231,12 +240,12 @@ describe('cuánto pide la red', () => {
     const pedidos = (url: string) => parametros.filter((p) => String(p.url).startsWith(url));
     const todos = parametros.length;
 
-    // El panel completo son 9 peticiones: inventario, variables, alertas (dos
+    // El panel completo son 10 peticiones: inventario, variables, alertas (dos
     // veces: una al montar sin medidor y otra cuando el inventario elige el
     // primero), el resumen consolidado, las dos comparaciones, la proyección
-    // del mes (F1.2) y el pronóstico horario (F3.1). Todo lo demás dejó de
-    // pedirse.
-    expect(todos).toBe(9);
+    // del mes (F1.2), el pronóstico horario (F3.1) y el modo de la sede. Todo
+    // lo demás dejó de pedirse.
+    expect(todos).toBe(10);
     expect(pedidos('/devices')).toHaveLength(1);
     expect(pedidos('/variables')).toHaveLength(1);
     expect(pedidos('/alerts')).toHaveLength(2);
@@ -244,6 +253,7 @@ describe('cuánto pide la red', () => {
     expect(pedidos('/analytics/compare')).toHaveLength(2);
     expect(pedidos('/forecast/bill')).toHaveLength(1);
     expect(pedidos('/forecast/power')).toHaveLength(1);
+    expect(pedidos('/analytics/site-mode')).toHaveLength(1);
 
     // Cero a los endpoints que /dashboard/summary consolidó.
     expect(pedidos('/costs')).toHaveLength(0);
@@ -310,7 +320,9 @@ function servir(options: { fallaResumen?: boolean } = {}): void {
                   ? PROYECCION
                   : url === '/forecast/power'
                     ? PRONOSTICO
-                    : null;
+                    : url === '/analytics/site-mode'
+                      ? MODO_SEDE
+                      : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },
@@ -324,6 +336,7 @@ function servir(options: { fallaResumen?: boolean } = {}): void {
 
 afterEach(() => {
   cleanup();
+  clearSiteModeCache();
   parametros = [];
 });
 

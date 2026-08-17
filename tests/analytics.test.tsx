@@ -11,6 +11,7 @@
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { apiClient } from '../src/api/client';
+import { clearSiteModeCache } from '../src/hooks/useSiteMode';
 import Analytics from '../src/pages/Analytics';
 import { DeviceContext } from '../src/context/DeviceContext';
 import { RealtimeProvider } from '../src/context/RealtimeContext';
@@ -399,6 +400,7 @@ function servir(): void {
 
 afterEach(() => {
   cleanup();
+  clearSiteModeCache();
   parametros = [];
 });
 

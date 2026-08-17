@@ -5,6 +5,7 @@ import { LiveVariableChart } from '../components/dashboard/LiveVariableChart';
 import { PeriodComparisonCard } from '../components/dashboard/PeriodComparisonCard';
 import { KpiCard } from '../components/dashboard/KpiCard';
 import { BillProjectionCard } from '../components/dashboard/BillProjectionCard';
+import { SiteModeBadge } from '../components/dashboard/SiteModeBadge';
 import { PowerForecastCard } from '../components/dashboard/PowerForecastCard';
 import { DeviceStatus } from '../components/dashboard/DeviceStatus';
 import { AlarmPanel } from '../components/dashboard/AlarmPanel';
@@ -89,6 +90,9 @@ export default function Dashboard() {
     <div className="space-y-8">
       {/* RESUMEN: el balance en vivo (hero) + los KPIs del período */}
       <section aria-label="Resumen" className="space-y-4">
+        <div className="flex justify-end">
+          <SiteModeBadge />
+        </div>
         <EnergyFlowHero seedWatts={summary?.power_active_total_w ?? null} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <KpiCard

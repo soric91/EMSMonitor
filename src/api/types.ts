@@ -291,6 +291,8 @@ export interface SiteModeResult {
   mode: SiteMode;
   /** `crm` si alguien lo declaró en la sede; `detected` si se dedujo de lo exportado. */
   source: 'crm' | 'detected';
+  /** Potencia instalada declarada en el CRM. Informativa: ningún cálculo la usa. */
+  capacity_kwp: number | null;
 }
 
 export type HeatmapMetric = 'import' | 'export' | 'net' | 'cost';

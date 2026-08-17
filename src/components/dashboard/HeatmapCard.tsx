@@ -41,7 +41,7 @@ export function HeatmapCard({ fromIso, toIso }: HeatmapCardProps) {
 
   const opciones = useMemo(
     () =>
-      METRICAS.filter((m) => !m.soloConGeneracion || siteMode === 'generacion').map(
+      METRICAS.filter((m) => !m.soloConGeneracion || siteMode?.mode === 'generacion').map(
         ({ key, label }) => ({ key, label }),
       ),
     [siteMode],

@@ -21,6 +21,7 @@ import { BenchmarkCard } from '../components/dashboard/BenchmarkCard';
 import { DataCoverageBadge } from '../components/dashboard/DataCoverageBadge';
 import { DayArchetypesCard } from '../components/dashboard/DayArchetypesCard';
 import { HeatmapCard } from '../components/dashboard/HeatmapCard';
+import { SiteModeBadge } from '../components/dashboard/SiteModeBadge';
 import { InsightsTimeline } from '../components/dashboard/InsightsTimeline';
 import { LoadDurationCard } from '../components/dashboard/LoadDurationCard';
 import { PhantomLoadCard } from '../components/dashboard/PhantomLoadCard';
@@ -86,6 +87,7 @@ export default function Analytics() {
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
             Rango de análisis
           </p>
+          <SiteModeBadge />
           <DataCoverageBadge fromIso={fromIso} toIso={toIso} />
         </div>
         <DateRangePicker
