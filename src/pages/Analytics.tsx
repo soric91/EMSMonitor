@@ -19,6 +19,7 @@ import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSumma
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
 import { DataCoverageBadge } from '../components/dashboard/DataCoverageBadge';
 import { HeatmapCard } from '../components/dashboard/HeatmapCard';
+import { InsightsTimeline } from '../components/dashboard/InsightsTimeline';
 import { LoadDurationCard } from '../components/dashboard/LoadDurationCard';
 import { PhantomLoadCard } from '../components/dashboard/PhantomLoadCard';
 import { formatKwh, formatWatts } from '../utils/format';
@@ -101,6 +102,8 @@ export default function Analytics() {
       </div>
 
       <HeatmapCard fromIso={fromIso} toIso={toIso} />
+
+      <InsightsTimeline />
 
       {loading && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">

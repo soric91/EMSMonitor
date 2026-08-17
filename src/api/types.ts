@@ -684,6 +684,37 @@ export interface Alert {
   message: string;
 }
 
+/**
+ * Un cambio SOSTENIDO de nivel en el consumo diario.
+ *
+ * Distinto de una anomalía puntual: cada día por separado puede caer dentro de
+ * lo normal mientras el nivel se corrió y se quedó ahí.
+ */
+export interface LevelShift {
+  detected_at: string;
+  before_kwh: number;
+  after_kwh: number;
+  delta_pct: number;
+  direction: 'up' | 'down';
+  message: string;
+}
+
+/** Qué días del rango se salieron de lo normal, y desde cuándo cambió el nivel. */
+export interface AlertsHistory {
+  device_id: string | null;
+  period_start: string;
+  period_end: string;
+  days_analyzed: number;
+  anomalies: Alert[];
+  level_shift: LevelShift | null;
+}
+
+export interface AlertsHistoryParams {
+  from?: string;
+  to?: string;
+  device_id?: string;
+}
+
 export interface AlertsData {
   recent: Alert[];
   daily_total: Alert | null;

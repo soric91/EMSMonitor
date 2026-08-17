@@ -16,6 +16,7 @@ import { DeviceContext } from '../src/context/DeviceContext';
 import { RealtimeProvider } from '../src/context/RealtimeContext';
 import { VariablesProvider } from '../src/context/VariablesContext';
 import type {
+  AlertsHistory,
   AnalyticsSummary,
   BaseLoadTrendResult,
   LoadDurationResult,
@@ -189,6 +190,15 @@ const DURACION: LoadDurationResult = {
   sample_count: 96,
 };
 
+const HISTORIAL: AlertsHistory = {
+  device_id: 'eq-elegido',
+  period_start: '2026-07-11T05:00:00Z',
+  period_end: '2026-08-10T05:00:00Z',
+  days_analyzed: 30,
+  anomalies: [],
+  level_shift: null,
+};
+
 const MODO: SiteModeResult = {
   device_id: 'eq-elegido',
   mode: 'generacion',
@@ -237,6 +247,8 @@ describe('cuánto pide al montar', () => {
     // F1.3 y F1.4: el consumo de fondo y la curva de duración, una vez cada uno.
     expect(pedidos('/analytics/baseload-trend')).toHaveLength(1);
     expect(pedidos('/analytics/load-duration')).toHaveLength(1);
+    // F2.4: el historial de anomalías, con su propio rango de 30 días.
+    expect(pedidos('/alerts/history')).toHaveLength(1);
 
     // El compare ya no existe en la página (retirado 2026-08).
     expect(pedidos('/analytics/compare')).toHaveLength(0);
@@ -327,7 +339,9 @@ function servir(): void {
                             ? CARGA_BASE
                             : url === '/analytics/load-duration'
                               ? DURACION
-                              : null;
+                              : url === '/alerts/history'
+                                ? HISTORIAL
+                                : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },
