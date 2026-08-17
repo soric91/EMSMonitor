@@ -18,8 +18,11 @@ import { VariablesProvider } from '../src/context/VariablesContext';
 import type {
   AnalyticsSummary,
   CostBreakdown,
+  CoverageResult,
+  HeatmapResult,
   KpiSummary,
   ReportData,
+  SiteModeResult,
   VariableDisponible,
 } from '../src/api/types';
 
@@ -130,6 +133,34 @@ const RESUMEN_GENERAL: AnalyticsSummary = {
   efficiency: null,
 };
 
+const HEATMAP: HeatmapResult = {
+  device_id: 'eq-elegido',
+  period_start: '2026-08-09T12:00:00Z',
+  period_end: '2026-08-10T12:00:00Z',
+  metric: 'import',
+  unit: 'kWh',
+  dates: ['2026-08-10'],
+  values: [Array.from({ length: 24 }, (_, hora) => (hora === 19 ? 4.2 : null))],
+};
+
+const COBERTURA: CoverageResult = {
+  device_id: 'eq-elegido',
+  period_start: '2026-08-09T12:00:00Z',
+  period_end: '2026-08-10T12:00:00Z',
+  bucket_seconds: 3600,
+  expected_per_bucket: 60,
+  expected_source: 'declarado',
+  overall_ratio: 1,
+  incomplete_buckets: 0,
+  points: [],
+};
+
+const MODO: SiteModeResult = {
+  device_id: 'eq-elegido',
+  mode: 'generacion',
+  source: 'crm',
+};
+
 describe('al montar', () => {
   test('el resumen de rango sale del reporte, no de /analytics', async () => {
     servir();
@@ -164,6 +195,11 @@ describe('cuánto pide al montar', () => {
     expect(pedidos('/analytics/monthly-profile')).toHaveLength(1);
     // El costo del rango, aparte (no afecta al resto si falla).
     expect(pedidos('/costs/range')).toHaveLength(1);
+    // F1.1 y F1.5: el mapa de calor y el aviso de cobertura, una vez cada uno.
+    // El modo de sede lo pide el mapa para saber si ofrecer exportación.
+    expect(pedidos('/analytics/heatmap')).toHaveLength(1);
+    expect(pedidos('/analytics/coverage')).toHaveLength(1);
+    expect(pedidos('/analytics/site-mode')).toHaveLength(1);
 
     // El compare ya no existe en la página (retirado 2026-08).
     expect(pedidos('/analytics/compare')).toHaveLength(0);
@@ -244,7 +280,13 @@ function servir(): void {
                   ? []
                   : url === '/costs/range'
                     ? COSTO
-                    : null;
+                    : url === '/analytics/heatmap'
+                      ? HEATMAP
+                      : url === '/analytics/coverage'
+                        ? COBERTURA
+                        : url === '/analytics/site-mode'
+                          ? MODO
+                          : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },

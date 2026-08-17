@@ -5,8 +5,13 @@ import type {
   ApiResponse,
   CompareParams,
   CompareResult,
+  CoverageParams,
+  CoverageResult,
+  HeatmapParams,
+  HeatmapResult,
   HourProfilePoint,
   ReactiveQuadrantsResult,
+  SiteModeResult,
   WeekdayProfilePoint,
 } from './types';
 
@@ -38,6 +43,34 @@ export async function getAnalyticsSummary(
   params: AnalyticsRangeParams = {},
 ): Promise<AnalyticsSummary> {
   const { data } = await apiClient.get<ApiResponse<AnalyticsSummary>>('/analytics/summary', {
+    params,
+  });
+  return unwrap(data);
+}
+
+/**
+ * Si la sede tiene generación propia o es de consumo puro. El panel lo usa
+ * para no ofrecer exportación ni balance neto en una instalación que nunca va
+ * a tener ninguno.
+ */
+export async function getSiteMode(params: AnalyticsRangeParams = {}): Promise<SiteModeResult> {
+  const { data } = await apiClient.get<ApiResponse<SiteModeResult>>('/analytics/site-mode', {
+    params,
+  });
+  return unwrap(data);
+}
+
+/** La cuadrícula hora x día del rango. Un `null` es una hora sin dato, no un cero. */
+export async function getHeatmap(params: HeatmapParams = {}): Promise<HeatmapResult> {
+  const { data } = await apiClient.get<ApiResponse<HeatmapResult>>('/analytics/heatmap', {
+    params,
+  });
+  return unwrap(data);
+}
+
+/** Qué porcentaje de las lecturas esperadas llegó, ventana por ventana. */
+export async function getCoverage(params: CoverageParams = {}): Promise<CoverageResult> {
+  const { data } = await apiClient.get<ApiResponse<CoverageResult>>('/analytics/coverage', {
     params,
   });
   return unwrap(data);

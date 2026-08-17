@@ -276,6 +276,71 @@ export interface HistoryDownsampleParams {
 
 // ---------- Analytics ----------
 
+/**
+ * Cómo hay que leer el medidor de frontera de esta sede.
+ *
+ * `consumo`: sin generación propia — todo lo que pasa por el medidor es
+ * consumo y los indicadores valen las 24 h. `generacion`: hay fotovoltaica
+ * inyectando y el medidor solo ve el balance neto, así que en horas de sol el
+ * consumo real queda escondido.
+ */
+export type SiteMode = 'consumo' | 'generacion';
+
+export interface SiteModeResult {
+  device_id: string | null;
+  mode: SiteMode;
+  /** `crm` si alguien lo declaró en la sede; `detected` si se dedujo de lo exportado. */
+  source: 'crm' | 'detected';
+}
+
+export type HeatmapMetric = 'import' | 'export' | 'net' | 'cost';
+
+/**
+ * Cuadrícula hora x día: `values[i][h]` es la casilla del día `dates[i]` a la
+ * hora local `h`. Un `null` es una hora SIN DATO, no un cero.
+ */
+export interface HeatmapResult {
+  device_id: string | null;
+  period_start: string;
+  period_end: string;
+  metric: HeatmapMetric;
+  unit: string;
+  dates: string[];
+  values: (number | null)[][];
+}
+
+export interface HeatmapParams extends AnalyticsRangeParams {
+  metric?: HeatmapMetric;
+}
+
+export interface CoveragePoint {
+  time: string;
+  samples: number;
+  /** 1.0 = ventana completa. */
+  ratio: number;
+}
+
+/**
+ * Cuánto dato hay realmente en el rango. Un hueco no es consumo cero, aunque
+ * se vea igual en una gráfica.
+ */
+export interface CoverageResult {
+  device_id: string | null;
+  period_start: string;
+  period_end: string;
+  bucket_seconds: number;
+  expected_per_bucket: number | null;
+  /** De dónde salieron las muestras esperadas. */
+  expected_source: 'declarado' | 'inferido' | 'desconocido';
+  overall_ratio: number | null;
+  incomplete_buckets: number;
+  points: CoveragePoint[];
+}
+
+export interface CoverageParams extends AnalyticsRangeParams {
+  bucket_seconds?: number;
+}
+
 export interface MaxDemandResult {
   period_start: string;
   period_end: string;
