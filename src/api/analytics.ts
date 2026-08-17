@@ -11,6 +11,8 @@ import type {
   CoverageResult,
   HeatmapParams,
   HeatmapResult,
+  BenchmarkParams,
+  BenchmarkResult,
   DayArchetypesParams,
   DayArchetypesResult,
   LoadDurationParams,
@@ -85,6 +87,17 @@ export async function getBaseloadTrend(
     '/analytics/baseload-trend',
     { params },
   );
+  return unwrap(data);
+}
+
+/**
+ * Dónde queda esta sede frente a las otras del mismo cliente. El backend no
+ * cruza clientes: el grupo son las sedes que este token ya puede ver.
+ */
+export async function getBenchmark(params: BenchmarkParams): Promise<BenchmarkResult> {
+  const { data } = await apiClient.get<ApiResponse<BenchmarkResult>>('/analytics/benchmark', {
+    params,
+  });
   return unwrap(data);
 }
 

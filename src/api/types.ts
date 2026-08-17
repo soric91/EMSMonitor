@@ -313,6 +313,39 @@ export interface HeatmapParams extends AnalyticsRangeParams {
   metric?: HeatmapMetric;
 }
 
+export interface BenchmarkPeer {
+  device_id: string;
+  name: string;
+  site: string;
+  kwh_per_day: number;
+  is_self: boolean;
+}
+
+/**
+ * Dónde queda esta sede frente a las OTRAS DEL MISMO CLIENTE. No cruza
+ * clientes: comparar contra otra empresa exigiría datos que este token no
+ * autoriza a ver.
+ *
+ * `percentile` (qué % del grupo consume menos) y la mediana vienen en `null`
+ * cuando el grupo es demasiado chico para que la posición signifique algo.
+ */
+export interface BenchmarkResult {
+  device_id: string;
+  period_start: string;
+  period_end: string;
+  days: number;
+  own_kwh_per_day: number | null;
+  median_kwh_per_day: number | null;
+  percentile: number | null;
+  peers: BenchmarkPeer[];
+  enough_peers: boolean;
+}
+
+export interface BenchmarkParams {
+  device_id: string;
+  days?: number;
+}
+
 /**
  * Un "tipo de día" de la instalación. `hourly_share` es la curva media del
  * grupo como FRACCIÓN de la energía del día en cada hora (suma 1): compara la

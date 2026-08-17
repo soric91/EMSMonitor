@@ -18,6 +18,7 @@ import { VariablesProvider } from '../src/context/VariablesContext';
 import type {
   AlertsHistory,
   AnalyticsSummary,
+  BenchmarkResult,
   BaseLoadTrendResult,
   LoadDurationResult,
   CostBreakdown,
@@ -210,6 +211,26 @@ const ARQUETIPOS: DayArchetypesResult = {
   assignments: [],
 };
 
+const COMPARACION_SEDES: BenchmarkResult = {
+  device_id: 'eq-elegido',
+  period_start: '2026-07-11T05:00:00Z',
+  period_end: '2026-08-10T05:00:00Z',
+  days: 30,
+  own_kwh_per_day: 12.4,
+  median_kwh_per_day: null,
+  percentile: null,
+  peers: [
+    {
+      device_id: 'eq-elegido',
+      name: 'Tablero',
+      site: 'Planta',
+      kwh_per_day: 12.4,
+      is_self: true,
+    },
+  ],
+  enough_peers: false,
+};
+
 const MODO: SiteModeResult = {
   device_id: 'eq-elegido',
   mode: 'generacion',
@@ -262,6 +283,8 @@ describe('cuánto pide al montar', () => {
     expect(pedidos('/alerts/history')).toHaveLength(1);
     // F2.3: los tipos de día, con su propia ventana de 90 días.
     expect(pedidos('/analytics/day-archetypes')).toHaveLength(1);
+    // F3.2: la comparación contra las otras sedes del mismo cliente.
+    expect(pedidos('/analytics/benchmark')).toHaveLength(1);
 
     // El compare ya no existe en la página (retirado 2026-08).
     expect(pedidos('/analytics/compare')).toHaveLength(0);
@@ -356,7 +379,9 @@ function servir(): void {
                                 ? HISTORIAL
                                 : url === '/analytics/day-archetypes'
                                   ? ARQUETIPOS
-                                  : null;
+                                  : url === '/analytics/benchmark'
+                                    ? COMPARACION_SEDES
+                                    : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },

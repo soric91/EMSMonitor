@@ -17,6 +17,7 @@ import { AreaChartWidget } from '../components/charts/AreaChartWidget';
 import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
+import { BenchmarkCard } from '../components/dashboard/BenchmarkCard';
 import { DataCoverageBadge } from '../components/dashboard/DataCoverageBadge';
 import { DayArchetypesCard } from '../components/dashboard/DayArchetypesCard';
 import { HeatmapCard } from '../components/dashboard/HeatmapCard';
@@ -104,7 +105,10 @@ export default function Analytics() {
 
       <HeatmapCard fromIso={fromIso} toIso={toIso} />
 
-      <DayArchetypesCard />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <DayArchetypesCard />
+        <BenchmarkCard />
+      </div>
 
       <InsightsTimeline />
 
