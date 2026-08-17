@@ -215,11 +215,11 @@ function seccionCascada(pdf: Pdf, datos: DatosInformeMensual, y: number): number
     [`Costo de lo importado (${formatKwh(c.consumption_kwh)})`, formatCop(c.consumption_cost_cop)],
     [
       `Crédito tramo 1 (${formatKwh(c.export_tier1_kwh)}, al precio de compra)`,
-      `− ${formatCop(c.export_tier1_credit_cop)}`,
+      `- ${formatCop(c.export_tier1_credit_cop)}`,
     ],
     [
       `Crédito tramo 2 (${formatKwh(c.export_tier2_kwh)}, al precio de excedente)`,
-      `− ${formatCop(c.export_tier2_credit_cop)}`,
+      `- ${formatCop(c.export_tier2_credit_cop)}`,
     ],
     [c.net_cost_cop < 0 ? 'Saldo a tu favor' : 'Neto a pagar', formatCop(Math.abs(c.net_cost_cop))],
   ];
@@ -318,7 +318,7 @@ function seccionCargaBase(pdf: Pdf, datos: DatosInformeMensual, y: number): numb
     `La instalación consume ${formatWatts(base.current_w)} de forma permanente` +
       (base.window === 'noche' ? ' (medido en la franja nocturna, sin sol)' : '') +
       (base.monthly_kwh != null ? `, unos ${formatKwh(base.monthly_kwh)} al mes` : '') +
-      (base.monthly_cost_cop != null ? ` ≈ ${formatCop(base.monthly_cost_cop)}` : '') +
+      (base.monthly_cost_cop != null ? ` (aprox. ${formatCop(base.monthly_cost_cop)})` : '') +
       '.' +
       (base.trend_delta_w != null && base.trend_delta_w > 20
         ? ` Subió ${formatWatts(base.trend_delta_w)} respecto de la semana anterior y no volvió a bajar: suele ser algo que quedó encendido.`

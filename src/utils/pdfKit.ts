@@ -55,11 +55,55 @@ export const PADDING_TARJETA = 9;
 export const SANGRIA_VINETA = 12;
 
 /**
- * Las fuentes estándar de jsPDF son WinAnsi: el espacio duro y el angosto que
- * mete el formateo es-CO salen como caracteres raros si no se reemplazan.
+ * Los caracteres de CP1252 que están fuera de Latin-1, en su orden de código
+ * (0x80–0x9F). Son los únicos "raros" que la fuente sí sabe dibujar.
+ */
+const EXTRA_CP1252 = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ\u2018\u2019\u201C\u201D•–—˜™š›œžŸ';
+
+/** Lo que se escribe en el código y lo que la fuente puede dibujar en su lugar. */
+const EQUIVALENTES: Record<string, string> = {
+  '\u00A0': ' ', // espacio duro (lo mete el formateo es-CO en "$ 1.234")
+  '\u202F': ' ', // espacio angosto
+  '\u2009': ' ', // espacio fino
+  '\u2212': '-', // signo menos MATEMÁTICO, distinto del guion
+  '\u2248': '~', // aproximadamente
+  '\u2264': '<=',
+  '\u2265': '>=',
+  '\u2260': '!=',
+  '\u2192': '->',
+};
+
+function representable(caracter: string): boolean {
+  const codigo = caracter.codePointAt(0) ?? 0;
+  if (codigo >= 0x20 && codigo <= 0x7e) return true;
+  if (codigo >= 0xa0 && codigo <= 0xff) return true;
+  return EXTRA_CP1252.includes(caracter);
+}
+
+/**
+ * Deja el texto en lo que las fuentes estándar de jsPDF saben dibujar.
+ *
+ * Esas fuentes son WinAnsi (CP1252): un carácter fuera de ese juego no sale
+ * como el carácter equivalente más parecido, sale como basura —el signo menos
+ * matemático se imprimía literalmente como `"␒` en la cascada de la factura—.
+ *
+ * Primero se traduce lo que tiene un equivalente razonable, y lo que quede
+ * fuera se marca con `?`: un signo de pregunta se ve como lo que es, un dato
+ * que el informe no pudo escribir, en vez de disfrazarse de glifo roto.
  */
 export function t(s: string): string {
-  return s.replace(/[\u00A0\u202F]/g, ' ');
+  let salida = '';
+  for (const caracter of s) {
+    const equivalente = EQUIVALENTES[caracter];
+    if (equivalente !== undefined) {
+      salida += equivalente;
+    } else if (representable(caracter)) {
+      salida += caracter;
+    } else {
+      salida += '?';
+    }
+  }
+  return salida;
 }
 
 export function sectionTitle(pdf: jsPDF, title: string, y: number): number {

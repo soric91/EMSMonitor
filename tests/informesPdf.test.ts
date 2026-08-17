@@ -208,7 +208,34 @@ describe('con datos largos de verdad', () => {
   });
 });
 
+/**
+ * Los caracteres que la fuente estándar de jsPDF (WinAnsi/CP1252) sabe
+ * dibujar. Cualquier otro sale como basura en el PDF.
+ */
+function fueraDeLaFuente(texto: string): string[] {
+  const EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ\u2018\u2019\u201C\u201D•–—˜™š›œžŸ';
+  return [...texto].filter((caracter) => {
+    const codigo = caracter.codePointAt(0) ?? 0;
+    if (codigo >= 0x20 && codigo <= 0x7e) return false;
+    if (codigo >= 0xa0 && codigo <= 0xff) return false;
+    return !EXTRA.includes(caracter);
+  });
+}
+
 describe('el texto de los informes', () => {
+  for (const { nombre, render } of INFORMES) {
+    test(`el ${nombre} no escribe caracteres que la fuente no tiene`, () => {
+      // El signo menos matemático se imprimía como `"␒` en la cascada de la
+      // factura: la fuente no lo tiene y jsPDF no avisa, dibuja basura.
+      const { cajas } = dibujar(render);
+
+      const rotos = cajas.flatMap((caja) =>
+        fueraDeLaFuente(caja.texto).map((caracter) => `${caracter} en "${caja.texto}"`),
+      );
+      expect(rotos).toEqual([]);
+    });
+  }
+
   test('los espacios que la fuente no tiene se reemplazan', () => {
     // Las fuentes estándar de jsPDF son WinAnsi: un espacio duro o angosto
     // —que el formateo es-CO mete en "$ 1.234"— sale como un carácter raro.
