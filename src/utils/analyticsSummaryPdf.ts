@@ -3,7 +3,6 @@ import { KPIS_ENERGIA } from '../domain/kpisEnergia';
 import { formatCop, formatKwh, formatLocalDateTime, formatWatts } from './format';
 import { monthLabel } from './labels';
 import {
-  AMBER_BG,
   CARD_BORDER,
   CONTENT_W,
   EXPORT,
@@ -12,10 +11,12 @@ import {
   INK,
   MARGIN,
   bulletList,
+  calloutNote,
   drawFooters,
   ensureSpace,
   kpiCards,
   legendDot,
+  paragraph,
   methodologyNote,
   nombreDeArchivo,
   reportHeader,
@@ -150,51 +151,28 @@ export function renderAnalyticsSummary(
     secciones.push('eficiencia');
     y = ensureSpace(pdf, y, 110);
     y = sectionTitle(pdf, 'Oportunidad de eficiencia', y);
-    const boxTop = y;
-    const lines = pdf.splitTextToSize(
-      t(
-        `Podrías haber ahorrado hasta ~${formatCop(eff.potential_savings_cop)} este mes desplazando consumo ` +
-          `a tus horas de mayor generación${
-            summary.peak_export_hour !== null
-              ? ` (alrededor de las ${summary.peak_export_hour}:00)`
-              : ''
-          }. Estimación tope: solo cuenta el excedente que superó lo importado ese mes (el resto ya se ` +
-          `paga al precio de importación). Asume autoconsumirlo en vez de venderlo a ` +
-          `${formatCop(eff.excedente_cop_kwh)}/kWh (compras a ${formatCop(eff.cu_cop_kwh)}/kWh). ` +
-          `El ahorro real depende de qué consumos puedas mover.`,
-      ),
-      CONTENT_W - 24,
-    ) as string[];
-    const staleLine = eff.stale
-      ? (pdf.splitTextToSize(
-          t(
-            `Advertencia: cálculo hecho con la tarifa de ${monthLabel(eff.tariff_month, 'long')} (no hay tarifa del mes ` +
-              `actual registrada). Actualiza la tarifa para un estimado preciso.`,
-          ),
-          CONTENT_W - 24,
-        ) as string[])
-      : [];
-    const boxH2 =
-      16 + lines.length * 11 + (staleLine.length > 0 ? staleLine.length * 10 + 8 : 0) + 10;
-
-    pdf.setDrawColor(CARD_BORDER);
-    pdf.setLineWidth(0.75);
-    pdf.roundedRect(MARGIN, boxTop, CONTENT_W, boxH2, 4, 4, 'S');
-    pdf.setFillColor(EXPORT);
-    pdf.rect(MARGIN, boxTop, 3, boxH2, 'F');
-
-    pdf.setFontSize(9);
-    pdf.setTextColor(INK);
-    pdf.text(lines, MARGIN + 12, boxTop + 16);
-    if (staleLine.length > 0) {
-      const sy = boxTop + 16 + lines.length * 11 + 4;
-      pdf.setFillColor(AMBER_BG);
-      pdf.rect(MARGIN + 12, sy - 8, CONTENT_W - 24, staleLine.length * 10 + 6, 'F');
-      pdf.setFontSize(8);
-      pdf.setTextColor(IMPORT);
-      pdf.text(staleLine, MARGIN + 16, sy);
+    y = paragraph(
+      pdf,
+      `Podrías haber ahorrado hasta ~${formatCop(eff.potential_savings_cop)} este mes desplazando ` +
+        `consumo a tus horas de mayor generación` +
+        (summary.peak_export_hour !== null
+          ? ` (alrededor de las ${summary.peak_export_hour}:00)`
+          : '') +
+        `. Es una COTA SUPERIOR: solo cuenta el excedente que superó lo importado ese mes —el resto ya ` +
+        `se paga al precio de importación— y asume autoconsumirlo en vez de venderlo a ` +
+        `${formatCop(eff.excedente_cop_kwh)}/kWh, comprando a ${formatCop(eff.cu_cop_kwh)}/kWh. El ` +
+        `ahorro real depende de qué consumos puedas mover de hora.`,
+      y,
+    );
+    y += 8;
+    if (eff.stale) {
+      y = calloutNote(
+        pdf,
+        `Cálculo hecho con la tarifa de ${monthLabel(eff.tariff_month, 'long')}: no hay tarifa del mes ` +
+          `en curso registrada. Actualízala para que el monto sea exacto.`,
+        y,
+      );
     }
-    y = boxTop + boxH2 + 20;
   }
 
   // ---------- Acciones ----------

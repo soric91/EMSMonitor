@@ -13,11 +13,13 @@ import {
   MUTED,
   drawFooters,
   ensureSpace,
+  calloutNote,
   methodologyNote,
   nombreDeArchivo,
   paragraph,
   reportHeader,
   sectionTitle,
+  table,
   t,
 } from './pdfKit';
 
@@ -31,6 +33,9 @@ import {
  * Todo vectorial, ninguna captura: el PDF se busca, se selecciona y no se
  * pixela al imprimirlo.
  */
+
+/** Cuántas anomalías se listan antes de resumir el resto. */
+const MAXIMO_ANOMALIAS = 6;
 
 const PIE = 'EMS Monitor · Informe mensual generado desde el panel de monitoreo';
 
@@ -200,9 +205,13 @@ function seccionResumen(pdf: Pdf, datos: DatosInformeMensual, y: number): number
 }
 
 function seccionCascada(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
-  let cursor = sectionTitle(pdf, 'De dónde sale el neto', y);
+  const cursor = sectionTitle(pdf, 'De dónde sale el neto', y);
   const c = datos.reporte.costs;
-  const filas: [string, string][] = [
+
+  // Tabla y no texto colocado a mano: una etiqueta larga y un valor alineado a
+  // la derecha terminan cruzándose en el medio de la hoja. Con columnas de
+  // ancho fijo, lo que no cabe se recorta.
+  const filas: string[][] = [
     [`Costo de lo importado (${formatKwh(c.consumption_kwh)})`, formatCop(c.consumption_cost_cop)],
     [
       `Crédito tramo 1 (${formatKwh(c.export_tier1_kwh)}, al precio de compra)`,
@@ -212,40 +221,28 @@ function seccionCascada(pdf: Pdf, datos: DatosInformeMensual, y: number): number
       `Crédito tramo 2 (${formatKwh(c.export_tier2_kwh)}, al precio de excedente)`,
       `− ${formatCop(c.export_tier2_credit_cop)}`,
     ],
+    [c.net_cost_cop < 0 ? 'Saldo a tu favor' : 'Neto a pagar', formatCop(Math.abs(c.net_cost_cop))],
   ];
-  pdf.setFontSize(9);
-  for (const [etiqueta, valor] of filas) {
-    pdf.setTextColor(MUTED);
-    pdf.text(t(etiqueta), MARGIN, cursor);
-    pdf.setTextColor(INK);
-    pdf.text(t(valor), MARGIN + CONTENT_W, cursor, { align: 'right' });
-    cursor += 14;
-  }
-  pdf.setDrawColor(CARD_BORDER);
-  pdf.line(MARGIN, cursor - 4, MARGIN + CONTENT_W, cursor - 4);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(INK);
-  pdf.text(t(c.net_cost_cop < 0 ? 'Saldo a tu favor' : 'Neto a pagar'), MARGIN, cursor + 10);
-  pdf.text(t(formatCop(Math.abs(c.net_cost_cop))), MARGIN + CONTENT_W, cursor + 10, {
-    align: 'right',
-  });
-  pdf.setFont('helvetica', 'normal');
-  cursor += 24;
+  let despues = table(
+    pdf,
+    [
+      { peso: 3, color: MUTED },
+      { peso: 1, align: 'right' },
+    ],
+    filas,
+    cursor,
+    { totalAlFinal: true },
+  );
 
   if (c.stale_months.length > 0) {
-    pdf.setFontSize(8);
-    pdf.setTextColor(IMPORT);
-    pdf.text(
-      t(
-        `Advertencia: ${c.stale_months.map((m) => monthLabel(m)).join(', ')} sin tarifa registrada; ` +
-          `se usó la más reciente anterior.`,
-      ),
-      MARGIN,
-      cursor,
+    despues = calloutNote(
+      pdf,
+      `${c.stale_months.map((m) => monthLabel(m)).join(', ')} sin tarifa registrada: se usó la más ` +
+        'reciente anterior, así que el monto es una estimación.',
+      despues,
     );
-    cursor += 14;
   }
-  return cursor + 8;
+  return despues;
 }
 
 function seccionCobertura(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
@@ -338,62 +335,77 @@ function seccionAnomalias(pdf: Pdf, datos: DatosInformeMensual, y: number): numb
 
   if (historial.level_shift) {
     cursor = paragraph(pdf, historial.level_shift.message, cursor);
-    cursor += 6;
+    cursor += 10;
   }
-  pdf.setFontSize(8.5);
-  for (const anomalia of historial.anomalies.slice(0, 6)) {
-    cursor = ensureSpace(pdf, cursor, 16);
+
+  if (historial.anomalies.length === 0) return cursor;
+
+  const visibles = historial.anomalies.slice(0, MAXIMO_ANOMALIAS);
+  cursor = table(
+    pdf,
+    [
+      { titulo: 'Día', peso: 1, color: MUTED },
+      { titulo: 'Qué pasó', peso: 5 },
+    ],
+    visibles.map((anomalia) => [
+      formatLocalDateTime(anomalia.timestamp, 'd MMM'),
+      anomalia.message,
+    ]),
+    cursor,
+    { size: 8.5 },
+  );
+
+  const restantes = historial.anomalies.length - visibles.length;
+  if (restantes > 0) {
+    pdf.setFontSize(7.5);
     pdf.setTextColor(FAINT);
-    pdf.text(t(formatLocalDateTime(anomalia.timestamp, 'd MMM')), MARGIN, cursor);
-    pdf.setTextColor(INK);
-    pdf.text(t(anomalia.message), MARGIN + 48, cursor);
-    cursor += 13;
+    pdf.text(t(`y ${restantes} día(s) atípico(s) más en el periodo.`), MARGIN, cursor);
+    cursor += 14;
   }
-  if (historial.anomalies.length > 6) {
-    pdf.setTextColor(FAINT);
-    pdf.text(t(`y ${historial.anomalies.length - 6} día(s) atípico(s) más.`), MARGIN, cursor);
-    cursor += 13;
-  }
-  return cursor + 8;
+  return cursor;
 }
 
 function seccionTiposDeDia(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
   const arquetipos = datos.arquetipos;
   if (!arquetipos || arquetipos.archetypes.length === 0) return y;
-  let cursor = sectionTitle(pdf, 'Tipos de día', y);
-  pdf.setFontSize(9);
-  for (const arquetipo of arquetipos.archetypes) {
-    cursor = ensureSpace(pdf, cursor, 16);
-    pdf.setTextColor(INK);
-    pdf.text(t(arquetipo.label), MARGIN, cursor);
-    pdf.setTextColor(MUTED);
-    pdf.text(
-      t(`${arquetipo.day_count} días · ${formatKwh(arquetipo.avg_kwh)} por día`),
-      MARGIN + CONTENT_W,
-      cursor,
-      { align: 'right' },
-    );
-    cursor += 14;
-  }
-  return cursor + 8;
+  const cursor = sectionTitle(pdf, 'Tipos de día', y);
+
+  return table(
+    pdf,
+    [
+      { titulo: 'Tipo de día', peso: 3 },
+      { titulo: 'Días', peso: 1, align: 'right', color: MUTED },
+      { titulo: 'Consumo típico', peso: 2, align: 'right' },
+    ],
+    arquetipos.archetypes.map((arquetipo) => [
+      arquetipo.label,
+      String(arquetipo.day_count),
+      `${formatKwh(arquetipo.avg_kwh)} por día`,
+    ]),
+    cursor,
+  );
 }
 
 function seccionSedes(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
   const comparacion = datos.comparacion;
   if (!comparacion?.enough_peers) return y;
   let cursor = sectionTitle(pdf, 'Frente a tus otras sedes', y);
-  pdf.setFontSize(9);
-  for (const sede of comparacion.peers.slice(0, 8)) {
-    cursor = ensureSpace(pdf, cursor, 16);
-    pdf.setFont('helvetica', sede.is_self ? 'bold' : 'normal');
-    pdf.setTextColor(sede.is_self ? INK : MUTED);
-    pdf.text(t(sede.name), MARGIN, cursor);
-    pdf.text(t(`${formatKwh(sede.kwh_per_day)} por día`), MARGIN + CONTENT_W, cursor, {
-      align: 'right',
-    });
-    cursor += 14;
-  }
-  pdf.setFont('helvetica', 'normal');
+
+  cursor = table(
+    pdf,
+    [
+      { titulo: 'Sede', peso: 3 },
+      { titulo: 'Consumo medio', peso: 2, align: 'right' },
+    ],
+    comparacion.peers
+      .slice(0, 8)
+      .map((sede) => [
+        sede.is_self ? `${sede.name} (esta sede)` : sede.name,
+        `${formatKwh(sede.kwh_per_day)} por día`,
+      ]),
+    cursor,
+  );
+
   pdf.setFontSize(7.5);
   pdf.setTextColor(FAINT);
   pdf.text(

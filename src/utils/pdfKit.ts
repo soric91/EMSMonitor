@@ -44,6 +44,15 @@ export const MARGIN = 48;
 export const CONTENT_W = PAGE_W - MARGIN * 2;
 /** Desde acá abajo empieza el pie: nada de contenido por debajo. */
 export const BOTTOM_LIMIT = PAGE_H - 56;
+/**
+ * Sangrado del texto dentro de una tarjeta, y del texto de una viñeta.
+ *
+ * Son constantes y no números sueltos porque la alineación se nota: con 8 en
+ * un informe y 9 en otro, dos tarjetas iguales quedan con el texto corrido un
+ * punto y el ojo lo lee como descuido, aunque no sepa por qué.
+ */
+export const PADDING_TARJETA = 9;
+export const SANGRIA_VINETA = 12;
 
 /**
  * Las fuentes estándar de jsPDF son WinAnsi: el espacio duro y el angosto que
@@ -66,8 +75,10 @@ export function legendDot(pdf: jsPDF, x: number, y: number, color: string, label
   pdf.setFillColor(color);
   pdf.circle(x + 3, y - 2.5, 3, 'F');
   pdf.setTextColor(MUTED);
-  pdf.text(t(label), x + 10, y);
-  return x + 10 + pdf.getTextWidth(label);
+  // El mismo sangrado que las viñetas: leyenda y lista arrancan en la misma
+  // columna, que es lo que hace que el bloque se vea alineado.
+  pdf.text(t(label), x + SANGRIA_VINETA, y);
+  return x + SANGRIA_VINETA + pdf.getTextWidth(label);
 }
 
 /** Texto de párrafo, con salto de línea automático. Devuelve la nueva `y`. */
@@ -200,18 +211,26 @@ export function kpiCards(pdf: jsPDF, cards: KpiCard[], y: number): number {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(6.5);
     pdf.setTextColor(MUTED);
-    pdf.text(pdf.splitTextToSize(t(card.label), ancho - 14) as string[], x + 9, y + 13);
+    pdf.text(
+      pdf.splitTextToSize(t(card.label), ancho - PADDING_TARJETA * 2) as string[],
+      x + PADDING_TARJETA,
+      y + 13,
+    );
 
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
     pdf.setTextColor(INK);
-    pdf.text(t(card.value), x + 9, y + (conHint ? alto - 21 : alto - 11));
+    pdf.text(t(card.value), x + PADDING_TARJETA, y + (conHint ? alto - 21 : alto - 11));
 
     if (card.hint) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(6.5);
       pdf.setTextColor(FAINT);
-      pdf.text(pdf.splitTextToSize(t(card.hint), ancho - 14) as string[], x + 9, y + alto - 9);
+      pdf.text(
+        pdf.splitTextToSize(t(card.hint), ancho - PADDING_TARJETA * 2) as string[],
+        x + PADDING_TARJETA,
+        y + alto - 9,
+      );
     }
   });
   pdf.setFont('helvetica', 'normal');
@@ -223,12 +242,12 @@ export function bulletList(pdf: jsPDF, items: string[], y: number, color = EXPOR
   let cursor = y;
   pdf.setFontSize(9);
   for (const item of items) {
-    const lineas = pdf.splitTextToSize(t(item), CONTENT_W - 18) as string[];
+    const lineas = pdf.splitTextToSize(t(item), CONTENT_W - SANGRIA_VINETA - 6) as string[];
     cursor = ensureSpace(pdf, cursor, lineas.length * 11 + 6);
     pdf.setFillColor(color);
     pdf.circle(MARGIN + 3, cursor - 2.5, 1.8, 'F');
     pdf.setTextColor(INK);
-    pdf.text(lineas, MARGIN + 12, cursor);
+    pdf.text(lineas, MARGIN + SANGRIA_VINETA, cursor);
     cursor += lineas.length * 11 + 5;
   }
   return cursor + 8;
@@ -246,7 +265,7 @@ export function calloutNote(pdf: jsPDF, texto: string, y: number, color = IMPORT
   pdf.rect(MARGIN, cursor, 3, alto, 'F');
   pdf.setFontSize(8);
   pdf.setTextColor(color);
-  pdf.text(lineas, MARGIN + 12, cursor + 12);
+  pdf.text(lineas, MARGIN + SANGRIA_VINETA, cursor + 12);
   return cursor + alto + 14;
 }
 
@@ -285,4 +304,138 @@ export function methodologyNote(pdf: jsPDF, notas: string[], y: number): number 
 export function nombreDeArchivo(prefijo: string, sufijo?: string): string {
   const hoy = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date());
   return `${prefijo}_${sufijo ?? hoy}.pdf`;
+}
+
+// ---------------------------------------------------------------------------
+// Tablas
+// ---------------------------------------------------------------------------
+
+export interface ColumnaTabla {
+  /** Encabezado de la columna. Sin él, la tabla va sin fila de títulos. */
+  titulo?: string;
+  /** Peso relativo del ancho: las columnas se reparten el ancho útil. */
+  peso: number;
+  align?: 'left' | 'right';
+  /** Color del texto de las celdas de esta columna. */
+  color?: string;
+}
+
+export interface OpcionesTabla {
+  /** Resalta la última fila con línea arriba y negrita: el total. */
+  totalAlFinal?: boolean;
+  size?: number;
+}
+
+/**
+ * Una tabla con anchos de columna fijos.
+ *
+ * Existe porque colocar pares etiqueta/valor "a mano" —la etiqueta desde el
+ * margen, el valor alineado a la derecha— aguanta hasta que una etiqueta crece:
+ * ahí los dos textos se cruzan en el medio y el PDF sale con palabras
+ * encimadas. Con columnas de ancho conocido eso no puede pasar: lo que no cabe
+ * se recorta con puntos suspensivos, y el corte se ve como corte en vez de como
+ * un choque.
+ *
+ * Cada fila comprueba que quepa antes de dibujarse, y al abrir página repite el
+ * encabezado: una tabla partida sin títulos obliga a volver a la hoja anterior
+ * para saber qué se está leyendo.
+ */
+export function table(
+  pdf: jsPDF,
+  columnas: ColumnaTabla[],
+  filas: string[][],
+  y: number,
+  opciones: OpcionesTabla = {},
+): number {
+  const size = opciones.size ?? 9;
+  const altoFila = size + 6;
+  const pesoTotal = columnas.reduce((suma, columna) => suma + columna.peso, 0);
+  const anchos = columnas.map((columna) => (columna.peso / pesoTotal) * CONTENT_W);
+  const inicios = anchos.map((_, i) => MARGIN + anchos.slice(0, i).reduce((a, b) => a + b, 0));
+  const hayEncabezado = columnas.some((columna) => columna.titulo);
+
+  let cursor = y;
+  const dibujarEncabezado = (): void => {
+    if (!hayEncabezado) return;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(size - 1);
+    pdf.setTextColor(MUTED);
+    columnas.forEach((columna, i) => {
+      if (!columna.titulo) return;
+      celda(pdf, columna.titulo, inicios[i]!, anchos[i]!, cursor, columna.align);
+    });
+    pdf.setFont('helvetica', 'normal');
+    cursor += 6;
+    pdf.setDrawColor(CARD_BORDER);
+    pdf.setLineWidth(0.5);
+    pdf.line(MARGIN, cursor, PAGE_W - MARGIN, cursor);
+    cursor += altoFila;
+  };
+
+  cursor = ensureSpace(pdf, cursor, altoFila * 2);
+  dibujarEncabezado();
+
+  filas.forEach((fila, indice) => {
+    const esTotal = opciones.totalAlFinal === true && indice === filas.length - 1;
+    const anterior = cursor;
+    cursor = ensureSpace(pdf, cursor, altoFila + (esTotal ? 10 : 0));
+    if (cursor !== anterior) dibujarEncabezado();
+
+    if (esTotal) {
+      pdf.setDrawColor(CARD_BORDER);
+      pdf.setLineWidth(0.5);
+      pdf.line(MARGIN, cursor - altoFila + 4, PAGE_W - MARGIN, cursor - altoFila + 4);
+      pdf.setFont('helvetica', 'bold');
+    }
+
+    pdf.setFontSize(size);
+    columnas.forEach((columna, i) => {
+      pdf.setTextColor(esTotal ? INK : (columna.color ?? INK));
+      celda(pdf, fila[i] ?? '', inicios[i]!, anchos[i]!, cursor, columna.align);
+    });
+    if (esTotal) pdf.setFont('helvetica', 'normal');
+    cursor += altoFila;
+  });
+
+  return cursor + 8;
+}
+
+/**
+ * Una celda: el texto recortado al ancho de su columna.
+ *
+ * El recorte es lo que convierte un choque de textos en un corte legible.
+ *
+ * La primera columna arranca EXACTAMENTE en el margen y la última termina en
+ * el borde derecho del contenido, sin sangrado propio: así una tabla queda a
+ * plomo con los párrafos y los títulos de su alrededor en vez de aparecer
+ * corrida unos puntos. El aire entre columnas sale de reservar ancho, no de
+ * mover el texto.
+ */
+function celda(
+  pdf: jsPDF,
+  texto: string,
+  x: number,
+  ancho: number,
+  y: number,
+  align: 'left' | 'right' = 'left',
+): void {
+  const recortado = recortar(pdf, t(texto), ancho - AIRE_ENTRE_COLUMNAS);
+  if (align === 'right') {
+    pdf.text(recortado, x + ancho, y, { align: 'right' });
+    return;
+  }
+  pdf.text(recortado, x, y);
+}
+
+/** Ancho que se reserva para que dos columnas llenas no se toquen. */
+const AIRE_ENTRE_COLUMNAS = 10;
+
+/** Recorta con puntos suspensivos hasta que el texto entra en el ancho dado. */
+export function recortar(pdf: jsPDF, texto: string, ancho: number): string {
+  if (pdf.getTextWidth(texto) <= ancho) return texto;
+  let corto = texto;
+  while (corto.length > 1 && pdf.getTextWidth(`${corto}…`) > ancho) {
+    corto = corto.slice(0, -1);
+  }
+  return `${corto.trimEnd()}…`;
 }

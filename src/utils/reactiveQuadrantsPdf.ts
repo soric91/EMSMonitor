@@ -7,6 +7,7 @@ import {
   INK,
   MARGIN,
   MUTED,
+  PADDING_TARJETA,
   bulletList,
   drawFooters,
   ensureSpace,
@@ -67,6 +68,17 @@ const CUADRANTES: {
     color: Q4_COLOR,
   },
 ];
+
+// La rejilla de cuadrantes: una tarjeta por cuadrante, dos por fila. Las
+// medidas viven acá porque el alto que se reserva antes de dibujar y el que se
+// avanza después TIENEN que ser el mismo — calcularlos por separado fue lo que
+// dejó los rótulos de la segunda fila fuera de la hoja.
+const ALTO_TARJETA = 118;
+/** Sitio para las dos líneas de rótulo dentro de la tarjeta. */
+const ALTO_ROTULOS = 26;
+const COLUMNA_GAP = 12;
+const FILA_GAP = 14;
+const ALTO_REJILLA = 2 * ALTO_TARJETA + FILA_GAP;
 
 const DOMINANTE_DESCRIPCION: Record<string, string> = Object.fromEntries(
   CUADRANTES.map((c) => [c.id, c.descripcion]),
@@ -164,7 +176,7 @@ export function renderReactiveQuadrants(
   secciones.push('cuadrantes');
   // Las cuatro gráficas van juntas o no van: partirlas entre dos páginas deja
   // media rejilla arriba y media abajo, que es peor que empezar en la siguiente.
-  y = ensureSpace(pdf, y, 2 * (118 + 22) + 40);
+  y = ensureSpace(pdf, y, ALTO_REJILLA + 40);
   y = sectionTitle(pdf, 'Comportamiento por cuadrante', y);
   pdf.setFontSize(8);
   pdf.setTextColor(MUTED);
@@ -175,43 +187,45 @@ export function renderReactiveQuadrants(
   );
   y += 12;
 
-  const chartW = (CONTENT_W - 12) / 2;
-  const chartH = 118;
-  const gap = 12;
+  const anchoTarjeta = (CONTENT_W - COLUMNA_GAP) / 2;
   CUADRANTES.forEach((c, i) => {
-    const col = i % 2;
-    const rowType = Math.floor(i / 2);
-    const x = MARGIN + col * (chartW + gap);
-    const top = y + rowType * (chartH + 22);
+    const columna = i % 2;
+    const fila = Math.floor(i / 2);
+    const x = MARGIN + columna * (anchoTarjeta + COLUMNA_GAP);
+    const top = y + fila * (ALTO_TARJETA + FILA_GAP);
     const value = result[c.key];
     const share = total > 0 ? value / total : 0;
 
     pdf.setDrawColor(CARD_BORDER);
     pdf.setLineWidth(0.75);
-    pdf.roundedRect(x, top, chartW, chartH, 4, 4, 'S');
-    const { barH, barTop } = drawMiniTrend(
+    pdf.roundedRect(x, top, anchoTarjeta, ALTO_TARJETA, 4, 4, 'S');
+    // Las barras ocupan la tarjeta menos el sitio de los dos rótulos: así el
+    // texto siempre cae DENTRO de su tarjeta, sin depender de dónde terminó
+    // de dibujar la gráfica.
+    drawMiniTrend(
       pdf,
-      x + 8,
-      top + 6,
-      chartW - 16,
-      chartH - 26,
+      x + PADDING_TARJETA,
+      top + 8,
+      anchoTarjeta - PADDING_TARJETA * 2,
+      ALTO_TARJETA - ALTO_ROTULOS - 8,
       valuesOf(result, c.key),
       c.color,
     );
 
-    const titleY = top + barTop + barH + 14;
+    const rotuloY = top + ALTO_TARJETA - ALTO_ROTULOS + 10;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(7.5);
     pdf.setTextColor(INK);
-    pdf.text(t(c.etiqueta), x + 8, titleY);
+    pdf.text(t(c.etiqueta), x + PADDING_TARJETA, rotuloY);
+    pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(MUTED);
     pdf.text(
       t(`${formatVariableValue('kvarh', value)} · ${formatPercent(share)} del total`),
-      x + 8,
-      titleY + 10,
+      x + PADDING_TARJETA,
+      rotuloY + 10,
     );
   });
-  y += 2 * (chartH + 22) - 6;
+  y += ALTO_REJILLA + 10;
 
   // ---------- Lectura ----------
   secciones.push('lectura');
@@ -261,7 +275,12 @@ function valuesOf(
 
 /**
  * Dibuja barras verticales de la serie (hasta 24, submuestreadas si el periodo
- * trae más) y devuelve dónde terminó la gráfica para pegar el título abajo.
+ * trae más) dentro del rectángulo que se le indica.
+ *
+ * No devuelve coordenadas a propósito: antes devolvía posiciones ABSOLUTAS que
+ * el llamador volvía a sumar a la esquina de la tarjeta, así que el rótulo se
+ * dibujaba a un `top` de distancia de donde debía — encima de la sección
+ * siguiente en la primera fila, y fuera de la hoja en la segunda.
  */
 function drawMiniTrend(
   pdf: import('jspdf').jsPDF,
@@ -271,13 +290,13 @@ function drawMiniTrend(
   h: number,
   values: number[],
   color: string,
-): { barH: number; barTop: number } {
+): void {
   const nonZero = values.filter((v) => v > 0);
   if (nonZero.length === 0) {
     pdf.setDrawColor(CARD_BORDER);
     pdf.setLineWidth(0.5);
-    pdf.line(x, y, x + w, y);
-    return { barH: 0, barTop: y };
+    pdf.line(x, y + h, x + w, y + h);
+    return;
   }
 
   const sampled = sample(values, 24);
@@ -297,7 +316,6 @@ function drawMiniTrend(
   pdf.setDrawColor(CARD_BORDER);
   pdf.setLineWidth(0.5);
   pdf.line(x, y + h, x + w, y + h);
-  return { barH: h, barTop: y };
 }
 
 function sample(values: number[], limit: number): number[] {
