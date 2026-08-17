@@ -23,6 +23,10 @@ const COSTO: CostBreakdown = {
   export_kwh: 1.8,
   consumption_cost_cop: 7751,
   export_credit_cop: 1142,
+  export_tier1_kwh: 0,
+  export_tier2_kwh: 0,
+  export_tier1_credit_cop: 0,
+  export_tier2_credit_cop: 1142,
   net_cost_cop: 6608,
   months_used: ['2026-08'],
   stale_months: [],
@@ -98,9 +102,7 @@ describe('el aviso de tarifa vieja', () => {
 
     montar();
 
-    await waitFor(() =>
-      expect(screen.getByText(/Tarifa estimada/)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/Tarifa estimada/)).toBeInTheDocument());
   });
 
   test('se muestra una sola vez y no en los dos recuadros', async () => {
@@ -162,8 +164,7 @@ function servir(cost: CostBreakdown): void {
     const url = config.url ?? '';
     pedidos.push(url);
     parametros.push({ url, ...(config.params ?? {}) });
-    const data =
-      url === '/variables' ? variables : url === '/devices' ? [MEDIDOR] : cost;
+    const data = url === '/variables' ? variables : url === '/devices' ? [MEDIDOR] : cost;
     return Promise.resolve({
       data: { success: true, message: '', data },
       status: 200,
@@ -201,9 +202,7 @@ describe('los datos son del medidor elegido', () => {
 
     await waitFor(() =>
       expect(
-        parametros.some(
-          (p) => String(p.url).startsWith('/costs') && p.device_id === 'eq-elegido',
-        ),
+        parametros.some((p) => String(p.url).startsWith('/costs') && p.device_id === 'eq-elegido'),
       ).toBe(true),
     );
   });

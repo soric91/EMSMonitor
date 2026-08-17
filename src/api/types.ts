@@ -759,6 +759,16 @@ export interface CostBreakdown {
   export_credit_cop: number;
   /** Negativo = crédito por exportación superó el costo: saldo a favor del usuario. */
   net_cost_cop: number;
+  /**
+   * El reparto del crédito por exportar. El tramo 1 —lo exportado hasta lo
+   * importado en el mismo mes— se paga al MISMO precio al que se compra; solo
+   * el tramo 2 va al precio de excedente. Es la parte que más confunde de la
+   * factura, y por eso viaja desglosada.
+   */
+  export_tier1_kwh: number;
+  export_tier2_kwh: number;
+  export_tier1_credit_cop: number;
+  export_tier2_credit_cop: number;
   months_used: string[];
   /** Meses sin tarifa registrada: el backend estimó con la más reciente anterior. */
   stale_months: string[];

@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Wallet } from 'lucide-react';
 import type { CostBreakdown } from '../../api/types';
+import { CostWaterfall } from '../charts/CostWaterfall';
 import { Card } from '../ui/Card';
 import { formatCop } from '../../utils/format';
 import { monthLabel } from '../../utils/labels';
@@ -65,6 +66,13 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
           </div>
         </Card>
       </div>
+
+      <Card>
+        <p className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
+          De dónde sale el neto
+        </p>
+        <CostWaterfall costs={costs} />
+      </Card>
 
       {staleMonths.length > 0 && (
         <p className="flex items-start gap-1.5 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
