@@ -7,8 +7,19 @@ sede y una llamada saliente a una API externa desde ApiEMS, que hoy solo habla
 con InfluxDB y el CRM)**, 2.5 (simulador), 2.6 (metas), 3.5 (CO₂), Fase 4
 completa (hardware nuevo).
 
-Estado al 2026-08-17: Fase 0 y Fase 1 entregadas; de la Fase 2, 2.3 y 2.4
-entregadas. Queda la Fase 3.
+Estado al 2026-08-17: **Fase 0, Fase 1, Fase 2 (2.3 y 2.4) y Fase 3 (3.1, 3.2
+y 3.4) entregadas.** Quedan dos pendientes, ninguno por falta de tiempo:
+
+- **3.3 NILM-lite — pendiente de DATOS.** Necesita una sede de consumo puro:
+  con generación, una nube produce el mismo escalón que un electrodoméstico y
+  el detector solo sería fiable de noche. Además pide un trabajo precalculado
+  (barrer un mes a 1 Hz no cabe en una petición HTTP). Se desbloquea solo el
+  día que se instale la primera sede sin solar.
+- **3.4 Sankey — sustituido.** Su rama más interesante, el autoconsumo, no se
+  mide sin medidor en el inversor: habría sido un diagrama cuya parte central
+  era inventada. En su lugar se entregó la **cascada de la factura**, que
+  explica el neto paso a paso con datos medidos, incluido el reparto en dos
+  tramos del crédito por exportar. El Sankey vuelve a la mesa con la Fase 4.
 
 Fecha de análisis: 2026-08-17. Ramas `main` de ApiEMS, frontendEMS, CRMBackend,
 CRMweb, energyML.
