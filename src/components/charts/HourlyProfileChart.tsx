@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import type { HourProfilePoint } from '../../api/types';
 import { formatWatts } from '../../utils/format';
+import { AXIS_LINE, AXIS_TICK, TOOLTIP_CONTENT, TOOLTIP_ITEM, TOOLTIP_LABEL } from './chartTheme';
 
 const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
@@ -36,18 +37,18 @@ export function HourlyProfileChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={AXIS_LINE} vertical={false} />
         <XAxis
           dataKey="hour"
           tickFormatter={(h: number) => `${h}h`}
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
-          axisLine={{ stroke: 'rgba(148,163,184,0.15)' }}
+          tick={AXIS_TICK}
+          axisLine={{ stroke: AXIS_LINE }}
           tickLine={false}
           interval={1}
         />
         <YAxis
           tickFormatter={(v: number) => formatWatts(v)}
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
+          tick={AXIS_TICK}
           axisLine={false}
           tickLine={false}
           width={70}
@@ -55,15 +56,9 @@ export function HourlyProfileChart({
         <ReferenceLine y={0} stroke="rgba(148,163,184,0.4)" />
         <Tooltip
           cursor={{ fill: 'rgba(148,163,184,0.08)' }}
-          contentStyle={{
-            background: '#0f172a',
-            border: 'none',
-            borderRadius: 12,
-            fontSize: 12,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-          }}
-          labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
-          itemStyle={{ color: '#f1f5f9' }}
+          contentStyle={TOOLTIP_CONTENT}
+          labelStyle={TOOLTIP_LABEL}
+          itemStyle={TOOLTIP_ITEM}
           formatter={(value) => {
             const v = Number(value);
             return [

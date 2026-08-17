@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { AXIS_LINE, AXIS_TICK, TOOLTIP_CONTENT, TOOLTIP_ITEM, TOOLTIP_LABEL } from './chartTheme';
 
 export interface AreaChartPoint {
   time: number;
@@ -47,35 +48,29 @@ export function AreaChartWidget({
             <stop offset="95%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={AXIS_LINE} vertical={false} />
         <XAxis
           dataKey="time"
           domain={['dataMin', 'dataMax']}
           type="number"
           tickFormatter={(t: number) => timeFormatter(t)}
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
-          axisLine={{ stroke: 'rgba(148,163,184,0.15)' }}
+          tick={AXIS_TICK}
+          axisLine={{ stroke: AXIS_LINE }}
           tickLine={false}
           minTickGap={40}
         />
         <YAxis
           domain={['auto', 'auto']}
           tickFormatter={(v: number) => valueFormatter(v)}
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
+          tick={AXIS_TICK}
           axisLine={false}
           tickLine={false}
           width={68}
         />
         <Tooltip
-          contentStyle={{
-            background: 'var(--tooltip-bg, #0f172a)',
-            border: 'none',
-            borderRadius: 12,
-            fontSize: 12,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-          }}
-          labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
-          itemStyle={{ color: '#f1f5f9' }}
+          contentStyle={TOOLTIP_CONTENT}
+          labelStyle={TOOLTIP_LABEL}
+          itemStyle={TOOLTIP_ITEM}
           formatter={(value) => [valueFormatter(Number(value)), 'Valor']}
           labelFormatter={(time) => timeFormatter(Number(time))}
         />

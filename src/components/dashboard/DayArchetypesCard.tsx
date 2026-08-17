@@ -14,6 +14,13 @@ import { useDevice } from '../../hooks/useDevice';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { formatKwh, formatLocalDateTime } from '../../utils/format';
+import {
+  AXIS_LINE,
+  AXIS_TICK,
+  TOOLTIP_CONTENT,
+  TOOLTIP_ITEM,
+  TOOLTIP_LABEL,
+} from '../charts/chartTheme';
 
 /**
  * Los tipos de día de la instalación.
@@ -114,24 +121,18 @@ export function DayArchetypesCard() {
       <div className="mt-3">
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={curvas} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="currentColor"
-              className="text-slate-500/15"
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke={AXIS_LINE} />
             <XAxis
               dataKey="hora"
               tickFormatter={(v: number) => `${v}h`}
-              tick={{ fontSize: 11 }}
-              stroke="currentColor"
-              className="text-slate-400"
+              tick={AXIS_TICK}
+              stroke={AXIS_LINE}
             />
             <YAxis
               tickFormatter={(v: number) => `${v}%`}
-              tick={{ fontSize: 11 }}
+              tick={AXIS_TICK}
               width={44}
-              stroke="currentColor"
-              className="text-slate-400"
+              stroke={AXIS_LINE}
             />
             <Tooltip
               formatter={(value, name) => [
@@ -139,7 +140,9 @@ export function DayArchetypesCard() {
                 data.archetypes[Number(String(name).slice(1))]?.label ?? '',
               ]}
               labelFormatter={(label) => `${String(label)}:00`}
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              contentStyle={TOOLTIP_CONTENT}
+              labelStyle={TOOLTIP_LABEL}
+              itemStyle={TOOLTIP_ITEM}
             />
             {data.archetypes.map((arquetipo, i) => (
               <Line

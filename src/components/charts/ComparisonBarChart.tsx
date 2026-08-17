@@ -8,6 +8,14 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import {
+  AXIS_LINE,
+  AXIS_TICK,
+  LEGEND_WRAPPER,
+  TOOLTIP_CONTENT,
+  TOOLTIP_ITEM,
+  TOOLTIP_LABEL,
+} from './chartTheme';
 
 export interface ComparisonBarPoint {
   label: string;
@@ -37,36 +45,16 @@ export function ComparisonBarChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="currentColor"
-          className="text-slate-900/5 dark:text-white/5"
-          vertical={false}
-        />
-        <XAxis
-          dataKey="label"
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tick={{ fontSize: 11, fill: '#94a3b8' }}
-          axisLine={false}
-          tickLine={false}
-          width={40}
-        />
+        <CartesianGrid strokeDasharray="3 3" stroke={AXIS_LINE} vertical={false} />
+        <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+        <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={40} />
         <Tooltip
-          contentStyle={{
-            background: '#0f172a',
-            border: 'none',
-            borderRadius: 12,
-            fontSize: 12,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-          }}
-          labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
+          contentStyle={TOOLTIP_CONTENT}
+          labelStyle={TOOLTIP_LABEL}
+          itemStyle={TOOLTIP_ITEM}
           formatter={(value) => valueFormatter(Number(value))}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={LEGEND_WRAPPER} />
         <Bar
           dataKey="a"
           name={labelA}

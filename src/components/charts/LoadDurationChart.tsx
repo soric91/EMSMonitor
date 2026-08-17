@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import type { LoadDurationResult } from '../../api/types';
 import { formatWatts } from '../../utils/format';
+import { AXIS_LINE, AXIS_TICK, TOOLTIP_CONTENT, TOOLTIP_ITEM, TOOLTIP_LABEL } from './chartTheme';
 
 /**
  * La curva de duración de carga.
@@ -48,27 +49,27 @@ export function LoadDurationChart({ data, height = 240 }: LoadDurationChartProps
             <stop offset="100%" stopColor={COLOR} stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-slate-500/15" />
+        <CartesianGrid strokeDasharray="3 3" stroke={AXIS_LINE} />
         <XAxis
           dataKey="porcentaje"
           type="number"
           domain={[0, 100]}
           tickFormatter={(v: number) => `${v}%`}
-          tick={{ fontSize: 11 }}
-          stroke="currentColor"
-          className="text-slate-400"
+          tick={AXIS_TICK}
+          stroke={AXIS_LINE}
         />
         <YAxis
           tickFormatter={(v: number) => formatWatts(v)}
-          tick={{ fontSize: 11 }}
+          tick={AXIS_TICK}
           width={64}
-          stroke="currentColor"
-          className="text-slate-400"
+          stroke={AXIS_LINE}
         />
         <Tooltip
           formatter={(value) => [formatWatts(Number(value)), 'Potencia']}
           labelFormatter={(label) => `${String(label)}% del tiempo por encima`}
-          contentStyle={{ fontSize: 12, borderRadius: 8 }}
+          contentStyle={TOOLTIP_CONTENT}
+          labelStyle={TOOLTIP_LABEL}
+          itemStyle={TOOLTIP_ITEM}
         />
         {data.p5_w !== null && (
           <ReferenceLine

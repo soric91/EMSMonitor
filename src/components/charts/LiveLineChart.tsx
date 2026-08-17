@@ -333,7 +333,10 @@ export function LiveLineChart({
               key={s.key}
               className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-slate-400"
             >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: s.color }}
+              />
               {/* La etiqueta se recorta: un nombre largo no debe empujar la
                   leyenda más allá de la tarjeta (desborde horizontal). */}
               <span className="max-w-[6rem] truncate">{s.label}</span>
