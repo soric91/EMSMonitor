@@ -17,6 +17,7 @@ import { RealtimeProvider } from '../src/context/RealtimeContext';
 import { VariablesProvider } from '../src/context/VariablesContext';
 import { AlertsProvider } from '../src/context/AlertsContext';
 import type {
+  BillForecast,
   CompareResult,
   CostBreakdown,
   DashboardSummary,
@@ -112,6 +113,23 @@ const RESUMEN: DashboardSummary = {
   kpis: KPIS,
 };
 
+const PROYECCION: BillForecast = {
+  month: '2026-08',
+  device_id: 'eq-elegido',
+  kwh_mtd: 142,
+  export_mtd_kwh: 20,
+  days_elapsed: 15.5,
+  days_total: 31,
+  kwh_projected: 290,
+  kwh_p10: 260,
+  kwh_p90: 320,
+  export_projected_kwh: 40,
+  cost_projected_cop: 248000,
+  cost_p10_cop: 221000,
+  cost_p90_cop: 276000,
+  method: 'ewma_por_tipo_de_dia',
+};
+
 const COMPARADO: CompareResult = {
   device_id: 'eq-elegido',
   period_a: {
@@ -172,7 +190,8 @@ describe('qué muestra el tablero', () => {
     montar();
 
     await waitFor(
-      () => expect(screen.getByText('No se pudo cargar el resumen del tablero.')).toBeInTheDocument(),
+      () =>
+        expect(screen.getByText('No se pudo cargar el resumen del tablero.')).toBeInTheDocument(),
       { timeout: 3000 },
     );
     expect(screen.queryByText(/Consumido/)).toBeNull();
@@ -195,16 +214,17 @@ describe('cuánto pide la red', () => {
     const pedidos = (url: string) => parametros.filter((p) => String(p.url).startsWith(url));
     const todos = parametros.length;
 
-    // El panel completo son 7 peticiones: inventario, variables, alertas (dos
+    // El panel completo son 8 peticiones: inventario, variables, alertas (dos
     // veces: una al montar sin medidor y otra cuando el inventario elige el
-    // primero), el resumen consolidado y las dos comparaciones. Todo lo demás
-    // dejó de pedirse.
-    expect(todos).toBe(7);
+    // primero), el resumen consolidado, las dos comparaciones y la proyección
+    // del mes (F1.2). Todo lo demás dejó de pedirse.
+    expect(todos).toBe(8);
     expect(pedidos('/devices')).toHaveLength(1);
     expect(pedidos('/variables')).toHaveLength(1);
     expect(pedidos('/alerts')).toHaveLength(2);
     expect(pedidos('/dashboard/summary')).toHaveLength(1);
     expect(pedidos('/analytics/compare')).toHaveLength(2);
+    expect(pedidos('/forecast/bill')).toHaveLength(1);
 
     // Cero a los endpoints que /dashboard/summary consolidó.
     expect(pedidos('/costs')).toHaveLength(0);
@@ -267,7 +287,9 @@ function servir(options: { fallaResumen?: boolean } = {}): void {
               ? RESUMEN
               : url === '/analytics/compare'
                 ? COMPARADO
-                : null;
+                : url === '/forecast/bill'
+                  ? PROYECCION
+                  : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },

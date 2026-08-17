@@ -313,6 +313,63 @@ export interface HeatmapParams extends AnalyticsRangeParams {
   metric?: HeatmapMetric;
 }
 
+export interface BaseLoadTrendPoint {
+  /** Fecha local, `YYYY-MM-DD`. */
+  date: string;
+  base_load_w: number;
+  sample_count: number;
+}
+
+/**
+ * La carga base ("siempre encendido") día a día, su tendencia y su costo.
+ *
+ * `window` dice sobre qué horas se midió: `dia` en una sede sin generación,
+ * `noche` con generación — de día el medidor ve el balance neto y la
+ * fotovoltaica tapa el consumo real.
+ */
+export interface BaseLoadTrendResult {
+  device_id: string | null;
+  period_start: string;
+  period_end: string;
+  percentile: number;
+  window: 'dia' | 'noche';
+  points: BaseLoadTrendPoint[];
+  current_w: number | null;
+  /** Mediana de los últimos 7 días menos la de los 7 anteriores. */
+  trend_delta_w: number | null;
+  monthly_kwh: number | null;
+  monthly_cost_cop: number | null;
+  share_of_import: number | null;
+}
+
+export interface BaseloadTrendParams extends AnalyticsRangeParams {
+  percentile?: number;
+}
+
+/**
+ * Proyección de la factura del mes.
+ *
+ * Con `method: 'insufficient_history'` los campos proyectados vienen en `null`
+ * y no se proyecta nada: una media sacada de tres días dice más del azar que
+ * del consumo.
+ */
+export interface BillForecast {
+  month: string;
+  device_id: string | null;
+  kwh_mtd: number;
+  export_mtd_kwh: number;
+  days_elapsed: number;
+  days_total: number;
+  kwh_projected: number | null;
+  kwh_p10: number | null;
+  kwh_p90: number | null;
+  export_projected_kwh: number | null;
+  cost_projected_cop: number | null;
+  cost_p10_cop: number | null;
+  cost_p90_cop: number | null;
+  method: 'ewma_por_tipo_de_dia' | 'insufficient_history';
+}
+
 export interface CoveragePoint {
   time: string;
   samples: number;

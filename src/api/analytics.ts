@@ -2,6 +2,8 @@ import { apiClient, unwrap } from './client';
 import type {
   AnalyticsRangeParams,
   AnalyticsSummary,
+  BaseLoadTrendResult,
+  BaseloadTrendParams,
   ApiResponse,
   CompareParams,
   CompareResult,
@@ -65,6 +67,20 @@ export async function getHeatmap(params: HeatmapParams = {}): Promise<HeatmapRes
   const { data } = await apiClient.get<ApiResponse<HeatmapResult>>('/analytics/heatmap', {
     params,
   });
+  return unwrap(data);
+}
+
+/**
+ * La carga base día a día, su tendencia y lo que cuesta al mes. El backend
+ * decide la ventana (día completo o solo noche) según el modo de la sede.
+ */
+export async function getBaseloadTrend(
+  params: BaseloadTrendParams = {},
+): Promise<BaseLoadTrendResult> {
+  const { data } = await apiClient.get<ApiResponse<BaseLoadTrendResult>>(
+    '/analytics/baseload-trend',
+    { params },
+  );
   return unwrap(data);
 }
 

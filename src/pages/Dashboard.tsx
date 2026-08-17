@@ -4,6 +4,7 @@ import { EnergyFlowHero } from '../components/dashboard/EnergyFlowHero';
 import { LiveVariableChart } from '../components/dashboard/LiveVariableChart';
 import { PeriodComparisonCard } from '../components/dashboard/PeriodComparisonCard';
 import { KpiCard } from '../components/dashboard/KpiCard';
+import { BillProjectionCard } from '../components/dashboard/BillProjectionCard';
 import { DeviceStatus } from '../components/dashboard/DeviceStatus';
 import { AlarmPanel } from '../components/dashboard/AlarmPanel';
 import { Card } from '../components/ui/Card';
@@ -27,8 +28,8 @@ function TarifaAviso({ cost }: { cost?: CostBreakdown | null }) {
     <span className="flex items-start gap-1 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
       <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
       <span>
-        Tarifa estimada con {cost.months_used.map((m) => monthLabel(m)).join(', ')} — actualiza
-        la tarifa de {cost.stale_months.map((m) => monthLabel(m)).join(', ')}
+        Tarifa estimada con {cost.months_used.map((m) => monthLabel(m)).join(', ')} — actualiza la
+        tarifa de {cost.stale_months.map((m) => monthLabel(m)).join(', ')}
       </span>
     </span>
   );
@@ -146,6 +147,14 @@ export default function Dashboard() {
               )
             }
           />
+        </div>
+      </section>
+
+      {/* PROYECCIÓN: en cuánto termina el mes al ritmo actual */}
+      <section aria-label="Proyección" className="space-y-4">
+        <TituloSeccion>Proyección</TituloSeccion>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <BillProjectionCard costoMesActualCop={summary?.costs_month.net_cost_cop ?? null} />
         </div>
       </section>
 
