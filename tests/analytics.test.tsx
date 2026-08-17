@@ -17,6 +17,8 @@ import { RealtimeProvider } from '../src/context/RealtimeContext';
 import { VariablesProvider } from '../src/context/VariablesContext';
 import type {
   AnalyticsSummary,
+  BaseLoadTrendResult,
+  LoadDurationResult,
   CostBreakdown,
   CoverageResult,
   HeatmapResult,
@@ -155,6 +157,38 @@ const COBERTURA: CoverageResult = {
   points: [],
 };
 
+const CARGA_BASE: BaseLoadTrendResult = {
+  device_id: 'eq-elegido',
+  period_start: '2026-08-09T12:00:00Z',
+  period_end: '2026-08-10T12:00:00Z',
+  percentile: 0.05,
+  window: 'dia',
+  points: [],
+  current_w: 150,
+  trend_delta_w: 0,
+  monthly_kwh: 108,
+  monthly_cost_cop: 97200,
+  share_of_import: 0.2,
+};
+
+const DURACION: LoadDurationResult = {
+  device_id: 'eq-elegido',
+  period_start: '2026-08-09T12:00:00Z',
+  period_end: '2026-08-10T12:00:00Z',
+  sample_seconds: 900,
+  points: [
+    { time_fraction: 0, power_w: 4200 },
+    { time_fraction: 1, power_w: 120 },
+  ],
+  p1_w: 4200,
+  p5_w: 3800,
+  p50_w: 900,
+  p95_w: 130,
+  top_fraction: 0.05,
+  top_energy_share: 0.22,
+  sample_count: 96,
+};
+
 const MODO: SiteModeResult = {
   device_id: 'eq-elegido',
   mode: 'generacion',
@@ -200,6 +234,9 @@ describe('cuánto pide al montar', () => {
     expect(pedidos('/analytics/heatmap')).toHaveLength(1);
     expect(pedidos('/analytics/coverage')).toHaveLength(1);
     expect(pedidos('/analytics/site-mode')).toHaveLength(1);
+    // F1.3 y F1.4: el consumo de fondo y la curva de duración, una vez cada uno.
+    expect(pedidos('/analytics/baseload-trend')).toHaveLength(1);
+    expect(pedidos('/analytics/load-duration')).toHaveLength(1);
 
     // El compare ya no existe en la página (retirado 2026-08).
     expect(pedidos('/analytics/compare')).toHaveLength(0);
@@ -286,7 +323,11 @@ function servir(): void {
                         ? COBERTURA
                         : url === '/analytics/site-mode'
                           ? MODO
-                          : null;
+                          : url === '/analytics/baseload-trend'
+                            ? CARGA_BASE
+                            : url === '/analytics/load-duration'
+                              ? DURACION
+                              : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },

@@ -11,6 +11,8 @@ import type {
   CoverageResult,
   HeatmapParams,
   HeatmapResult,
+  LoadDurationParams,
+  LoadDurationResult,
   HourProfilePoint,
   ReactiveQuadrantsResult,
   SiteModeResult,
@@ -79,6 +81,20 @@ export async function getBaseloadTrend(
 ): Promise<BaseLoadTrendResult> {
   const { data } = await apiClient.get<ApiResponse<BaseLoadTrendResult>>(
     '/analytics/baseload-trend',
+    { params },
+  );
+  return unwrap(data);
+}
+
+/**
+ * La curva de duración de carga del rango: la potencia importada ordenada de
+ * mayor a menor contra el porcentaje del tiempo.
+ */
+export async function getLoadDuration(
+  params: LoadDurationParams = {},
+): Promise<LoadDurationResult> {
+  const { data } = await apiClient.get<ApiResponse<LoadDurationResult>>(
+    '/analytics/load-duration',
     { params },
   );
   return unwrap(data);

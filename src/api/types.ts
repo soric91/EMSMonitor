@@ -313,6 +313,36 @@ export interface HeatmapParams extends AnalyticsRangeParams {
   metric?: HeatmapMetric;
 }
 
+export interface LoadDurationPoint {
+  /** Fracción del tiempo (0..1) durante la que se estuvo por encima de `power_w`. */
+  time_fraction: number;
+  power_w: number;
+}
+
+/**
+ * Curva de duración de carga: la potencia importada ordenada de mayor a menor
+ * contra el porcentaje del tiempo. `top_energy_share` dice qué porción de la
+ * energía se consume en el `top_fraction` del tiempo más alto.
+ */
+export interface LoadDurationResult {
+  device_id: string | null;
+  period_start: string;
+  period_end: string;
+  sample_seconds: number;
+  points: LoadDurationPoint[];
+  p1_w: number | null;
+  p5_w: number | null;
+  p50_w: number | null;
+  p95_w: number | null;
+  top_fraction: number;
+  top_energy_share: number | null;
+  sample_count: number;
+}
+
+export interface LoadDurationParams extends AnalyticsRangeParams {
+  points?: number;
+}
+
 export interface BaseLoadTrendPoint {
   /** Fecha local, `YYYY-MM-DD`. */
   date: string;

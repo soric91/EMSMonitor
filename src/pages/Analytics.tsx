@@ -19,6 +19,7 @@ import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSumma
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
 import { DataCoverageBadge } from '../components/dashboard/DataCoverageBadge';
 import { HeatmapCard } from '../components/dashboard/HeatmapCard';
+import { LoadDurationCard } from '../components/dashboard/LoadDurationCard';
 import { PhantomLoadCard } from '../components/dashboard/PhantomLoadCard';
 import { formatKwh, formatWatts } from '../utils/format';
 import { hoursAgoLocalInput, localInputToUtcIso, nowLocalInput } from '../utils/timezone';
@@ -94,7 +95,10 @@ export default function Analytics() {
         />
       </Card>
 
-      <PhantomLoadCard fromIso={fromIso} toIso={toIso} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <PhantomLoadCard fromIso={fromIso} toIso={toIso} />
+        <LoadDurationCard fromIso={fromIso} toIso={toIso} />
+      </div>
 
       <HeatmapCard fromIso={fromIso} toIso={toIso} />
 

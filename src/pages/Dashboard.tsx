@@ -11,6 +11,7 @@ import { Card } from '../components/ui/Card';
 import { getDashboardSummary } from '../api/dashboard';
 import type { CostBreakdown, DashboardSummary } from '../api/types';
 import { useDevice } from '../hooks/useDevice';
+import { useEnergiaDiaria } from '../hooks/useEnergiaDiaria';
 import { formatCop, formatKwh } from '../utils/format';
 import { monthLabel } from '../utils/labels';
 
@@ -43,10 +44,16 @@ function TituloSeccion({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Cuántos días de historia llevan las miniseries de los KPIs. */
+const DIAS_SPARKLINE = 14;
+
 export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState(false);
   const { selectedDeviceId } = useDevice();
+  // Después del resumen, no a la par: las miniseries son accesorias y no deben
+  // competir con la carga que sí bloquea la pantalla (ver RESUMEN_CASCADA_MS).
+  const energiaDiaria = useEnergiaDiaria(DIAS_SPARKLINE, summary !== null);
 
   useEffect(() => {
     if (!selectedDeviceId) return;
@@ -90,6 +97,7 @@ export default function Dashboard() {
             tone="import"
             icon={<Wallet className="h-5 w-5" />}
             loading={summary === null}
+            sparkline={energiaDiaria.importado}
           />
           <KpiCard
             label="Exportado hoy"
@@ -98,6 +106,7 @@ export default function Dashboard() {
             tone="export"
             icon={<PiggyBank className="h-5 w-5" />}
             loading={summary === null}
+            sparkline={energiaDiaria.exportado}
           />
           <KpiCard
             label="Neto hoy"

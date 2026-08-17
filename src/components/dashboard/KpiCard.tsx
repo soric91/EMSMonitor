@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Sparkline } from '../charts/Sparkline';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 import { formatLocalDateTime } from '../../utils/format';
@@ -49,6 +50,11 @@ interface KpiCardProps {
   /** Sin dato disponible: muestra "—" en vez de inventar un valor. */
   empty?: boolean;
   variacion?: KpiVariacion | null;
+  /**
+   * Miniserie de los últimos días, en orden cronológico. Sin ella la tarjeta
+   * se dibuja igual que siempre: un número solo no dice si viene subiendo.
+   */
+  sparkline?: number[] | null;
   footer?: ReactNode;
 }
 
@@ -69,6 +75,7 @@ export function KpiCard({
   loading = false,
   empty = false,
   variacion,
+  sparkline,
   footer,
 }: KpiCardProps) {
   const tono = TONE[tone];
@@ -86,7 +93,7 @@ export function KpiCard({
     );
   }
 
-  const esBueno = variacion ? (variacion.delta >= 0) === variacion.positivo : null;
+  const esBueno = variacion ? variacion.delta >= 0 === variacion.positivo : null;
   const direccion = variacion && variacion.delta >= 0 ? 'subir' : 'bajar';
 
   return (
@@ -97,9 +104,7 @@ export function KpiCard({
       </div>
 
       <div className="flex items-baseline gap-1.5">
-        <span
-          className={`text-2xl font-semibold tabular-nums tracking-tight ${tono.value}`}
-        >
+        <span className={`text-2xl font-semibold tabular-nums tracking-tight ${tono.value}`}>
           {empty ? '—' : value}
         </span>
         {unit && !empty && <span className="text-xs text-slate-400">{unit}</span>}
@@ -129,6 +134,12 @@ export function KpiCard({
           </span>
         )}
       </div>
+
+      {sparkline && sparkline.length > 1 && (
+        <div className={`mt-1 ${tono.value}`}>
+          <Sparkline values={sparkline} label={`${label}: últimos ${sparkline.length} días`} />
+        </div>
+      )}
 
       {footer && <div className="mt-1 text-[11px] text-slate-400">{footer}</div>}
     </Card>
