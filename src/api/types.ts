@@ -421,6 +421,43 @@ export interface BaseloadTrendParams extends AnalyticsRangeParams {
  * y no se proyecta nada: una media sacada de tres días dice más del azar que
  * del consumo.
  */
+export interface ForecastPoint {
+  time: string;
+  kwh: number;
+  p10: number;
+  p90: number;
+}
+
+/**
+ * El error del método medido contra el ingenuo "lo mismo que hace 24 h", sobre
+ * días que NO entraron en el cálculo.
+ */
+export interface ForecastBacktest {
+  hours: number;
+  mae_kwh: number;
+  naive_mae_kwh: number;
+}
+
+/**
+ * Cuánta energía se espera importar en cada una de las próximas horas.
+ *
+ * `target` es siempre `import_kwh`: con generación, la potencia neta mezcla
+ * consumo y sol y su pronóstico no se lee como "cuánto voy a gastar".
+ */
+export interface PowerForecast {
+  device_id: string | null;
+  target: 'import_kwh';
+  horizon_hours: number;
+  method: 'ewma_por_tipo_de_dia_y_hora' | 'insufficient_history';
+  points: ForecastPoint[];
+  backtest: ForecastBacktest | null;
+}
+
+export interface PowerForecastParams {
+  horizon_hours?: number;
+  device_id?: string;
+}
+
 export interface BillForecast {
   month: string;
   device_id: string | null;

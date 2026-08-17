@@ -18,6 +18,7 @@ import { VariablesProvider } from '../src/context/VariablesContext';
 import { AlertsProvider } from '../src/context/AlertsContext';
 import type {
   BillForecast,
+  PowerForecast,
   CompareResult,
   CostBreakdown,
   DashboardSummary,
@@ -130,6 +131,18 @@ const PROYECCION: BillForecast = {
   method: 'ewma_por_tipo_de_dia',
 };
 
+const PRONOSTICO: PowerForecast = {
+  device_id: 'eq-elegido',
+  target: 'import_kwh',
+  horizon_hours: 48,
+  method: 'ewma_por_tipo_de_dia_y_hora',
+  points: [
+    { time: '2026-08-15T00:00:00Z', kwh: 1.2, p10: 0.9, p90: 1.6 },
+    { time: '2026-08-15T01:00:00Z', kwh: 1.1, p10: 0.8, p90: 1.5 },
+  ],
+  backtest: { hours: 168, mae_kwh: 0.31, naive_mae_kwh: 0.47 },
+};
+
 const COMPARADO: CompareResult = {
   device_id: 'eq-elegido',
   period_a: {
@@ -214,17 +227,19 @@ describe('cuánto pide la red', () => {
     const pedidos = (url: string) => parametros.filter((p) => String(p.url).startsWith(url));
     const todos = parametros.length;
 
-    // El panel completo son 8 peticiones: inventario, variables, alertas (dos
+    // El panel completo son 9 peticiones: inventario, variables, alertas (dos
     // veces: una al montar sin medidor y otra cuando el inventario elige el
-    // primero), el resumen consolidado, las dos comparaciones y la proyección
-    // del mes (F1.2). Todo lo demás dejó de pedirse.
-    expect(todos).toBe(8);
+    // primero), el resumen consolidado, las dos comparaciones, la proyección
+    // del mes (F1.2) y el pronóstico horario (F3.1). Todo lo demás dejó de
+    // pedirse.
+    expect(todos).toBe(9);
     expect(pedidos('/devices')).toHaveLength(1);
     expect(pedidos('/variables')).toHaveLength(1);
     expect(pedidos('/alerts')).toHaveLength(2);
     expect(pedidos('/dashboard/summary')).toHaveLength(1);
     expect(pedidos('/analytics/compare')).toHaveLength(2);
     expect(pedidos('/forecast/bill')).toHaveLength(1);
+    expect(pedidos('/forecast/power')).toHaveLength(1);
 
     // Cero a los endpoints que /dashboard/summary consolidó.
     expect(pedidos('/costs')).toHaveLength(0);
@@ -289,7 +304,9 @@ function servir(options: { fallaResumen?: boolean } = {}): void {
                 ? COMPARADO
                 : url === '/forecast/bill'
                   ? PROYECCION
-                  : null;
+                  : url === '/forecast/power'
+                    ? PRONOSTICO
+                    : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },

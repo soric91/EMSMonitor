@@ -5,6 +5,7 @@ import { LiveVariableChart } from '../components/dashboard/LiveVariableChart';
 import { PeriodComparisonCard } from '../components/dashboard/PeriodComparisonCard';
 import { KpiCard } from '../components/dashboard/KpiCard';
 import { BillProjectionCard } from '../components/dashboard/BillProjectionCard';
+import { PowerForecastCard } from '../components/dashboard/PowerForecastCard';
 import { DeviceStatus } from '../components/dashboard/DeviceStatus';
 import { AlarmPanel } from '../components/dashboard/AlarmPanel';
 import { Card } from '../components/ui/Card';
@@ -164,6 +165,7 @@ export default function Dashboard() {
         <TituloSeccion>Proyección</TituloSeccion>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <BillProjectionCard costoMesActualCop={summary?.costs_month.net_cost_cop ?? null} />
+          <PowerForecastCard />
         </div>
       </section>
 

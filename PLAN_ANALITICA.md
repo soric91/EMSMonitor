@@ -1,8 +1,14 @@
 # Plan de analítica energética — frontendEMS (+ ApiEMS)
 
-Alcance aprobado: **Fase 0 completa, Fase 1 completa, Fase 2 (2.2, 2.3, 2.4),
+Alcance aprobado: **Fase 0 completa, Fase 1 completa, Fase 2 (2.3, 2.4),
 Fase 3 (3.1, 3.2, 3.3, 3.4)**. Fuera de alcance: 2.1 (penalización reactiva),
-2.5 (simulador), 2.6 (metas), 3.5 (CO₂), Fase 4 completa (hardware nuevo).
+**2.2 (normalización por clima — descartado 2026-08-17: pedía lat/lon en cada
+sede y una llamada saliente a una API externa desde ApiEMS, que hoy solo habla
+con InfluxDB y el CRM)**, 2.5 (simulador), 2.6 (metas), 3.5 (CO₂), Fase 4
+completa (hardware nuevo).
+
+Estado al 2026-08-17: Fase 0 y Fase 1 entregadas; de la Fase 2, 2.3 y 2.4
+entregadas. Queda la Fase 3.
 
 Fecha de análisis: 2026-08-17. Ramas `main` de ApiEMS, frontendEMS, CRMBackend,
 CRMweb, energyML.
@@ -52,7 +58,6 @@ bien en los dos casos, sin ramas improvisadas y sin mostrar widgets vacíos.
 | 1.2 Proyección de factura | Solo importación | Se proyecta también exportación y se aplican los dos tramos |
 | 1.3 Carga fantasma | Ventana **24 h completa** (p5 del día entero es válido) | Ventana **nocturna 00:00–05:00 obligatoria** |
 | 1.4 Curva de duración | Sobre toda la serie | Solo sobre muestras de importación (`TotW > 0`), etiquetado explícito |
-| 2.2 Clima | Regresión directa y confiable | Confundida por irradiancia (ver 2.2), se marca menor confianza |
 | 2.3 Arquetipos | Vector de energía importada por hora | Igual vector (importada por hora), **no** potencia neta |
 | 2.4 Anomalías | Bandas p10/p90 sobre todas las horas | Se mantiene la regla de "exportar nunca alerta" que ya existe |
 | 3.2 Benchmark | Grupo de comparación solo con sitios `consumo` | Grupo solo con sitios `generacion` |
@@ -241,9 +246,17 @@ cacheado. Bajo costo, alto efecto: ningún número queda solo.
 
 ---
 
-## Fase 2 — Aprobados 2.2, 2.3, 2.4
+## Fase 2 — Aprobados 2.3 y 2.4 (2.2 descartado)
 
-### 2.2 Normalización por clima (días-grado) y comparación año a año
+### 2.2 Normalización por clima (días-grado) — DESCARTADO
+
+Se sale del alcance por sus dependencias, no por su valor: exige coordenadas
+por sede (otra migración en CRMBackend, geocodificando la ciudad) y una llamada
+saliente desde ApiEMS a una API de clima — hoy el servicio solo habla con
+InfluxDB y con el CRM, y abrir esa puerta trae caché, fallos de red y una
+dependencia externa en el camino de una pantalla.
+
+Se deja documentado el diseño por si vuelve a la mesa:
 
 - **Cliente ve:** "Consumiste 8% más que el año pasado, pero hizo 3 °C más de
   calor: a clima igual, bajaste 4%."
@@ -447,7 +460,6 @@ cero. En modo `generacion` se mantiene todo lo actual.
 | 4 | 1.4 curva de duración + 1.6 sparklines | Cierran la página de Analítica |
 | 5 | 2.4 historial de anomalías | Requiere decidir persistencia; es lo que hace que el cliente vuelva |
 | 6 | 2.3 arquetipos | Cómputo puro, sin dependencias externas |
-| 7 | 2.2 clima | Depende de geocodificar sitios y de una API externa |
 | 8 | 3.1 forecast servido | El modelo existe; hay que entrenar la variante de importación para sitios de consumo |
 | 9 | 3.2 benchmark → 3.4 Sankey + informe mensual | Diferenciales de producto, se apoyan en todo lo anterior |
 | 10 | 3.3 NILM-lite | Investigación en energyML primero, con datos de un sitio de consumo puro |
