@@ -313,6 +313,44 @@ export interface HeatmapParams extends AnalyticsRangeParams {
   metric?: HeatmapMetric;
 }
 
+/**
+ * Un "tipo de día" de la instalación. `hourly_share` es la curva media del
+ * grupo como FRACCIÓN de la energía del día en cada hora (suma 1): compara la
+ * forma del consumo sin que la magnitud mande.
+ */
+export interface DayArchetype {
+  label: string;
+  day_count: number;
+  avg_kwh: number;
+  hourly_share: number[];
+  weekdays: string[];
+}
+
+export interface DayAssignment {
+  date: string;
+  archetype: number;
+  kwh: number;
+}
+
+/**
+ * `archetypes` vacío con `days_analyzed > 0` significa que los grupos no se
+ * separaron lo suficiente: la instalación consume igual todos los días.
+ */
+export interface DayArchetypesResult {
+  device_id: string | null;
+  period_start: string;
+  period_end: string;
+  days_analyzed: number;
+  silhouette: number | null;
+  archetypes: DayArchetype[];
+  assignments: DayAssignment[];
+}
+
+export interface DayArchetypesParams {
+  days?: number;
+  device_id?: string;
+}
+
 export interface LoadDurationPoint {
   /** Fracción del tiempo (0..1) durante la que se estuvo por encima de `power_w`. */
   time_fraction: number;

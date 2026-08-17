@@ -11,6 +11,8 @@ import type {
   CoverageResult,
   HeatmapParams,
   HeatmapResult,
+  DayArchetypesParams,
+  DayArchetypesResult,
   LoadDurationParams,
   LoadDurationResult,
   HourProfilePoint,
@@ -81,6 +83,20 @@ export async function getBaseloadTrend(
 ): Promise<BaseLoadTrendResult> {
   const { data } = await apiClient.get<ApiResponse<BaseLoadTrendResult>>(
     '/analytics/baseload-trend',
+    { params },
+  );
+  return unwrap(data);
+}
+
+/**
+ * Los tipos de día de la instalación, agrupados por la forma de su consumo
+ * horario. Cacheado 24 h en el backend: no cambian entre dos cargas.
+ */
+export async function getDayArchetypes(
+  params: DayArchetypesParams = {},
+): Promise<DayArchetypesResult> {
+  const { data } = await apiClient.get<ApiResponse<DayArchetypesResult>>(
+    '/analytics/day-archetypes',
     { params },
   );
   return unwrap(data);

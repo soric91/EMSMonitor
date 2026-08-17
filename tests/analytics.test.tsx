@@ -22,6 +22,7 @@ import type {
   LoadDurationResult,
   CostBreakdown,
   CoverageResult,
+  DayArchetypesResult,
   HeatmapResult,
   KpiSummary,
   ReportData,
@@ -199,6 +200,16 @@ const HISTORIAL: AlertsHistory = {
   level_shift: null,
 };
 
+const ARQUETIPOS: DayArchetypesResult = {
+  device_id: 'eq-elegido',
+  period_start: '2026-05-12T05:00:00Z',
+  period_end: '2026-08-10T05:00:00Z',
+  days_analyzed: 0,
+  silhouette: null,
+  archetypes: [],
+  assignments: [],
+};
+
 const MODO: SiteModeResult = {
   device_id: 'eq-elegido',
   mode: 'generacion',
@@ -249,6 +260,8 @@ describe('cuánto pide al montar', () => {
     expect(pedidos('/analytics/load-duration')).toHaveLength(1);
     // F2.4: el historial de anomalías, con su propio rango de 30 días.
     expect(pedidos('/alerts/history')).toHaveLength(1);
+    // F2.3: los tipos de día, con su propia ventana de 90 días.
+    expect(pedidos('/analytics/day-archetypes')).toHaveLength(1);
 
     // El compare ya no existe en la página (retirado 2026-08).
     expect(pedidos('/analytics/compare')).toHaveLength(0);
@@ -341,7 +354,9 @@ function servir(): void {
                               ? DURACION
                               : url === '/alerts/history'
                                 ? HISTORIAL
-                                : null;
+                                : url === '/analytics/day-archetypes'
+                                  ? ARQUETIPOS
+                                  : null;
 
     return Promise.resolve({
       data: { success: true, message: '', data },

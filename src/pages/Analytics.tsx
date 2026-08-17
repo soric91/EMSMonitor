@@ -18,6 +18,7 @@ import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
 import { AnalyticsSummary } from '../components/dashboard/AnalyticsSummary';
 import { DataCoverageBadge } from '../components/dashboard/DataCoverageBadge';
+import { DayArchetypesCard } from '../components/dashboard/DayArchetypesCard';
 import { HeatmapCard } from '../components/dashboard/HeatmapCard';
 import { InsightsTimeline } from '../components/dashboard/InsightsTimeline';
 import { LoadDurationCard } from '../components/dashboard/LoadDurationCard';
@@ -102,6 +103,8 @@ export default function Analytics() {
       </div>
 
       <HeatmapCard fromIso={fromIso} toIso={toIso} />
+
+      <DayArchetypesCard />
 
       <InsightsTimeline />
 
