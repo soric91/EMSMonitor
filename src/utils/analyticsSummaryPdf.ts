@@ -2,24 +2,21 @@ import type { AnalyticsSummary } from '../api/types';
 import { KPIS_ENERGIA } from '../domain/kpisEnergia';
 import { formatCop, formatKwh, formatLocalDateTime, formatWatts } from './format';
 import { monthLabel } from './labels';
-
-// Paleta del informe (los mismos significados de color de la app)
-const INK = '#0f172a';
-const MUTED = '#64748b';
-const FAINT = '#94a3b8';
-const IMPORT = '#d97706';
-const EXPORT = '#059669';
-const AMBER_BG = '#fef3c7';
-const CARD_BORDER = '#e2e8f0';
-
-const PAGE_W = 595.28; // A4 pt
-const MARGIN = 48;
-const CONTENT_W = PAGE_W - MARGIN * 2;
-
-/** Las fuentes estándar de jsPDF son WinAnsi: sin NBSP/espacio angosto de es-CO. */
-function t(s: string): string {
-  return s.replace(/[\u00A0\u202F]/g, ' ');
-}
+import {
+  AMBER_BG,
+  CARD_BORDER,
+  CONTENT_W,
+  EXPORT,
+  FAINT,
+  IMPORT,
+  INK,
+  MARGIN,
+  MUTED,
+  PAGE_W,
+  legendDot,
+  sectionTitle,
+  t,
+} from './pdfKit';
 
 export async function buildAnalyticsSummaryPdf(summary: AnalyticsSummary): Promise<void> {
   const { jsPDF } = await import('jspdf');
@@ -269,27 +266,4 @@ function buildRecommendations(summary: AnalyticsSummary): string[] {
       `degradación de la generación antes de que se reflejen en la factura.`,
   );
   return recs;
-}
-
-function sectionTitle(pdf: import('jspdf').jsPDF, title: string, y: number): number {
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(11);
-  pdf.setTextColor(INK);
-  pdf.text(t(title), MARGIN, y);
-  pdf.setFont('helvetica', 'normal');
-  return y + 16;
-}
-
-function legendDot(
-  pdf: import('jspdf').jsPDF,
-  x: number,
-  y: number,
-  color: string,
-  label: string,
-): number {
-  pdf.setFillColor(color);
-  pdf.circle(x + 3, y - 2.5, 3, 'F');
-  pdf.setTextColor(MUTED);
-  pdf.text(t(label), x + 10, y);
-  return x + 10 + pdf.getTextWidth(label);
 }

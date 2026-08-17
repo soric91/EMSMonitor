@@ -12,6 +12,7 @@ import { TabPills } from '../components/ui/TabPills';
 import { MetricsGrid } from '../components/ui/MetricsGrid';
 import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
+import { MonthlyReportButton } from '../components/dashboard/MonthlyReportButton';
 import { mergeSeries } from '../utils/mergeSeries';
 import { downloadCsv } from '../utils/downloadCsv';
 import { NOT_APPLICABLE } from '../utils/labels';
@@ -123,6 +124,8 @@ export default function Reports() {
             setReport(null);
           }}
         />
+
+        <MonthlyReportButton />
 
         {period === 'custom' && (
           <div className="flex flex-wrap items-center gap-2">
