@@ -24,6 +24,7 @@ import {
   etiquetaMagnitud,
   ordenarMagnitudes,
 } from '../../types/variable';
+import { useDevice } from '../../hooks/useDevice';
 import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 import type { Magnitud, Variable, VariableDisponible } from '../../api/types';
 
@@ -51,6 +52,28 @@ const SERIE_COLORES = ['#06b6d4', '#a855f7'];
 
 type VariableBuffers = Partial<Record<Variable, LiveChartPoint[]>>;
 
+/**
+ * Lo dibujado, junto al medidor del que salió.
+ *
+ * Todo lo que acumula esta gráfica —los puntos, qué variables ya se
+ * rellenaron, cuáles están encuadradas— pertenece a UN medidor. Al elegir
+ * otro, lo anterior no se borra: se reconoce como ajeno al leerlo. Así un
+ * equipo recién instalado, sin historia propia, no hereda la curva del que
+ * estaba antes ni la conserva mientras llega la suya.
+ */
+interface PorMedidor<T> {
+  device: string | null;
+  contenido: T;
+}
+
+const SIN_BUFFERS: VariableBuffers = {};
+const SIN_VARIABLES: ReadonlySet<Variable> = new Set();
+
+/** Lo guardado si es de este medidor; el vacío si es del anterior. */
+function propio<T>(estado: PorMedidor<T>, device: string | null, vacio: T): T {
+  return estado.device === device ? estado.contenido : vacio;
+}
+
 function pruneOld(points: LiveChartPoint[]): LiveChartPoint[] {
   const cutoff = Date.now() - LIVE_HISTORY_BUFFER_MS;
   const idx = points.findIndex((p) => p.time >= cutoff);
@@ -68,10 +91,14 @@ function appendPoint(
 
 export function LiveVariableChart() {
   const { status, latestData, subscribe, onDataEvent } = useRealtime();
+  const { selectedDeviceId } = useDevice();
   const { porMagnitud, cargando: cargandoVariables } = useVariablesDelMedidor();
   const [tabKey, setTabKey] = useState<string | null>(null);
   const [customVariable, setCustomVariable] = useState<VariableDisponible | null>(null);
-  const [buffers, setBuffers] = useState<VariableBuffers>({});
+  const [estadoBuffers, setEstadoBuffers] = useState<PorMedidor<VariableBuffers>>({
+    device: null,
+    contenido: SIN_BUFFERS,
+  });
   // El estado va junto a las variables a las que corresponde. Guardar solo el
   // estado obligaba a resetearlo a 'connecting' desde el efecto al cambiar de
   // pestaña; con la clave adentro, un estado viejo se reconoce como viejo y no
@@ -81,9 +108,18 @@ export function LiveVariableChart() {
     status: WsConnectionStatus;
   }>({ key: '', status: 'connecting' });
   const [backfilling, setBackfilling] = useState(false);
-  const [readyVariables, setReadyVariables] = useState<ReadonlySet<Variable>>(new Set());
+  const [estadoReady, setEstadoReady] = useState<PorMedidor<ReadonlySet<Variable>>>({
+    device: null,
+    contenido: SIN_VARIABLES,
+  });
   const secondaryClientsRef = useRef<EmsWebSocketClient[]>([]);
-  const backfilledRef = useRef(new Set<Variable>());
+  const backfilledRef = useRef<PorMedidor<Set<Variable>>>({
+    device: null,
+    contenido: new Set(),
+  });
+
+  const buffers = propio(estadoBuffers, selectedDeviceId, SIN_BUFFERS);
+  const readyVariables = propio(estadoReady, selectedDeviceId, SIN_VARIABLES);
 
   // Una pestaña por magnitud PRINCIPAL que este cliente realmente reporta. Un
   // medidor monofásico ve "Voltaje" con una sola serie; uno trifásico, con
@@ -136,8 +172,16 @@ export function LiveVariableChart() {
   // consulta es liviana (una hora, no la ventana completa) y la gráfica se va
   // llenando hacia atrás hasta completar la ventana configurada.
   useEffect(() => {
+    // El registro de lo ya rellenado es de un medidor. Con la misma variable en
+    // dos equipos —lo normal: los dos miden potencia activa— dar por cargada la
+    // del anterior dejaba la gráfica del nuevo sin pedir nada.
+    if (backfilledRef.current.device !== selectedDeviceId) {
+      backfilledRef.current = { device: selectedDeviceId, contenido: new Set() };
+    }
+    const yaCargadas = backfilledRef.current.contenido;
+
     const toBackfill = [primaryVariable, ...secondaryVariables].filter(
-      (v): v is Variable => !!v && !backfilledRef.current.has(v),
+      (v): v is Variable => !!v && !yaCargadas.has(v),
     );
     if (toBackfill.length === 0) return;
 
@@ -160,6 +204,9 @@ export function LiveVariableChart() {
                 from: from.toISOString(),
                 to: to.toISOString(),
                 target_points: HISTORY_POINTS_PER_BUCKET,
+                // Sin esto el backend agrega los medidores del cliente y la
+                // gráfica dibujaba la suma de todas las acometidas.
+                device_id: selectedDeviceId ?? undefined,
               });
               // Solo se considera cargada si al menos un bucket llegó a
               // aplicarse: en StrictMode (dev) el primer efecto se cancela antes
@@ -172,8 +219,9 @@ export function LiveVariableChart() {
                 time: Date.parse(p.time),
                 value: p.value,
               }));
-              setBuffers((prev) => {
-                const existentes = prev[variable] ?? [];
+              setEstadoBuffers((prev) => {
+                const actuales = propio(prev, selectedDeviceId, SIN_BUFFERS);
+                const existentes = actuales[variable] ?? [];
                 const inicio = existentes.length > 0 ? existentes[0]!.time : Infinity;
                 // La hora nueva se antepone a la izquierda: primero la más
                 // reciente, y las más viejas quedan delante en orden.
@@ -181,18 +229,24 @@ export function LiveVariableChart() {
                   ...seeded.filter((p) => p.time < inicio),
                   ...existentes,
                 ]);
-                return { ...prev, [variable]: merged };
+                return {
+                  device: selectedDeviceId,
+                  contenido: { ...actuales, [variable]: merged },
+                };
               });
             } catch {
               // una hora sin historial disponible; se salta y se sigue con la anterior
             }
           }
           if (!gotAny) return;
-          backfilledRef.current.add(variable);
+          yaCargadas.add(variable);
           // Marca la variable como "lista": el chart puede haberse montado antes
           // con un par de ticks en vivo y ya haberse encuadrado a esa vista
           // diminuta; esto dispara un re-encuadre real a la ventana ya cargada.
-          setReadyVariables((prev) => new Set(prev).add(variable));
+          setEstadoReady((prev) => ({
+            device: selectedDeviceId,
+            contenido: new Set(propio(prev, selectedDeviceId, SIN_VARIABLES)).add(variable),
+          }));
         }),
       );
       if (!cancelled) setBackfilling(false);
@@ -205,7 +259,7 @@ export function LiveVariableChart() {
     // `secondaryKey` en vez del array: un array nuevo en cada render
     // reejecutaría el efecto para siempre.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [primaryVariable, secondaryKey]);
+  }, [primaryVariable, secondaryKey, selectedDeviceId]);
 
   // La variable primaria siempre va por la conexión WS compartida del dashboard.
   useEffect(() => {
@@ -216,14 +270,15 @@ export function LiveVariableChart() {
 
   useEffect(() => {
     return onDataEvent((event) => {
-      setBuffers((prev) =>
-        appendPoint(prev, event.variable, {
+      setEstadoBuffers((prev) => ({
+        device: selectedDeviceId,
+        contenido: appendPoint(propio(prev, selectedDeviceId, SIN_BUFFERS), event.variable, {
           time: Date.parse(event.timestamp),
           value: event.value,
         }),
-      );
+      }));
     });
-  }, [onDataEvent]);
+  }, [onDataEvent, selectedDeviceId]);
 
   // Las fases que no son la primera necesitan una conexión cada una: el
   // backend permite una sola variable activa por conexión, y la compartida del
@@ -241,16 +296,17 @@ export function LiveVariableChart() {
             ? (status) => setEstadoConexionesExtra({ key: secondaryKey, status })
             : () => {},
         onData: (event) => {
-          setBuffers((prev) =>
-            appendPoint(prev, event.variable, {
+          setEstadoBuffers((prev) => ({
+            device: selectedDeviceId,
+            contenido: appendPoint(propio(prev, selectedDeviceId, SIN_BUFFERS), event.variable, {
               time: Date.parse(event.timestamp),
               value: event.value,
             }),
-          );
+          }));
         },
       });
       client.connect();
-      client.subscribe(nombre);
+      client.subscribe(nombre, selectedDeviceId);
       return client;
     });
     secondaryClientsRef.current = clients;
@@ -259,7 +315,7 @@ export function LiveVariableChart() {
       for (const client of clients) client.close();
       secondaryClientsRef.current = [];
     };
-  }, [secondaryKey]);
+  }, [secondaryKey, selectedDeviceId]);
 
   // Sin fases extra no hay nada conectando: el estado guardado es de la última
   // vez que sí las hubo y mostraría un "conectando…" que ya no corresponde.

@@ -89,7 +89,14 @@ export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
   const { porNombre } = useVariablesDelMedidor();
   const { selectedDeviceId } = useDevice();
   const [estadoConexion, setEstadoConexion] = useState<WsConnectionStatus>('connecting');
-  const [lastKnown, setLastKnown] = useState<WsDataEvent | null>(null);
+  // La lectura viaja junto al medidor del que salió. Guardar solo el valor
+  // obligaba a borrarlo desde el efecto al cambiar de equipo, y mientras no se
+  // borrara el recuadro mostraba los vatios de otra acometida — un medidor
+  // recién instalado puede tardar en publicar el primero propio.
+  const [lastKnown, setLastKnown] = useState<{
+    device: string | null;
+    event: WsDataEvent;
+  } | null>(null);
 
   // El backend sostiene una variable suscrita por conexión y la compartida del
   // dashboard la ocupa la gráfica de abajo con lo que esté mirando. Si este
@@ -101,7 +108,7 @@ export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
   useEffect(() => {
     const client = createEmsWebSocket({
       onStatusChange: setEstadoConexion,
-      onData: (event) => setLastKnown(event),
+      onData: (event) => setLastKnown({ device: selectedDeviceId, event }),
     });
     client.connect();
     client.subscribe(VARIABLE, selectedDeviceId);
@@ -117,7 +124,8 @@ export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
   // que sí llegó por esta conexión.
   const unidad = porNombre.get(VARIABLE)?.unidad ?? '';
   const isLive = estadoConexion === 'connected';
-  const ultimoWs = lastKnown ? enWatts(lastKnown.value, unidad) : null;
+  const lectura = lastKnown?.device === selectedDeviceId ? lastKnown.event : null;
+  const ultimoWs = lectura ? enWatts(lectura.value, unidad) : null;
   const value = isLive && ultimoWs !== null ? ultimoWs : (seedWatts ?? ultimoWs ?? null);
   const isImporting = value !== null && value > 1;
   const isExporting = value !== null && value < -1;

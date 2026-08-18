@@ -4,6 +4,7 @@ import { compare } from '../../api/analytics';
 import type { CompareResult } from '../../api/types';
 import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
+import { useDevice } from '../../hooks/useDevice';
 import { formatKwh } from '../../utils/format';
 import { startOfLocalDay } from '../../utils/timezone';
 
@@ -15,14 +16,24 @@ interface PeriodComparisonCardProps {
 }
 
 export function PeriodComparisonCard({ label, days }: PeriodComparisonCardProps) {
+  const { selectedDeviceId, cargando: cargandoInventario } = useDevice();
   const [result, setResult] = useState<CompareResult | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    // Se espera al inventario: sin medidor elegido el backend agrega TODAS las
+    // acometidas del cliente, y esta tarjeta terminaba mostrando la suma de la
+    // flota mientras el selector de arriba decía otra cosa. Pedirlo una vez sin
+    // medidor y no volver a pedirlo era peor: el número quedaba congelado en
+    // esa mezcla aunque después se cambiara de gateway.
+    if (cargandoInventario) return;
     let cancelled = false;
 
     async function run() {
       setError(false);
+      // Lo del medidor anterior no es de este: mejor el esqueleto que una cifra
+      // ajena mientras llega la buena.
+      setResult(null);
       // F0.4: los dos rangos terminan en la medianoche local de HOY, no en
       // "ahora". Antes el periodo B llegaba hasta el instante actual, así que
       // su último día estaba a medio consumir y el delta salía siempre a favor:
@@ -34,6 +45,7 @@ export function PeriodComparisonCard({ label, days }: PeriodComparisonCardProps)
         to_a: finA.toISOString(),
         from_b: finA.toISOString(),
         to_b: finB.toISOString(),
+        device_id: selectedDeviceId ?? undefined,
       };
       try {
         const data = await compare(params);
@@ -47,7 +59,7 @@ export function PeriodComparisonCard({ label, days }: PeriodComparisonCardProps)
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, selectedDeviceId, cargandoInventario]);
 
   if (error) {
     return <Card className="text-sm text-red-500">No se pudo cargar {label.toLowerCase()}.</Card>;

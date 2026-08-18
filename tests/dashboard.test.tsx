@@ -240,15 +240,17 @@ describe('cuánto pide la red', () => {
     const pedidos = (url: string) => parametros.filter((p) => String(p.url).startsWith(url));
     const todos = parametros.length;
 
-    // El panel completo son 10 peticiones: inventario, variables, alertas (dos
-    // veces: una al montar sin medidor y otra cuando el inventario elige el
-    // primero), el resumen consolidado, las dos comparaciones, la proyección
-    // del mes (F1.2), el pronóstico horario (F3.1) y el modo de la sede. Todo
-    // lo demás dejó de pedirse.
-    expect(todos).toBe(10);
+    // El panel completo son 9 peticiones: inventario, variables, alertas, el
+    // resumen consolidado, las dos comparaciones, la proyección del mes (F1.2),
+    // el pronóstico horario (F3.1) y el modo de la sede. Todo lo demás dejó de
+    // pedirse.
+    //
+    // Las alertas se piden UNA vez, no dos: la que sobraba salía antes de que
+    // llegara el inventario, sin medidor, y traía las de toda la flota.
+    expect(todos).toBe(9);
     expect(pedidos('/devices')).toHaveLength(1);
     expect(pedidos('/variables')).toHaveLength(1);
-    expect(pedidos('/alerts')).toHaveLength(2);
+    expect(pedidos('/alerts')).toHaveLength(1);
     expect(pedidos('/dashboard/summary')).toHaveLength(1);
     expect(pedidos('/analytics/compare')).toHaveLength(2);
     expect(pedidos('/forecast/bill')).toHaveLength(1);
