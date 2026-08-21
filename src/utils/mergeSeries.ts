@@ -10,8 +10,8 @@ export interface MergedEnergyPoint extends ComparisonBarPoint {
  * Junta las series de importación y exportación en un solo arreglo ordenado
  * por tiempo.
  *
- * Copiado en Reports.tsx y ConsumptionExport.tsx con la misma lógica de mapa
- * y ordenamiento. El merge por `time` sirve a ComparBarChart, que dibuja las
+ * Estuvo copiado en las dos páginas de reportes con la misma lógica de mapa y
+ * ordenamiento. El merge por `time` sirve a ComparisonBarChart, que dibuja las
  * dos barras en el mismo bucket; sin él, series con distintos buckets (o puntos
  * solo de un lado) desfasarían las columnas.
  *

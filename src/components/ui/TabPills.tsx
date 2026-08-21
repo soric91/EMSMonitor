@@ -28,7 +28,7 @@ const SIZE = {
 
 /**
  * El grupo de tabs con la "píldora" (`motion.span layoutId`) que estaba
- * copiado en Reports, ConsumptionExport y LiveVariableChart.
+ * copiado en Reports y LiveVariableChart.
  *
  * Navegable por teclado: las flechas izquierda/derecha mueven la selección y
  * Enter/disparador por defecto del <button> la confirma.

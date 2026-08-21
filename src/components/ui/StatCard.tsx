@@ -21,7 +21,7 @@ interface StatCardProps {
 
 /**
  * La tarjeta "label + valor" que estaba copiada en AnalyticsSummary, Reports,
- * ConsumptionExport y el grid de demanda. Una sola pieza: el label arriba, el
+ * las tarjetas de balance y el grid de demanda. Una sola pieza: el label arriba, el
  * valor dominante, el icono en su caja de color, y opcionalmente un footer.
  * Con `value={undefined}` muestra el esqueleto — el consumo/estados de carga
  * no se escriben a mano en cada página.

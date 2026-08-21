@@ -2,7 +2,6 @@ import { NavLink } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
-  ArrowLeftRight,
   BarChart3,
   ChevronsLeft,
   ChevronsRight,
@@ -20,7 +19,6 @@ import { useVariablesDelMedidor } from '../../hooks/useVariablesDelMedidor';
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/history', label: 'Histórico', icon: History },
-  { to: '/consumption-export', label: 'Consumo / Exportación', icon: ArrowLeftRight },
   { to: '/analytics', label: 'Análisis', icon: BarChart3 },
   { to: '/reports', label: 'Reportes', icon: FileText },
 ] as const;

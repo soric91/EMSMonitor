@@ -1,18 +1,27 @@
-import { useEffect, useState } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, Download, FileText, Scale } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Download, FileText } from 'lucide-react';
 import { getReport, getCustomReport } from '../api/reports';
 import { useDevice } from '../hooks/useDevice';
-import type { Period } from '../domain/periods';
+import type { Period, RangoIso } from '../domain/periods';
+import {
+  MENSAJE_RANGO_INVALIDO,
+  esPeriodo,
+  formatoDeBucket,
+  validarRango,
+} from '../domain/periods';
 import type { ReportData } from '../api/types';
 import { Card } from '../components/ui/Card';
-import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
 import { TabPills } from '../components/ui/TabPills';
 import { MetricsGrid } from '../components/ui/MetricsGrid';
 import { ComparisonBarChart } from '../components/charts/ComparisonBarChart';
+import { PeriodCostChart } from '../components/charts/PeriodCostChart';
 import { CostBreakdownSummary } from '../components/dashboard/CostBreakdownSummary';
+import { EnergyBalanceCards } from '../components/dashboard/EnergyBalanceCards';
 import { MonthlyReportButton } from '../components/dashboard/MonthlyReportButton';
+import { PeriodDetailSections } from '../components/dashboard/PeriodDetailSections';
 import { mergeSeries } from '../utils/mergeSeries';
 import { downloadCsv } from '../utils/downloadCsv';
 import { NOT_APPLICABLE } from '../utils/labels';
@@ -29,25 +38,74 @@ const TABS: { key: Period; label: string }[] = [
 
 export default function Reports() {
   const { selectedDeviceId } = useDevice();
-  const [period, setPeriod] = useState<Period>('day');
-  const [fromIso, setFromIso] = useState(() => localInputToUtcIso(hoursAgoLocalInput(24)));
-  const [toIso, setToIso] = useState(() => localInputToUtcIso(nowLocalInput()));
+
+  // El periodo y el rango viven en la URL: un reporte por fecha que no se
+  // puede recargar ni pasar por chat es un reporte que hay que volver a armar
+  // a mano cada vez.
+  const [params, setParams] = useSearchParams();
+  // Las fechas por defecto se fijan al montar: recalcular "ahora" en cada
+  // render haría que el rango cambiara solo mientras nadie lo toca.
+  const [rangoInicial] = useState(() => ({
+    from: localInputToUtcIso(hoursAgoLocalInput(24)),
+    to: localInputToUtcIso(nowLocalInput()),
+  }));
+  const period: Period = esPeriodo(params.get('period')) ? (params.get('period') as Period) : 'day';
+  const fromIso = params.get('from') ?? rangoInicial.from;
+  const toIso = params.get('to') ?? rangoInicial.to;
+
+  // El rango efectivamente pedido, que no es el del selector: las fechas se
+  // editan sin que cada tecla dispare una consulta. En los periodos fijos lo
+  // resuelve el backend.
+  const [pedido, setPedido] = useState<RangoIso | null>(() =>
+    esPeriodo(params.get('period')) &&
+    params.get('period') === 'custom' &&
+    params.get('from') &&
+    params.get('to')
+      ? { from: params.get('from')!, to: params.get('to')! }
+      : null,
+  );
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
+  const motivoInvalido = validarRango(fromIso, toIso);
+
+  /** Escribe periodo y rango en la URL de una sola vez. */
+  const navegar = useCallback(
+    (siguiente: { period?: Period; from?: string; to?: string }) => {
+      setParams(
+        (previos) => {
+          const copia = new URLSearchParams(previos);
+          copia.set('period', siguiente.period ?? period);
+          copia.set('from', siguiente.from ?? fromIso);
+          copia.set('to', siguiente.to ?? toIso);
+          return copia;
+        },
+        { replace: true },
+      );
+    },
+    [setParams, period, fromIso, toIso],
+  );
+
+  // La etiqueta del bucket sale de la duración del reporte, no de su nombre:
+  // un rango personalizado de seis meses no se puede rotular hora por hora.
+  const formato = report ? formatoDeBucket(report.period_start, report.period_end) : 'd MMM';
+  const etiqueta = (time: string) => formatLocalDateTime(time, formato);
+
   // Una sola fusión sirve a la gráfica y al CSV: comparten los mismos buckets.
   const merged = report
-    ? mergeSeries(report.consumption_series, report.export_series, (time) =>
-        formatLocalDateTime(time, 'd MMM HH:mm'),
-      )
+    ? mergeSeries(report.consumption_series, report.export_series, etiqueta)
     : [];
 
   const exportCsv = () => {
     if (!report) return;
     // costs.series trae kWh + COP por bucket (mismo bucketing que las series de energía).
     const costByTime = new Map(report.costs.series.map((p) => [p.time, p]));
-    downloadCsv(`reporte_${report.report_type}.csv`, [
+    // El nombre lleva las fechas: con `reporte_custom.csv` todos los rangos
+    // se llamaban igual y se pisaban en la carpeta de descargas.
+    const desde = formatLocalDateTime(report.period_start, 'yyyy-MM-dd');
+    const hasta = formatLocalDateTime(report.period_end, 'yyyy-MM-dd');
+    downloadCsv(`reporte_${desde}_${hasta}.csv`, [
       [
         'hora_bogota',
         'importado_kwh',
@@ -71,15 +129,20 @@ export default function Reports() {
   };
 
   useEffect(() => {
-    if (period === 'custom') return;
-    const fixed = period;
+    // Un periodo fijo lo calcula el backend; uno personalizado espera a que
+    // alguien pida ese rango (Generar o un atajo).
+    if (period === 'custom' && !pedido) return;
+    const device_id = selectedDeviceId ?? undefined;
     let cancelled = false;
 
     async function run() {
       setLoading(true);
       setError(false);
       try {
-        const data = await getReport(fixed, selectedDeviceId ?? undefined);
+        const data =
+          period === 'custom'
+            ? await getCustomReport({ ...pedido!, device_id })
+            : await getReport(period, device_id);
         if (!cancelled) setReport(data);
       } catch {
         if (!cancelled) setError(true);
@@ -92,72 +155,76 @@ export default function Reports() {
     return () => {
       cancelled = true;
     };
-  }, [period, selectedDeviceId]);
+  }, [period, pedido, selectedDeviceId]);
 
-  const generateCustom = async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const data = await getCustomReport({
-        from: fromIso,
-        to: toIso,
-        device_id: selectedDeviceId ?? undefined,
-      });
-      setReport(data);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+  // Un periodo fijo llega sin fechas visibles: las del reporte que devolvió el
+  // backend se copian al selector para que se vea de qué días se está
+  // hablando, y se puedan ajustar desde ahí.
+  const periodoDelReporte = report ? `${report.period_start}|${report.period_end}` : null;
+  useEffect(() => {
+    if (period === 'custom' || !periodoDelReporte) return;
+    const [inicio, fin] = periodoDelReporte.split('|') as [string, string];
+    if (inicio !== fromIso || fin !== toIso) navegar({ from: inicio, to: fin });
+  }, [period, periodoDelReporte, fromIso, toIso, navegar]);
+
+  /** Pide el reporte del rango que hay en el selector. */
+  const generar = (from = fromIso, to = toIso) => {
+    if (validarRango(from, to)) return;
+    navegar({ period: 'custom', from, to });
+    setPedido({ from, to });
+  };
+
+  /** Editar una fecha a mano cambia a Personalizado, pero no consulta todavía. */
+  const editarRango = (from: string, to: string) => {
+    navegar({ period: 'custom', from, to });
+    setPedido(null);
+    setReport(null);
   };
 
   return (
     <div className="space-y-6">
-      <Card className="flex flex-wrap items-center justify-between gap-4">
-        <TabPills
-          layoutId="report-tab-pill"
-          size="sm"
-          options={TABS}
-          value={period}
-          onChange={(key) => {
-            setPeriod(key);
-            setReport(null);
-          }}
-        />
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <TabPills
+            layoutId="report-tab-pill"
+            size="sm"
+            options={TABS}
+            value={period}
+            onChange={(key) => {
+              navegar({ period: key });
+              setPedido(null);
+              setReport(null);
+            }}
+          />
 
-        <MonthlyReportButton />
+          <MonthlyReportButton desde={report?.period_start} hasta={report?.period_end} />
+        </div>
 
-        {period === 'custom' && (
-          <div className="flex flex-wrap items-center gap-2">
-            <DateRangePicker
-              fromIso={fromIso}
-              toIso={toIso}
-              onChange={(f, t) => {
-                setFromIso(f);
-                setToIso(t);
-              }}
-            />
-            <button
-              onClick={generateCustom}
-              disabled={loading}
-              className="rounded-lg bg-accent-500 px-4 py-2 text-xs font-medium text-slate-950 transition hover:bg-accent-400 disabled:opacity-60"
-            >
-              {loading ? 'Generando…' : 'Generar'}
-            </button>
-          </div>
+        {/* El selector está siempre: los cuatro tabs no son otro modo, son
+            atajos a un rango de fechas, y verlo escrito es lo que permite
+            ajustarlo sin volver a empezar. */}
+        <div className="flex flex-wrap items-end gap-2">
+          <DateRangePicker
+            fromIso={fromIso}
+            toIso={toIso}
+            onChange={editarRango}
+            onPreset={(f, t) => generar(f, t)}
+          />
+          <button
+            onClick={() => generar()}
+            disabled={loading || motivoInvalido !== null}
+            className="rounded-lg bg-accent-500 px-4 py-2 text-xs font-medium text-slate-950 transition hover:bg-accent-400 disabled:opacity-60"
+          >
+            {loading ? 'Generando…' : 'Generar'}
+          </button>
+        </div>
+
+        {motivoInvalido && (
+          <p className="text-xs text-red-500">{MENSAJE_RANGO_INVALIDO[motivoInvalido]}</p>
         )}
       </Card>
 
-      {loading && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="mt-3 h-8 w-32" />
-            </Card>
-          ))}
-        </div>
-      )}
+      {loading && <EnergyBalanceCards />}
 
       {!loading && error && (
         <Card className="text-sm text-red-500">No se pudo generar el reporte.</Card>
@@ -166,8 +233,8 @@ export default function Reports() {
       {!loading && !error && !report && period === 'custom' && (
         <EmptyState
           icon={FileText}
-          title="Reporte personalizado"
-          description="Elige un rango de fechas y presiona Generar."
+          title="Reporte por fecha"
+          description="Elige un rango —o un atajo como “Mes pasado”— y presiona Generar."
         />
       )}
 
@@ -181,60 +248,11 @@ export default function Reports() {
             <span>Generado: {formatLocalDateTime(report.generated_at)}</span>
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Card className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Importado</p>
-                <p className="mt-1.5 text-2xl font-semibold text-slate-900 dark:text-white">
-                  {formatKwh(report.consumption_kwh)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
-                <ArrowDownToLine className="h-5 w-5" />
-              </div>
-            </Card>
-            <Card className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Exportado</p>
-                <p className="mt-1.5 text-2xl font-semibold text-slate-900 dark:text-white">
-                  {formatKwh(report.export_kwh)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400">
-                <ArrowUpFromLine className="h-5 w-5" />
-              </div>
-            </Card>
-            <Card className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Balance neto
-                </p>
-                <p
-                  className={[
-                    'mt-1.5 text-2xl font-semibold',
-                    report.net_balance_kwh >= 0
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-emerald-600 dark:text-emerald-400',
-                  ].join(' ')}
-                >
-                  {formatKwh(Math.abs(report.net_balance_kwh))}
-                </p>
-                <p
-                  className={[
-                    'text-xs',
-                    report.net_balance_kwh >= 0
-                      ? 'text-amber-600/80 dark:text-amber-400/80'
-                      : 'text-emerald-600/80 dark:text-emerald-400/80',
-                  ].join(' ')}
-                >
-                  {report.net_balance_kwh >= 0 ? 'Importador neto' : 'Exportador neto'}
-                </p>
-              </div>
-              <div className="rounded-xl bg-slate-500/10 p-2 text-slate-500 dark:text-slate-400">
-                <Scale className="h-5 w-5" />
-              </div>
-            </Card>
-          </div>
+          <EnergyBalanceCards
+            consumptionKwh={report.consumption_kwh}
+            exportKwh={report.export_kwh}
+            netKwh={report.net_balance_kwh}
+          />
 
           <CostBreakdownSummary costs={report.costs} />
 
@@ -258,6 +276,12 @@ export default function Reports() {
               valueFormatter={(v) => formatKwh(v)}
             />
           </Card>
+
+          <PeriodCostChart series={report.costs.series} labelOf={etiqueta} />
+
+          {/* El detalle de un periodo largo: semanas, picos y reparto horario.
+              Se monta solo cuando el rango da para semanas. */}
+          <PeriodDetailSections report={report} merged={merged} />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>

@@ -5,7 +5,6 @@ import { AppLayout } from './components/layout/AppLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import History from './pages/History';
-import ConsumptionExport from './pages/ConsumptionExport';
 import Analytics from './pages/Analytics';
 import Reports from './pages/Reports';
 import Reactiva from './pages/Reactiva';
@@ -26,7 +25,11 @@ const App = () => {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/history" element={<History />} />
-          <Route path="/consumption-export" element={<ConsumptionExport />} />
+          {/* La página de Consumo/Exportación se fusionó con Reportes: hacía
+              las mismas llamadas y pintaba los mismos bloques, y lo único
+              suyo —la gráfica de costo por bucket— vive ahora allá. El
+              redirect sostiene los enlaces guardados. */}
+          <Route path="/consumption-export" element={<Navigate to="/reports" replace />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/reactive" element={<Reactiva />} />
           <Route path="/reports" element={<Reports />} />

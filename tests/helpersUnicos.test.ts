@@ -32,7 +32,7 @@ describe('cada helper vive una sola vez', () => {
   });
 
   test('mergeSeries y downloadCsv no se reescriben en las páginas', () => {
-    const conMerge = ['pages/Reports.tsx', 'pages/ConsumptionExport.tsx'].filter((ruta) =>
+    const conMerge = ['pages/Reports.tsx', 'pages/Analytics.tsx'].filter((ruta) =>
       /function mergeSeries\(/.test(fuente('', ruta)),
     );
     const conCsv = ['pages/Reports.tsx', 'pages/History.tsx'].filter((ruta) =>
@@ -70,11 +70,9 @@ describe('cada helper vive una sola vez', () => {
   });
 
   test('la píldora animada (layoutId) solo existe en TabPills', () => {
-    const conLayout = [
-      'pages/Reports.tsx',
-      'pages/ConsumptionExport.tsx',
-      'components/dashboard/LiveVariableChart.tsx',
-    ].filter((ruta) => /motion\.span[^>]*layoutId=/.test(fuente('', ruta)));
+    const conLayout = ['pages/Reports.tsx', 'components/dashboard/LiveVariableChart.tsx'].filter(
+      (ruta) => /motion\.span[^>]*layoutId=/.test(fuente('', ruta)),
+    );
 
     expect(conLayout).toEqual([]);
   });
@@ -91,7 +89,7 @@ describe('cada helper vive una sola vez', () => {
 
   test('las tarjetas de dinero importan el MISMO CostBreakdownSummary', () => {
     const re = /import \{[^}]*CostBreakdownSummary[^}]*\} from '([^']+)'/;
-    const modulos = ['pages/Reports.tsx', 'pages/ConsumptionExport.tsx'].map((ruta) => {
+    const modulos = ['pages/Reports.tsx', 'pages/Analytics.tsx'].map((ruta) => {
       const m = fuente('', ruta).match(re);
       return m?.[1] ?? null;
     });
@@ -101,28 +99,35 @@ describe('cada helper vive una sola vez', () => {
       '../components/dashboard/CostBreakdownSummary',
       '../components/dashboard/CostBreakdownSummary',
     ]);
-    const copias = ['pages/Reports.tsx', 'pages/ConsumptionExport.tsx'].filter((ruta) =>
+    const copias = ['pages/Reports.tsx', 'pages/Analytics.tsx'].filter((ruta) =>
       /function CostBreakdownSummary\(/.test(fuente('', ruta)),
     );
     expect(copias).toEqual([]);
   });
 
+  test('las tres tarjetas de balance salen de un solo componente', () => {
+    // Estaban escritas a mano en las dos páginas de reportes, y por eso
+    // divergieron (una toleraba el neto nulo, la otra no).
+    const aMano = ['pages/Reports.tsx', 'pages/Analytics.tsx', 'pages/Dashboard.tsx'].filter(
+      (ruta) => /Balance neto<\/p>/.test(fuente('', ruta)),
+    );
+
+    expect(aMano).toEqual([]);
+  });
+
   test('MetricsGrid sale de components/ui y no se reescribe en las páginas', () => {
-    const importados = ['pages/Reports.tsx', 'pages/ConsumptionExport.tsx', 'pages/Analytics.tsx']
+    const importados = ['pages/Reports.tsx', 'pages/Analytics.tsx']
       .map((ruta) => {
         const m = fuente('', ruta).match(/import \{[^}]*MetricsGrid[^}]*\} from '([^']+)'/);
         return m?.[1] ?? null;
       })
       .filter((mod): mod is string => mod !== null);
 
-    // Quien usa la grid la importa del módulo compartido (ConsumptionExport no
-    // la usa: ahí las tarjetas de dinero son CostBreakdownSummary).
+    // Quien usa la grid la importa del módulo compartido.
     expect(importados).toEqual(['../components/ui/MetricsGrid', '../components/ui/MetricsGrid']);
-    const copias = [
-      'pages/Reports.tsx',
-      'pages/ConsumptionExport.tsx',
-      'pages/Analytics.tsx',
-    ].filter((ruta) => /function MetricsGrid\(/.test(fuente('', ruta)));
+    const copias = ['pages/Reports.tsx', 'pages/Analytics.tsx'].filter((ruta) =>
+      /function MetricsGrid\(/.test(fuente('', ruta)),
+    );
     expect(copias).toEqual([]);
   });
 });
