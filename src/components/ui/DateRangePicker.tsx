@@ -1,18 +1,20 @@
-import {
-  hoursAgoLocalInput,
-  localInputToUtcIso,
-  nowLocalInput,
-  utcIsoToLocalInput,
-} from '../../utils/timezone';
+import { localInputToUtcIso, utcIsoToLocalInput } from '../../utils/timezone';
 import { RANGE_PRESETS } from '../../domain/periods';
 
 interface DateRangePickerProps {
   fromIso: string;
   toIso: string;
+  /** Al editar una de las dos fechas a mano. */
   onChange: (fromIso: string, toIso: string) => void;
+  /**
+   * Al elegir un atajo. Va aparte de `onChange` porque es una intención
+   * completa —"quiero julio"— y no media edición: la página lo usa para pedir
+   * el reporte de una vez, sin obligar a pasar por Generar.
+   */
+  onPreset?: (fromIso: string, toIso: string) => void;
 }
 
-export function DateRangePicker({ fromIso, toIso, onChange }: DateRangePickerProps) {
+export function DateRangePicker({ fromIso, toIso, onChange, onPreset }: DateRangePickerProps) {
   const inputClases =
     'min-w-0 flex-1 rounded-lg border border-slate-900/10 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none transition focus:border-accent-500/60 focus:ring-2 focus:ring-accent-500/20 sm:flex-none sm:w-44 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200';
 
@@ -38,12 +40,10 @@ export function DateRangePicker({ fromIso, toIso, onChange }: DateRangePickerPro
           <button
             key={preset.label}
             type="button"
-            onClick={() =>
-              onChange(
-                localInputToUtcIso(hoursAgoLocalInput(preset.hours)),
-                localInputToUtcIso(nowLocalInput()),
-              )
-            }
+            onClick={() => {
+              const { from, to } = preset.rango();
+              (onPreset ?? onChange)(from, to);
+            }}
             className="rounded-lg border border-slate-900/10 px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
           >
             {preset.label}
