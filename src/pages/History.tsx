@@ -122,7 +122,9 @@ function HistoryContent() {
     () => marcarVacios(points, intervalSeconds),
     [points, intervalSeconds],
   );
-  const conVacio = puntosMarcados.filter((p) => p.vacioSegundos !== null);
+  // Solo los vacíos que distorsionan de verdad llegan al aviso; el resto queda
+  // en el CSV, que es donde alguien va a mirar el detalle.
+  const conVacio = puntosMarcados.filter((p) => p.vacioNotable);
   const vacioMayor = conVacio.reduce(
     (mayor, p) => (p.vacioSegundos! > (mayor?.vacioSegundos ?? 0) ? p : mayor),
     null as PuntoConVacio | null,

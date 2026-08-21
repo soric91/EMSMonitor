@@ -7,7 +7,13 @@
  */
 
 import { describe, expect, test } from '@rstest/core';
-import { PUNTOS_POR_TRAMO, duracionLegible, marcarVacios, trocear } from '../src/domain/historico';
+import {
+  PUNTOS_POR_TRAMO,
+  duracionLegible,
+  marcarVacios,
+  trocear,
+  umbralDeAviso,
+} from '../src/domain/historico';
 import type { TimeSeriesPoint } from '../src/api/types';
 
 const punto = (time: string, value: number): TimeSeriesPoint => ({ time, value });
@@ -125,5 +131,56 @@ describe('cómo se dice la duración', () => {
     expect(duracionLegible(7.5 * 3600)).toBe('7 h 30 min');
     expect(duracionLegible(3600)).toBe('1 h');
     expect(duracionLegible(900)).toBe('15 min');
+  });
+});
+
+describe('cuándo un vacío merece un aviso', () => {
+  test('el hipo normal de un medidor a 1 Hz no se avisa', () => {
+    // En 80 minutos de datos reales hubo 475 saltos de 2 segundos y uno solo de
+    // 12 minutos: avisar de los 475 es gritar por el ruido de siempre.
+    const puntos = marcarVacios(
+      [punto('2026-08-10T02:20:47Z', 0), punto('2026-08-10T02:20:49Z', 0.01)],
+      1,
+    );
+
+    expect(puntos[1]!.vacioSegundos).toBe(2);
+    expect(puntos[1]!.vacioNotable).toBe(false);
+  });
+
+  test('el vacío de doce minutos sí', () => {
+    // El caso real del 10 de agosto a las 02:54: 714 s sin lecturas y el punto
+    // siguiente cargando 0,13 kWh, que son 655 W de media — la energía del
+    // tramo entero apuntada a un segundo.
+    const puntos = marcarVacios(
+      [punto('2026-08-10T02:42:16Z', 0), punto('2026-08-10T02:54:10Z', 0.13)],
+      1,
+    );
+
+    expect(puntos[1]!.vacioSegundos).toBe(714);
+    expect(puntos[1]!.vacioNotable).toBe(true);
+  });
+
+  test('el umbral sube con el intervalo, pero nunca baja de un minuto', () => {
+    expect(umbralDeAviso(1)).toBe(60);
+    expect(umbralDeAviso(60)).toBe(600);
+    expect(umbralDeAviso(900)).toBe(9000);
+  });
+
+  test('a 15 minutos hace falta media jornada de silencio para que el punto mienta', () => {
+    const dosHoras = marcarVacios(
+      [punto('2026-08-10T00:00:00Z', 0.14), punto('2026-08-10T02:00:00Z', 1.4)],
+      900,
+    );
+    const dosYMedia = marcarVacios(
+      [punto('2026-08-10T00:00:00Z', 0.14), punto('2026-08-10T02:30:00Z', 1.7)],
+      900,
+    );
+
+    // Dos horas reparten el error entre ocho ventanas: el punto sigue siendo
+    // leíble como lo que dice ser.
+    expect(dosHoras[1]!.vacioNotable).toBe(false);
+    // Dos horas y media son diez ventanas: ahí el punto vale diez veces su
+    // etiqueta y deja de poder leerse como una medición de quince minutos.
+    expect(dosYMedia[1]!.vacioNotable).toBe(true);
   });
 });

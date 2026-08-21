@@ -14,8 +14,23 @@ const TIME_ZONE = 'America/Bogota';
 export function formatVariableValue(unidad: string, value: number): string {
   if (unidad === 'W') return formatWatts(value);
   if (unidad === 'kW') return `${value.toFixed(2)} kW`;
+  if (unidad === 'kWh') return formatEnergia(value);
   if (unidad === '') return value.toFixed(2);
   return `${value.toFixed(2)} ${unidad}`;
+}
+
+/**
+ * Energía con la unidad que le queda bien a su tamaño.
+ *
+ * En el histórico al segundo, un consumo normal son 0,00019 kWh por ventana:
+ * dos decimales lo muestran como cero y la gráfica queda plana justo cuando se
+ * la está mirando para encontrar algo. Por debajo de 0,01 kWh se pasa a Wh, que
+ * es la misma medida dicha en la escala en que se lee.
+ */
+export function formatEnergia(value: number): string {
+  const abs = Math.abs(value);
+  if (abs > 0 && abs < 0.01) return `${(value * 1000).toFixed(2)} Wh`;
+  return `${value.toFixed(2)} kWh`;
 }
 
 export function formatWatts(value: number): string {

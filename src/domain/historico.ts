@@ -57,6 +57,26 @@ export interface PuntoConVacio extends TimeSeriesPoint {
    * consumido en su ventana: es todo lo acumulado durante el vacío.
    */
   vacioSegundos: number | null;
+  /**
+   * Si ese vacío es lo bastante grande como para avisar en pantalla.
+   *
+   * Un medidor que reporta cada segundo se salta uno de vez en cuando: en 80
+   * minutos de datos reales hubo 475 saltos de 2 segundos y uno solo de 12
+   * minutos. Marcar los 475 sería gritar por el ruido de siempre y que nadie
+   * mire cuando el aviso importa.
+   */
+  vacioNotable: boolean;
+}
+
+/**
+ * A partir de cuánto un vacío deja de ser el hipo normal del medidor.
+ *
+ * Diez ventanas —el punto pasa a valer diez veces lo que dice su etiqueta— y
+ * nunca menos de un minuto, que es el piso por debajo del cual el desvío no
+ * cambia ninguna lectura del panel.
+ */
+export function umbralDeAviso(intervaloSegundos: number): number {
+  return Math.max(intervaloSegundos * 10, 60);
 }
 
 /**
@@ -83,12 +103,14 @@ export function marcarVacios(
 
   return puntos.map((punto, i) => {
     const previo = puntos[i - 1];
-    if (!previo) return { ...punto, vacioSegundos: null };
+    if (!previo) return { ...punto, vacioSegundos: null, vacioNotable: false };
 
     const separacionMs = new Date(punto.time).getTime() - new Date(previo.time).getTime();
+    const vacioSegundos = separacionMs > umbralMs ? Math.round(separacionMs / 1000) : null;
     return {
       ...punto,
-      vacioSegundos: separacionMs > umbralMs ? Math.round(separacionMs / 1000) : null,
+      vacioSegundos,
+      vacioNotable: vacioSegundos !== null && vacioSegundos >= umbralDeAviso(intervaloSegundos),
     };
   });
 }

@@ -43,3 +43,7 @@ Thumbs.db
 
 # Testing (cuando se agregue vitest)
 coverage/
+
+# Exportaciones del panel para revisar mediciones: son datos de un cliente y no
+# tienen por qué vivir en el repo.
+/datos/
