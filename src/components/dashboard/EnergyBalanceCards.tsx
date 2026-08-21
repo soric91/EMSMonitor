@@ -7,6 +7,11 @@ interface EnergyBalanceCardsProps {
   consumptionKwh?: number | null;
   exportKwh?: number | null;
   netKwh?: number | null;
+  /**
+   * `true` en una sede sin generación propia: ahí exportado y balance neto no
+   * son "todavía sin datos", son dos recuadros que nunca van a tener nada.
+   */
+  soloImporta?: boolean;
 }
 
 /**
@@ -20,8 +25,16 @@ interface EnergyBalanceCardsProps {
  * El balance se pinta por signo, no en gris: exportador neto en verde (plata a
  * favor), importador neto en ámbar. Un solo color para los dos casos obligaría
  * a leer la letra chica para saber cuál de los dos es.
+ *
+ * En una sede de consumo puro —el caso mayoritario— queda una sola tarjeta:
+ * exportado y balance no se muestran en cero, se omiten. Ver `useSiteMode`.
  */
-export function EnergyBalanceCards({ consumptionKwh, exportKwh, netKwh }: EnergyBalanceCardsProps) {
+export function EnergyBalanceCards({
+  consumptionKwh,
+  exportKwh,
+  netKwh,
+  soloImporta = false,
+}: EnergyBalanceCardsProps) {
   // `undefined` se propaga como tal: StatCard lo dibuja como esqueleto.
   const kwh = (v: number | null | undefined) =>
     v === undefined ? undefined : v === null ? '—' : formatKwh(v);
@@ -34,6 +47,21 @@ export function EnergyBalanceCards({ consumptionKwh, exportKwh, netKwh }: Energy
       : exportador
         ? 'text-emerald-600 dark:text-emerald-400'
         : 'text-amber-600 dark:text-amber-400';
+
+  // La mayoría de las sedes solo importa; la que tiene solar es el caso
+  // especial. Con una sola tarjeta la fila no se estira a lo ancho.
+  if (soloImporta) {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Consumo del periodo"
+          tone="import"
+          icon={<ArrowDownToLine className="h-5 w-5" />}
+          value={kwh(consumptionKwh)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -31,6 +31,12 @@ interface ComparisonBarChartProps {
   colorB?: string;
   height?: number;
   valueFormatter?: (value: number) => string;
+  /**
+   * Oculta la segunda serie. Para las sedes sin generación propia, donde
+   * "exportado" es una fila de barras en cero con su entrada en la leyenda —y
+   * una leyenda que promete un dato que nunca llega confunde más que informa.
+   */
+  ocultarB?: boolean;
 }
 
 export function ComparisonBarChart({
@@ -41,6 +47,7 @@ export function ComparisonBarChart({
   colorB = '#10b981',
   height = 260,
   valueFormatter = (v) => `${v}`,
+  ocultarB = false,
 }: ComparisonBarChartProps) {
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -63,14 +70,16 @@ export function ComparisonBarChart({
           isAnimationActive
           animationDuration={400}
         />
-        <Bar
-          dataKey="b"
-          name={labelB}
-          fill={colorB}
-          radius={[4, 4, 0, 0]}
-          isAnimationActive
-          animationDuration={400}
-        />
+        {!ocultarB && (
+          <Bar
+            dataKey="b"
+            name={labelB}
+            fill={colorB}
+            radius={[4, 4, 0, 0]}
+            isAnimationActive
+            animationDuration={400}
+          />
+        )}
       </BarChart>
     </ResponsiveContainer>
   );

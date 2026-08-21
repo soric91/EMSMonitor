@@ -11,11 +11,14 @@ import { formatCop } from '../../utils/format';
 export function puntosDeCosto(
   series: CostPoint[],
   labelOf: (time: string) => string,
+  soloImporta = false,
 ): ComparisonBarPoint[] {
   return series.map((p) => ({
     label: labelOf(p.time),
     a: p.consumption_cost_cop,
-    b: p.export_credit_cop,
+    // En consumo puro el crédito es cero en todos los buckets: dibujar esa
+    // serie sería una fila de barras invisibles con su entrada en la leyenda.
+    b: soloImporta ? 0 : p.export_credit_cop,
   }));
 }
 
@@ -24,6 +27,8 @@ interface PeriodCostChartProps {
   series: CostPoint[];
   /** Cómo se escribe el bucket en el eje (ver `formatoDeBucket`). */
   labelOf: (time: string) => string;
+  /** En una sede sin generación no hay crédito por exportar que enfrentar. */
+  soloImporta?: boolean;
 }
 
 /**
@@ -38,7 +43,7 @@ interface PeriodCostChartProps {
  * tarifa cargada se lee como "no costó nada", que es lo contrario de "no se
  * sabe".
  */
-export function PeriodCostChart({ series, labelOf }: PeriodCostChartProps) {
+export function PeriodCostChart({ series, labelOf, soloImporta = false }: PeriodCostChartProps) {
   if (series.length === 0) return null;
 
   return (
@@ -47,10 +52,11 @@ export function PeriodCostChart({ series, labelOf }: PeriodCostChartProps) {
         Costo por periodo (COP)
       </p>
       <ComparisonBarChart
-        data={puntosDeCosto(series, labelOf)}
-        labelA="Costo importado"
+        data={puntosDeCosto(series, labelOf, soloImporta)}
+        labelA={soloImporta ? 'Costo' : 'Costo importado'}
         labelB="Crédito exportado"
         valueFormatter={(v) => formatCop(v)}
+        ocultarB={soloImporta}
       />
     </Card>
   );

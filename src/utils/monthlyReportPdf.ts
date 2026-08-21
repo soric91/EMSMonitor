@@ -4,6 +4,7 @@ import {
   seccionesDelInforme,
   semanasDelInforme,
   sufijoDeArchivo,
+  tieneGeneracion,
 } from '../domain/informeMensual';
 import { diaDeMayorConsumo, horaDeMayorConsumo } from '../domain/detalleDelPeriodo';
 import { mergeSeries } from './mergeSeries';
@@ -154,7 +155,7 @@ function encabezado(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
   // Con generación propia el alcance cambia de verdad, no de redacción: el
   // medidor de frontera solo ve el balance neto y "consumo" deja de ser
   // sinónimo de "energía importada".
-  const conGeneracion = datos.cargaBase?.window === 'noche';
+  const conGeneracion = tieneGeneracion(datos);
   return reportHeader(
     pdf,
     {
@@ -181,16 +182,26 @@ function encabezado(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
 function seccionResumen(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
   let cursor = sectionTitle(pdf, 'Resumen del mes', y);
   const { reporte, proyeccion } = datos;
+  // Sin generación no hay tarjeta de exportado: en una sede de consumo puro
+  // sería un 0.00 kWh permanente en la primera plana del informe.
   const tarjetas: { label: string; valor: string; color: string }[] = [
-    { label: 'Importado', valor: formatKwh(reporte.consumption_kwh), color: IMPORT },
-    { label: 'Exportado', valor: formatKwh(reporte.export_kwh), color: EXPORT },
+    {
+      label: tieneGeneracion(datos) ? 'Importado' : 'Consumo del mes',
+      valor: formatKwh(reporte.consumption_kwh),
+      color: IMPORT,
+    },
+    ...(tieneGeneracion(datos)
+      ? [{ label: 'Exportado', valor: formatKwh(reporte.export_kwh), color: EXPORT }]
+      : []),
     {
       label: reporte.costs.net_cost_cop < 0 ? 'Saldo a favor' : 'Neto a pagar',
       valor: formatCop(Math.abs(reporte.costs.net_cost_cop)),
       color: reporte.costs.net_cost_cop < 0 ? EXPORT : INK,
     },
   ];
-  const boxW = (CONTENT_W - 2 * 10) / 3;
+  // El ancho se reparte entre las que hay: dos tarjetas centradas se ven
+  // deliberadas; dos tarjetas ocupando dos tercios, como un hueco.
+  const boxW = (CONTENT_W - (tarjetas.length - 1) * 10) / tarjetas.length;
   const boxH = 52;
   tarjetas.forEach((tarjeta, i) => {
     const x = MARGIN + i * (boxW + 10);
@@ -303,11 +314,11 @@ function seccionSemanas(pdf: Pdf, datos: DatosInformeMensual, y: number): number
   if (semanas.length < 2) return y;
 
   let cursor = sectionTitle(pdf, 'Semana a semana', y);
-  const conGeneracion = semanas.some((s) => s.exportacionKwh > 0);
+  const conGeneracion = tieneGeneracion(datos);
 
   const columnas: ColumnaTabla[] = [
     { titulo: 'Semana', peso: 3 },
-    { titulo: 'Importado', peso: 2, align: 'right' },
+    { titulo: conGeneracion ? 'Importado' : 'Consumo', peso: 2, align: 'right' },
     ...(conGeneracion ? [{ titulo: 'Exportado', peso: 2, align: 'right' } as ColumnaTabla] : []),
     { titulo: 'vs. anterior', peso: 2, align: 'right' },
   ];

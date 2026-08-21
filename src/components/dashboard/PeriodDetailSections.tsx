@@ -9,6 +9,7 @@ import {
   semanaDeMayorConsumo,
 } from '../../domain/detalleDelPeriodo';
 import { useDevice } from '../../hooks/useDevice';
+import { useSiteMode } from '../../hooks/useSiteMode';
 import type { MergedEnergyPoint } from '../../utils/mergeSeries';
 import { formatKwh } from '../../utils/format';
 import { Card } from '../ui/Card';
@@ -41,6 +42,9 @@ interface PeriodDetailSectionsProps {
  */
 export function PeriodDetailSections({ report, merged }: PeriodDetailSectionsProps) {
   const { selectedDeviceId } = useDevice();
+  // Sin respuesta todavía no se esconde nada: adivinar el caso mayoritario
+  // haría parpadear la interfaz en las sedes que sí tienen solar.
+  const soloImporta = useSiteMode()?.mode === 'consumo';
   const [heatmap, setHeatmap] = useState<HeatmapResult | null>(null);
   const [perfil, setPerfil] = useState<HourProfilePoint[] | null>(null);
 
@@ -79,7 +83,7 @@ export function PeriodDetailSections({ report, merged }: PeriodDetailSectionsPro
 
   return (
     <>
-      <WeeklyBreakdownCard semanas={semanas} />
+      <WeeklyBreakdownCard semanas={semanas} soloImporta={soloImporta} />
 
       <PeakInsightsCard
         diaPico={diaDeMayorConsumo(merged)}

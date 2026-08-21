@@ -5,6 +5,8 @@ import { formatKwh } from '../../utils/format';
 
 interface WeeklyBreakdownCardProps {
   semanas: SemanaDelPeriodo[];
+  /** En una sede sin generación se dibuja una sola serie: lo consumido. */
+  soloImporta?: boolean;
 }
 
 /**
@@ -18,7 +20,7 @@ interface WeeklyBreakdownCardProps {
  * Solo energía. El costo por semana no se puede sumar acá: el crédito por
  * exportar se reparte contra lo importado del mes entero.
  */
-export function WeeklyBreakdownCard({ semanas }: WeeklyBreakdownCardProps) {
+export function WeeklyBreakdownCard({ semanas, soloImporta = false }: WeeklyBreakdownCardProps) {
   if (semanas.length < 2) return null;
 
   return (
@@ -34,9 +36,10 @@ export function WeeklyBreakdownCard({ semanas }: WeeklyBreakdownCardProps) {
           a: s.consumoKwh,
           b: s.exportacionKwh,
         }))}
-        labelA="Importado"
+        labelA={soloImporta ? 'Consumo' : 'Importado'}
         labelB="Exportado"
         valueFormatter={(v) => formatKwh(v)}
+        ocultarB={soloImporta}
       />
     </Card>
   );

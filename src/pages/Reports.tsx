@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Download, FileText } from 'lucide-react';
 import { getReport, getCustomReport } from '../api/reports';
 import { useDevice } from '../hooks/useDevice';
+import { useSiteMode } from '../hooks/useSiteMode';
 import type { Period, RangoIso } from '../domain/periods';
 import {
   MENSAJE_RANGO_INVALIDO,
@@ -40,6 +41,11 @@ const TABS: { key: Period; label: string }[] = [
 
 export default function Reports() {
   const { selectedDeviceId } = useDevice();
+  // La mayoría de las sedes solo importa energía; esta instalación con solar
+  // es el caso especial. Donde no hay generación, exportado y crédito no se
+  // muestran en cero: se omiten (ver `useSiteMode`). Mientras no se sabe, no
+  // se esconde nada.
+  const soloImporta = useSiteMode()?.mode === 'consumo';
 
   // El periodo y el rango viven en la URL: un reporte por fecha que no se
   // puede recargar ni pasar por chat es un reporte que hay que volver a armar
@@ -132,25 +138,33 @@ export default function Reports() {
     // La agrupación va en el nombre: el mismo rango bajado por hora y por día
     // son dos archivos distintos y hay que poder distinguirlos.
     const paso = agrupacionActiva ?? 'auto';
+    // Las columnas de exportación solo van donde hay generación: en una sede
+    // de consumo puro serían dos columnas de ceros que alguien tendría que
+    // interpretar en su hoja de cálculo.
+    const columnas = soloImporta
+      ? ['hora_bogota', 'consumo_kwh', 'costo_cop']
+      : [
+          'hora_bogota',
+          'importado_kwh',
+          'exportado_kwh',
+          'costo_importado_cop',
+          'credito_exportado_cop',
+          'costo_neto_cop',
+        ];
     downloadCsv(`reporte_${desde}_${hasta}_${paso}.csv`, [
-      [
-        'hora_bogota',
-        'importado_kwh',
-        'exportado_kwh',
-        'costo_importado_cop',
-        'credito_exportado_cop',
-        'costo_neto_cop',
-      ],
+      columnas,
       ...merged.map((p) => {
         const cost = costByTime.get(p.time);
-        return [
-          p.label,
-          String(p.a),
-          String(p.b),
-          String(cost?.consumption_cost_cop ?? ''),
-          String(cost?.export_credit_cop ?? ''),
-          String(cost?.net_cost_cop ?? ''),
-        ];
+        return soloImporta
+          ? [p.label, String(p.a), String(cost?.consumption_cost_cop ?? '')]
+          : [
+              p.label,
+              String(p.a),
+              String(p.b),
+              String(cost?.consumption_cost_cop ?? ''),
+              String(cost?.export_credit_cop ?? ''),
+              String(cost?.net_cost_cop ?? ''),
+            ];
       }),
     ]);
   };
@@ -260,7 +274,7 @@ export default function Reports() {
         )}
       </Card>
 
-      {sinNada && <EnergyBalanceCards />}
+      {sinNada && <EnergyBalanceCards soloImporta={soloImporta} />}
 
       {!loading && error && report === null && (
         <Card className="text-sm text-red-500">No se pudo generar el reporte.</Card>
@@ -298,6 +312,7 @@ export default function Reports() {
             consumptionKwh={report.consumption_kwh}
             exportKwh={report.export_kwh}
             netKwh={report.net_balance_kwh}
+            soloImporta={soloImporta}
           />
 
           <CostBreakdownSummary costs={report.costs} />
@@ -305,7 +320,7 @@ export default function Reports() {
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Importación vs. exportación
+                {soloImporta ? 'Consumo del periodo' : 'Importación vs. exportación'}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 {/* Agrupar es un cambio de lectura, no de datos: los totales
@@ -329,13 +344,18 @@ export default function Reports() {
             </div>
             <ComparisonBarChart
               data={merged}
-              labelA="Importado"
+              labelA={soloImporta ? 'Consumo' : 'Importado'}
               labelB="Exportado"
               valueFormatter={(v) => formatKwh(v)}
+              ocultarB={soloImporta}
             />
           </Card>
 
-          <PeriodCostChart series={report.costs.series} labelOf={etiqueta} />
+          <PeriodCostChart
+            series={report.costs.series}
+            labelOf={etiqueta}
+            soloImporta={soloImporta}
+          />
 
           {/* El detalle de un periodo largo: semanas, picos y reparto horario.
               Se monta solo cuando el rango da para semanas. */}

@@ -115,6 +115,21 @@ export function semanasDelInforme(datos: DatosInformeMensual): SemanaDelPeriodo[
   );
 }
 
+/**
+ * Si la sede del informe tiene generación propia.
+ *
+ * El informe no puede preguntarle a `useSiteMode` —se arma fuera de React— así
+ * que lo deduce de los datos que ya trae: energía exportada en el periodo, o
+ * una carga base medida de NOCHE, que es lo que hace el backend cuando la
+ * curva diurna está contaminada por los paneles.
+ *
+ * Importa porque la mayoría de las sedes solo importa energía: ahí "Exportado"
+ * no es un dato en cero, es una tarjeta que nunca va a tener nada.
+ */
+export function tieneGeneracion(datos: DatosInformeMensual): boolean {
+  return datos.reporte.export_kwh > 0 || datos.cargaBase?.window === 'noche';
+}
+
 /** Las secciones que este mes tiene con qué llenarse, en orden de lectura. */
 export function seccionesDelInforme(datos: DatosInformeMensual): SeccionInforme[] {
   const secciones: SeccionInforme[] = ['resumen', 'cascada'];
