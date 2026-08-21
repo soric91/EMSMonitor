@@ -90,11 +90,11 @@ export function PeriodDetailSections({ report, merged }: PeriodDetailSectionsPro
       {heatmap && heatmap.dates.length > 0 && (
         <Card>
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Reparto hora × día
+            Reparto hora × día · energía importada (kWh)
           </p>
           <p className="mt-0.5 mb-4 text-[11px] text-slate-400">
             Cada fila es un día y cada columna una hora: acá saltan los patrones que una línea
-            esconde.
+            esconde. Cuanto más oscura la casilla, más consumo tuvo esa hora.
           </p>
           <CalendarHeatmap data={heatmap} valueFormatter={(v) => formatKwh(v)} />
         </Card>

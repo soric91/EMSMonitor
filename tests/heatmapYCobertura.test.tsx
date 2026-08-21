@@ -16,6 +16,7 @@ import { CalendarHeatmap } from '../src/components/charts/CalendarHeatmap';
 import { DataCoverageBadge } from '../src/components/dashboard/DataCoverageBadge';
 import { HeatmapCard } from '../src/components/dashboard/HeatmapCard';
 import { DeviceContext } from '../src/context/DeviceContext';
+import { formatKwh } from '../src/utils/format';
 import type { CoverageResult, HeatmapResult, SiteMode, SiteModeResult } from '../src/api/types';
 
 const MEDIDOR = {
@@ -215,4 +216,54 @@ afterEach(() => {
 
 afterAll(() => {
   apiClient.defaults.adapter = adapterOriginal;
+});
+
+describe('la leyenda del mapa', () => {
+  /** Un mapa con valores repartidos, para que la escala tenga cortes reales. */
+  const conValores = (metric: HeatmapResult['metric']): HeatmapResult => ({
+    device_id: 'eq-1',
+    period_start: '2026-08-01T05:00:00Z',
+    period_end: '2026-08-03T05:00:00Z',
+    metric,
+    unit: metric === 'cost' ? 'COP' : 'kWh',
+    dates: ['2026-08-01', '2026-08-02'],
+    values: [
+      Array.from({ length: 24 }, (_, h) => h * 0.1),
+      Array.from({ length: 24 }, (_, h) => h * 0.2),
+    ],
+  });
+
+  test('cada frontera de color lleva su valor, no solo "menos" y "más"', () => {
+    // Antes eran cinco tonos sin una sola cifra: el color no se podía
+    // traducir a consumo.
+    render(<CalendarHeatmap data={conValores('import')} valueFormatter={formatKwh} />);
+
+    expect(screen.getByText('menos')).toBeInTheDocument();
+    expect(screen.getByText('más')).toBeInTheDocument();
+    // Cuatro cortes entre los cinco tonos, cada uno con su cifra en kWh.
+    expect(screen.getAllByText(/kWh$/).length).toBeGreaterThanOrEqual(4);
+  });
+
+  test('dice que la escala va por cuantiles, que es lo que engañaba', () => {
+    // Sin decirlo, dos tonos seguidos pueden separar 0.2 kWh o 3 kWh.
+    render(<CalendarHeatmap data={conValores('import')} valueFormatter={formatKwh} />);
+
+    expect(screen.getByText(/cuantiles/)).toBeInTheDocument();
+  });
+
+  test('explica la casilla vacía: sin lectura no es consumo cero', () => {
+    render(<CalendarHeatmap data={conValores('import')} valueFormatter={formatKwh} />);
+
+    expect(screen.getByText(/Sin lectura/)).toBeInTheDocument();
+  });
+
+  test('el balance neto se lee entre exportar e importar, no de menos a más', () => {
+    // Sus cortes son artificiales (±0.001 alrededor del cero): un número ahí
+    // no diría nada.
+    render(<CalendarHeatmap data={conValores('net')} valueFormatter={formatKwh} />);
+
+    expect(screen.getByText('exporta')).toBeInTheDocument();
+    expect(screen.getByText('importa')).toBeInTheDocument();
+    expect(screen.queryByText('menos')).toBeNull();
+  });
 });

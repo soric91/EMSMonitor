@@ -64,6 +64,10 @@ export function CalendarHeatmap({ data, valueFormatter }: CalendarHeatmapProps) 
     return <p className="text-sm text-slate-400">Sin datos suficientes.</p>;
   }
 
+  // El neto se lee alrededor del cero (exportando vs. importando), no de menos
+  // a más.
+  const divergente = data.metric === 'net';
+
   const color = (valor: number | null): string => {
     if (valor === null) return SIN_DATO;
     const nivel = escala.cortes.filter((corte) => valor > corte).length;
@@ -132,19 +136,42 @@ export function CalendarHeatmap({ data, valueFormatter }: CalendarHeatmapProps) 
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-[11px] text-slate-400">
         <span>
           {activa
             ? `${formatLocalDateTime(`${activa.fecha}T12:00:00Z`, 'd MMM')} · ${activa.hora}:00 — ${valueFormatter(activa.valor)}`
             : 'Cada casilla es una hora. Pasa el cursor para ver el valor.'}
         </span>
-        <span className="flex items-center gap-1">
-          menos
-          {escala.paleta.map((tono) => (
-            <span key={tono} className="h-3 w-3 rounded-[2px]" style={{ backgroundColor: tono }} />
+
+        {/* La leyenda decía "menos […] más" y nada más: cinco tonos sin una
+            sola cifra, así que el color no se podía traducir a consumo. Ahora
+            cada frontera lleva su valor. */}
+        <span className="flex flex-wrap items-center gap-1">
+          <span>{divergente ? 'exporta' : 'menos'}</span>
+          {escala.paleta.map((tono, i) => (
+            <span key={tono} className="flex items-center gap-1">
+              <span className="h-3 w-3 rounded-[2px]" style={{ backgroundColor: tono }} />
+              {/* En el neto los cortes son artificiales (±0.001 alrededor del
+                  cero): el número no diría nada y el extremo ya lo explica. */}
+              {!divergente && i < escala.cortes.length && (
+                <span className="tabular-nums">{valueFormatter(escala.cortes[i]!)}</span>
+              )}
+            </span>
           ))}
-          más
+          <span>{divergente ? 'importa' : 'más'}</span>
         </span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-400">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[2px] border border-dashed border-slate-300 dark:border-slate-700" />
+          Sin lectura (no es consumo cero)
+        </span>
+        {!divergente && (
+          // Sin decirlo, el mapa engaña: dos tonos seguidos pueden separar
+          // 0.2 kWh o 3 kWh, según cómo se repartan las horas.
+          <span>Los cortes van por cuantiles: cada tono agrupa la misma cantidad de horas.</span>
+        )}
       </div>
     </div>
   );
