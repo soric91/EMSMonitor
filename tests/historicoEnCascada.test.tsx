@@ -55,42 +55,30 @@ const CON_VACIO: HistoryResponse = {
 };
 
 describe('el vacío de datos', () => {
-  test('el pico se explica en pantalla, donde alguien lo va a ver', async () => {
+  test('el CSV dice cuánto silencio hay detrás de cada punto', async () => {
+    // En pantalla no se avisa: la gráfica ya muestra el salto. El detalle vive
+    // en el CSV, que es donde alguien se encuentra un valor imposible y
+    // necesita saber que acumula un tramo sin lecturas.
     servir();
 
     montar();
+    await waitFor(() => expect(screen.getByText(/Exportar CSV/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Exportar CSV/));
 
-    await waitFor(() =>
-      expect(screen.getByText(/viene después de un vacío de datos/)).toBeInTheDocument(),
-    );
-    expect(screen.getByText(/7 h 30 min sin lecturas antes/)).toBeInTheDocument();
+    const csv = await bajados.at(-1)!.text();
+    expect(csv.split('\n')[0]).toBe('hora_bogota,valor,segundos_sin_lecturas_antes');
+    expect(csv).toContain(',5.14,27000');
   });
 
-  test('dice que la energía es real y lo que falla es el instante', async () => {
+  test('un punto pegado al anterior no lleva marca', async () => {
     servir();
 
     montar();
+    await waitFor(() => expect(screen.getByText(/Exportar CSV/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Exportar CSV/));
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/todo lo que el contador acumuló durante el vacío/),
-      ).toBeInTheDocument(),
-    );
-  });
-
-  test('una serie sin huecos no muestra ningún aviso', async () => {
-    servir({
-      ...CON_VACIO,
-      points: [
-        { time: '2026-08-10T00:00:00Z', value: 0.14 },
-        { time: '2026-08-10T00:15:00Z', value: 0.13 },
-      ],
-    });
-
-    montar();
-
-    await waitFor(() => expect(pedidos('/history').length).toBeGreaterThan(0));
-    expect(screen.queryByText(/vacío de datos/)).toBeNull();
+    const csv = await bajados.at(-1)!.text();
+    expect(csv).toMatch(/,0\.14,\n/);
   });
 });
 
@@ -249,6 +237,17 @@ const deviceContext = {
 };
 
 let parametros: Record<string, unknown>[] = [];
+/** Los CSV que la página mandó a descargar. */
+let bajados: Blob[] = [];
+
+Object.defineProperty(URL, 'createObjectURL', {
+  value: (blob: Blob) => {
+    bajados.push(blob);
+    return 'blob:test';
+  },
+  configurable: true,
+});
+Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true });
 
 function pedidos(url: string): Record<string, unknown>[] {
   return parametros.filter((p) => String(p.url) === url);
@@ -288,6 +287,7 @@ function servir(serie: HistoryResponse = CON_VACIO, alPedir?: () => () => void):
 afterEach(() => {
   cleanup();
   parametros = [];
+  bajados = [];
 });
 
 afterAll(() => {

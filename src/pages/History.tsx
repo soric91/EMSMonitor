@@ -115,21 +115,15 @@ function HistoryContent() {
     deviceId: selectedDeviceId ?? undefined,
     activo: !rangoExcedido,
   });
-  // Los puntos que vienen tras un hueco se marcan acá y no se corrigen: el
-  // valor es energía real, lo que está mal es a qué ventana se le atribuye
-  // (ver `marcarVacios`).
+  // Los puntos que vienen tras un hueco se marcan para el CSV: ahí es donde
+  // alguien mira el detalle y necesita saber que ese valor acumula un tramo sin
+  // lecturas. En pantalla no se avisa — la gráfica ya muestra el salto.
   const puntosMarcados = useMemo(
     () => marcarVacios(points, intervalSeconds),
     [points, intervalSeconds],
   );
   // Solo los vacíos que distorsionan de verdad llegan al aviso; el resto queda
   // en el CSV, que es donde alguien va a mirar el detalle.
-  const conVacio = puntosMarcados.filter((p) => p.vacioNotable);
-  const vacioMayor = conVacio.reduce(
-    (mayor, p) => (p.vacioSegundos! > (mayor?.vacioSegundos ?? 0) ? p : mayor),
-    null as PuntoConVacio | null,
-  );
-
   const chartData = points.map((p) => ({ time: Date.parse(p.time), value: p.value }));
   const color = colorForSeries(info, points);
 
@@ -250,24 +244,6 @@ function HistoryContent() {
             Con «{opcionIntervalo.label}» el rango no puede pasar de{' '}
             {duracionLegible(opcionIntervalo.maxRangoSegundos)}. Acorta el rango o agrupa más
             grueso: más allá de ahí son millones de puntos que ni el medidor midió tan seguido.
-          </div>
-        )}
-
-        {/* El pico imposible explicado donde se ve, no en un informe aparte. */}
-        {!rangoExcedido && vacioMayor && (
-          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
-            <p className="font-medium">
-              {conVacio.length === 1
-                ? 'Un punto de esta serie viene después de un vacío de datos'
-                : `${conVacio.length} puntos de esta serie vienen después de un vacío de datos`}
-            </p>
-            <p className="mt-1 text-[13px] leading-snug opacity-90">
-              El mayor es el de {formatLocalDateTime(vacioMayor.time, 'd MMM, HH:mm')}, con{' '}
-              {duracionLegible(vacioMayor.vacioSegundos!)} sin lecturas antes.
-              {esAcumulativa
-                ? ' Su valor no es lo consumido en esa ventana: es todo lo que el contador acumuló durante el vacío. La energía es real; el instante al que se le atribuye, no.'
-                : ' Entre esos dos puntos la línea une lo que no se midió.'}
-            </p>
           </div>
         )}
 
