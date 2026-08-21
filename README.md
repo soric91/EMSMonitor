@@ -7,7 +7,7 @@
 [![React](https://img.shields.io/badge/react-19-61dafb.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/typescript-6.0-3178c6.svg)](https://www.typescriptlang.org/)
 [![Rsbuild](https://img.shields.io/badge/rsbuild-1.6-ff6b35.svg)](https://rsbuild.rs/)
-[![Tests](https://img.shields.io/badge/tests-157%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-353%20passed-brightgreen.svg)](tests/)
 
 [Qué hace](#qué-hace) •
 [Instalación](#instalación) •
@@ -120,16 +120,27 @@ El 8001 y no el 8000 porque CRMBackend suele ocupar el 8000 en la misma máquina
 
 ## Pantallas
 
-| Ruta                  | Quién entra     | Qué muestra                             |
-| --------------------- | --------------- | --------------------------------------- |
-| `/login`              | todos           | Ingreso                                 |
-| `/cambiar-password`   | primer ingreso  | Cambio obligatorio                      |
-| `/proyectos`          | administradores | Las empresas en tarjetas, con su estado |
-| `/dashboard`          | cliente         | Flujo de energía y gráficas en vivo     |
-| `/history`            | cliente         | Histórico con intervalo elegible        |
-| `/consumption-export` | cliente         | Importada y exportada                   |
-| `/analytics`          | cliente         | Comparativas por período                |
-| `/reports`            | cliente         | Informes en PDF                         |
+| Ruta                | Quién entra     | Qué muestra                                      |
+| ------------------- | --------------- | ------------------------------------------------ |
+| `/login`            | todos           | Ingreso                                          |
+| `/cambiar-password` | primer ingreso  | Cambio obligatorio                               |
+| `/proyectos`        | administradores | Las empresas en tarjetas, con su estado          |
+| `/dashboard`        | cliente         | Flujo de energía y gráficas en vivo              |
+| `/history`          | cliente         | Histórico con intervalo elegible                 |
+| `/analytics`        | cliente         | Comparativas por período                         |
+| `/reports`          | cliente         | Energía importada y exportada, costos, CSV y PDF |
+
+`/consumption-export` redirige a `/reports`. Eran dos páginas contra el mismo
+endpoint (`/reports/*`) con los mismos bloques dibujados dos veces; lo único
+propio de la primera —la gráfica de costo por bucket— vive ahora en Reportes.
+
+El reporte se pide **por rango de fechas**: los tabs Diario/Semanal/Mensual/Anual
+son atajos, y el selector acepta cualquier rango o un preset de calendario
+("Mes pasado", "Este año"). El periodo viaja en la URL, así que un reporte se
+recarga y se comparte. Cuando el rango da para al menos dos semanas con buckets
+diarios, la página agrega el desglose semana a semana, el día y la hora de mayor
+consumo y el reparto hora × día — en pantalla y en el PDF, con la misma
+definición de semana.
 
 ### El administrador
 
