@@ -7,7 +7,7 @@
  * el backend sale de esta enum: /reports/{daily|…|yearly|custom} y /costs/{day|…}.
  */
 
-import { startOfLocalMonth, startOfLocalYear } from '../utils/timezone';
+import { startOfLocalDay, startOfLocalMonth, startOfLocalYear } from '../utils/timezone';
 
 export type Period = 'day' | 'week' | 'month' | 'year' | 'custom';
 
@@ -61,12 +61,13 @@ export const RANGE_PRESETS: { label: string; rango: () => RangoIso }[] = [
     rango: () => ({ from: startOfLocalMonth(0).toISOString(), to: new Date().toISOString() }),
   },
   {
-    // Termina donde empieza este mes: un mes cerrado, que es el que se archiva
-    // y el que se compara contra la factura.
+    // Un mes cerrado: el que se archiva y el que se compara contra la factura.
+    // Termina en el ÚLTIMO instante del mes, no en el primero del siguiente —
+    // que además es un bucket que ya pertenece al mes que viene.
     label: 'Mes pasado',
     rango: () => ({
       from: startOfLocalMonth(-1).toISOString(),
-      to: startOfLocalMonth(0).toISOString(),
+      to: finDeRangoPedible(startOfLocalMonth(0).toISOString()),
     }),
   },
   {
@@ -74,6 +75,27 @@ export const RANGE_PRESETS: { label: string; rango: () => RangoIso }[] = [
     rango: () => ({ from: startOfLocalYear().toISOString(), to: new Date().toISOString() }),
   },
 ];
+
+/**
+ * Corre un milisegundo hacia atrás un fin de rango que caiga justo en la
+ * medianoche local.
+ *
+ * Es un rodeo a un bug de ApiEMS, no una preferencia: con `to` exactamente en
+ * el primer instante de un día local, `/reports/*` arma internamente una
+ * subconsulta del estilo "lo que va del día de `to`" que queda vacía, e InfluxDB
+ * responde `cannot query an empty range` — que sale como un 500 sin más
+ * explicación. Pasa con cualquier rango de calendario ("Mes pasado", "Este
+ * año") y con cualquier fecha que alguien escriba a las 00:00.
+ *
+ * Un milisegundo no cambia ninguna cifra del informe: el último bucket es el
+ * mismo. Cuando el backend lo arregle, esto se puede quitar entero.
+ */
+export function finDeRangoPedible(toIso: string): string {
+  const fin = new Date(toIso);
+  return startOfLocalDay(fin).getTime() === fin.getTime()
+    ? new Date(fin.getTime() - 1).toISOString()
+    : toIso;
+}
 
 function ultimasHoras(horas: number): RangoIso {
   return {

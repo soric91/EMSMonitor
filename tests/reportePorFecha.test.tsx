@@ -15,7 +15,8 @@ import { rmSync } from 'node:fs';
 import { apiClient } from '../src/api/client';
 import Reports from '../src/pages/Reports';
 import { DeviceContext } from '../src/context/DeviceContext';
-import { RANGE_PRESETS } from '../src/domain/periods';
+import { RANGE_PRESETS, finDeRangoPedible } from '../src/domain/periods';
+import { getCustomReport } from '../src/api/reports';
 import { startOfLocalMonth } from '../src/utils/timezone';
 import type { CostBreakdown, KpiSummary, ReportData } from '../src/api/types';
 
@@ -114,7 +115,8 @@ describe('pedir un rango', () => {
     const pedido = pedidos.find((p) => p.url === '/reports/custom');
     expect(pedido).toBeDefined();
     expect(pedido!.from).toBe('2026-07-01T05:00:00.000Z');
-    expect(pedido!.to).toBe('2026-08-01T05:00:00.000Z');
+    // El fin sale corrido un milisegundo: ver el bloque de la medianoche.
+    expect(pedido!.to).toBe('2026-08-01T04:59:59.999Z');
   });
 
   test('un rango en la URL se reconstruye al recargar, sin tocar los controles', async () => {
@@ -161,15 +163,20 @@ describe('rangos que no se pueden pedir', () => {
 });
 
 describe('los atajos de calendario', () => {
-  test('"Mes pasado" es el mes cerrado, de medianoche a medianoche de Bogotá', () => {
+  test('"Mes pasado" arranca en la medianoche de Bogotá del día 1', () => {
     const preset = RANGE_PRESETS.find((p) => p.label === 'Mes pasado');
-    const { from, to } = preset!.rango();
+    const { from } = preset!.rango();
 
     expect(from).toBe(startOfLocalMonth(-1).toISOString());
-    expect(to).toBe(startOfLocalMonth(0).toISOString());
     // Medianoche en Bogotá son las 05:00 UTC: cortar en UTC daría el mes
-    // corrido siete horas.
+    // corrido cinco horas.
     expect(from.endsWith('T05:00:00.000Z')).toBe(true);
+  });
+
+  test('"Mes pasado" termina en el último instante del mes, no en el primero del siguiente', () => {
+    const { to } = RANGE_PRESETS.find((p) => p.label === 'Mes pasado')!.rango();
+
+    expect(new Date(to).getTime()).toBe(startOfLocalMonth(0).getTime() - 1);
   });
 
   test('"Este mes" arranca el día 1 y llega hasta ahora', () => {
@@ -291,4 +298,32 @@ afterAll(() => {
   // test pide el informe de verdad para comprobar con qué rango se arma, y
   // deja un PDF en la raíz del repo si nadie lo recoge.
   rmSync('informe_energia_2026-07.pdf', { force: true });
+});
+
+describe('la medianoche que reventaba el backend', () => {
+  // ApiEMS devuelve 500 cuando `to` cae exactamente en el primer instante de un
+  // día local: arma internamente una subconsulta vacía y InfluxDB responde
+  // `cannot query an empty range`. Le pasaba a TODOS los presets de calendario.
+  test('un fin en medianoche local sale corrido un milisegundo', () => {
+    expect(finDeRangoPedible('2026-08-01T05:00:00.000Z')).toBe('2026-08-01T04:59:59.999Z');
+  });
+
+  test('cualquier otra hora viaja intacta', () => {
+    expect(finDeRangoPedible('2026-08-01T20:00:00.000Z')).toBe('2026-08-01T20:00:00.000Z');
+    expect(finDeRangoPedible('2026-08-01T05:00:00.001Z')).toBe('2026-08-01T05:00:00.001Z');
+  });
+
+  test('la medianoche que importa es la de Bogotá, no la de UTC', () => {
+    // 00:00 UTC son las 19:00 del día anterior en Bogotá: un rango que termina
+    // ahí no dispara el bug y no hay por qué tocarlo.
+    expect(finDeRangoPedible('2026-08-01T00:00:00.000Z')).toBe('2026-08-01T00:00:00.000Z');
+  });
+
+  test('el ajuste llega al endpoint aunque el rango venga de otra pantalla', async () => {
+    servir();
+
+    await getCustomReport({ from: '2026-07-01T05:00:00.000Z', to: '2026-08-01T05:00:00.000Z' });
+
+    expect(pedidos.at(-1)!.to).toBe('2026-08-01T04:59:59.999Z');
+  });
 });
