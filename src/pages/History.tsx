@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import {
   Download,
   History as HistoryIcon,
@@ -12,16 +11,13 @@ import {
 import { DashboardFiltersProvider } from '../context/DashboardFiltersContext';
 import { useDashboardFilters } from '../hooks/useDashboardFilters';
 import { useDevice } from '../hooks/useDevice';
-import { getHistory, getHistoryStats } from '../api/history';
-import type {
-  HistoryResponse,
-  HistoryStats,
-  TimeSeriesPoint,
-  Variable,
-  VariableDisponible,
-} from '../api/types';
+import { getHistoryStats } from '../api/history';
+import type { HistoryStats, Variable, VariableDisponible } from '../api/types';
 import { colorModeFor } from '../types/variable';
 import { useVariablesDelMedidor } from '../hooks/useVariablesDelMedidor';
+import { useHistorialEnCascada } from '../hooks/useHistorialEnCascada';
+import { duracionLegible, marcarVacios } from '../domain/historico';
+import type { PuntoConVacio } from '../domain/historico';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -35,26 +31,28 @@ const IMPORT_COLOR = '#f59e0b';
 const EXPORT_COLOR = '#10b981';
 const NEUTRAL_COLOR = '#3b82f6';
 
-// "Agrupar cada" — intervalo elegible en vez del binario raw(300s)/downsample(500pts)
-// de antes. El backend (`/history`) ya acepta cualquier interval_seconds y protege
-// con MAX_POINTS=5000; acá solo se expone la elección.
-const INTERVAL_OPTIONS: { label: string; seconds: number }[] = [
-  { label: '15 min', seconds: 900 },
-  { label: '30 min', seconds: 1800 },
-  { label: '1 hora', seconds: 3600 },
-  { label: '6 horas', seconds: 6 * 3600 },
-  { label: '12 horas', seconds: 12 * 3600 },
-  { label: '24 horas', seconds: 24 * 3600 },
+/**
+ * "Agrupar cada". Los tres primeros son el detalle fino que hace falta para
+ * ubicar CUÁNDO pasó algo — un pico, un corte, un arranque— y no solo que pasó.
+ *
+ * Cada uno trae su techo de rango. No es una restricción caprichosa: a un
+ * segundo, un día son 86 400 puntos, y aunque la cascada los trae de a tramos,
+ * pedir un mes segundo a segundo son dos millones y medio de puntos que ni el
+ * backend debería barrer ni el navegador dibujar. El techo dice hasta dónde el
+ * detalle sigue siendo útil.
+ */
+const INTERVAL_OPTIONS: { label: string; seconds: number; maxRangoSegundos: number }[] = [
+  { label: '1 segundo', seconds: 1, maxRangoSegundos: 2 * 3600 },
+  { label: '1 min', seconds: 60, maxRangoSegundos: 24 * 3600 },
+  { label: '5 min', seconds: 300, maxRangoSegundos: 7 * 24 * 3600 },
+  { label: '15 min', seconds: 900, maxRangoSegundos: 31 * 24 * 3600 },
+  { label: '30 min', seconds: 1800, maxRangoSegundos: 62 * 24 * 3600 },
+  { label: '1 hora', seconds: 3600, maxRangoSegundos: 366 * 24 * 3600 },
+  { label: '6 horas', seconds: 6 * 3600, maxRangoSegundos: Infinity },
+  { label: '12 horas', seconds: 12 * 3600, maxRangoSegundos: Infinity },
+  { label: '24 horas', seconds: 24 * 3600, maxRangoSegundos: Infinity },
 ];
 const DEFAULT_INTERVAL_SECONDS = 900;
-
-function extractErrorMessage(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const detail = (err.response?.data as { detail?: string } | undefined)?.detail;
-    if (detail) return detail;
-  }
-  return fallback;
-}
 
 function colorForSeries(info: VariableDisponible | undefined, points: { value: number }[]): string {
   const modo = colorModeFor(info?.magnitud ?? null);
@@ -67,10 +65,16 @@ function colorForSeries(info: VariableDisponible | undefined, points: { value: n
   return NEUTRAL_COLOR;
 }
 
-function exportCsv(variable: Variable, points: TimeSeriesPoint[]): void {
+function exportCsv(variable: Variable, points: PuntoConVacio[]): void {
+  // La tercera columna es la que faltaba cuando alguien abre el CSV y encuentra
+  // un valor imposible: dice que ese punto acumula lo de un tramo sin lecturas.
   downloadCsv(`${variable.toLowerCase()}_historico.csv`, [
-    ['hora_bogota', 'valor'],
-    ...points.map((p) => [formatLocalDateTime(p.time, "yyyy-MM-dd'T'HH:mm:ss"), String(p.value)]),
+    ['hora_bogota', 'valor', 'segundos_sin_lecturas_antes'],
+    ...points.map((p) => [
+      formatLocalDateTime(p.time, "yyyy-MM-dd'T'HH:mm:ss"),
+      String(p.value),
+      p.vacioSegundos === null ? '' : String(p.vacioSegundos),
+    ]),
   ]);
 }
 
@@ -89,39 +93,41 @@ function HistoryContent() {
   }, [variables, porNombre, variable, setVariable]);
   const { selectedDeviceId } = useDevice();
   const [intervalSeconds, setIntervalSeconds] = useState(DEFAULT_INTERVAL_SECONDS);
-  const [response, setResponse] = useState<HistoryResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const opcionIntervalo =
+    INTERVAL_OPTIONS.find((o) => o.seconds === intervalSeconds) ?? INTERVAL_OPTIONS[3]!;
+  const rangoSegundos = (Date.parse(toIso) - Date.parse(fromIso)) / 1000;
+  // Un intervalo fino sobre un rango largo no se pide y se dice por qué: es
+  // preferible a mandar veinte mil consultas y que el navegador se arrastre.
+  const rangoExcedido = rangoSegundos > opcionIntervalo.maxRangoSegundos;
 
-    async function run() {
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await getHistory({
-          variable,
-          from: fromIso,
-          to: toIso,
-          interval_seconds: intervalSeconds,
-          device_id: selectedDeviceId ?? undefined,
-        });
-        if (!cancelled) setResponse(data);
-      } catch (err) {
-        if (!cancelled) setError(extractErrorMessage(err, 'No se pudo cargar el histórico.'));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+  const {
+    puntos: points,
+    respuesta: response,
+    cargando: loading,
+    error,
+    avance,
+  } = useHistorialEnCascada({
+    variable,
+    desde: fromIso,
+    hasta: toIso,
+    intervaloSegundos: intervalSeconds,
+    deviceId: selectedDeviceId ?? undefined,
+    activo: !rangoExcedido,
+  });
+  // Los puntos que vienen tras un hueco se marcan acá y no se corrigen: el
+  // valor es energía real, lo que está mal es a qué ventana se le atribuye
+  // (ver `marcarVacios`).
+  const puntosMarcados = useMemo(
+    () => marcarVacios(points, intervalSeconds),
+    [points, intervalSeconds],
+  );
+  const conVacio = puntosMarcados.filter((p) => p.vacioSegundos !== null);
+  const vacioMayor = conVacio.reduce(
+    (mayor, p) => (p.vacioSegundos! > (mayor?.vacioSegundos ?? 0) ? p : mayor),
+    null as PuntoConVacio | null,
+  );
 
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [variable, fromIso, toIso, intervalSeconds, selectedDeviceId]);
-
-  const points = useMemo(() => response?.points ?? [], [response]);
   const chartData = points.map((p) => ({ time: Date.parse(p.time), value: p.value }));
   const color = colorForSeries(info, points);
 
@@ -219,7 +225,7 @@ function HistoryContent() {
       </Card>
 
       <Card>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <p className="stencil text-slate-500 dark:text-slate-400">
             {info?.etiqueta ?? variable}
             {response && (
@@ -228,9 +234,42 @@ function HistoryContent() {
               </span>
             )}
           </p>
+          {/* Con intervalos finos el rango llega de a tramos: decir cuántos van
+              evita que una espera larga se lea como una pantalla colgada. */}
+          {loading && avance.total > 1 && (
+            <span className="font-stencil text-[10px] tabular-nums text-slate-400">
+              trayendo {avance.hechos} / {avance.total} · {points.length} puntos
+            </span>
+          )}
         </div>
 
-        {loading && <Skeleton className="h-[260px] w-full" />}
+        {rangoExcedido && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+            Con «{opcionIntervalo.label}» el rango no puede pasar de{' '}
+            {duracionLegible(opcionIntervalo.maxRangoSegundos)}. Acorta el rango o agrupa más
+            grueso: más allá de ahí son millones de puntos que ni el medidor midió tan seguido.
+          </div>
+        )}
+
+        {/* El pico imposible explicado donde se ve, no en un informe aparte. */}
+        {!rangoExcedido && vacioMayor && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-400">
+            <p className="font-medium">
+              {conVacio.length === 1
+                ? 'Un punto de esta serie viene después de un vacío de datos'
+                : `${conVacio.length} puntos de esta serie vienen después de un vacío de datos`}
+            </p>
+            <p className="mt-1 text-[13px] leading-snug opacity-90">
+              El mayor es el de {formatLocalDateTime(vacioMayor.time, 'd MMM, HH:mm')}, con{' '}
+              {duracionLegible(vacioMayor.vacioSegundos!)} sin lecturas antes.
+              {esAcumulativa
+                ? ' Su valor no es lo consumido en esa ventana: es todo lo que el contador acumuló durante el vacío. La energía es real; el instante al que se le atribuye, no.'
+                : ' Entre esos dos puntos la línea une lo que no se midió.'}
+            </p>
+          </div>
+        )}
+
+        {loading && points.length === 0 && <Skeleton className="h-[260px] w-full" />}
         {!loading && error && <p className="text-sm text-red-500">{error}</p>}
         {!loading && !error && points.length === 0 && (
           <EmptyState
@@ -279,7 +318,7 @@ function HistoryContent() {
       {!loading && !error && points.length > 0 && (
         <div className="flex justify-end">
           <button
-            onClick={() => exportCsv(variable, points)}
+            onClick={() => exportCsv(variable, puntosMarcados)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
           >
             <Download className="h-3.5 w-3.5" />
