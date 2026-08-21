@@ -720,7 +720,12 @@ export interface CustomReportParams {
   from: string;
   to: string;
   device_id?: string;
+  /** Cada cuánto se agrupan las barras. Sin él, el backend usa su escalera. */
+  bucket?: EnergyBucket;
 }
+
+/** Agrupación de las barras de energía y de costo de un reporte. */
+export type EnergyBucket = 'hour' | 'day' | 'week';
 
 // ---------- Tariff / Costs ----------
 

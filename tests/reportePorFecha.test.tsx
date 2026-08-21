@@ -207,8 +207,9 @@ describe('el nombre del CSV', () => {
     await waitFor(() => expect(screen.getByText('Exportar CSV')).toBeInTheDocument());
     screen.getByText('Exportar CSV').click();
 
-    // Antes: `reporte_custom.csv` para todos los rangos, que se pisaban entre sí.
-    expect(nombres.at(-1)).toBe('reporte_2026-07-01_2026-08-01.csv');
+    // Antes: `reporte_custom.csv` para todos los rangos, que se pisaban entre
+    // sí. Ahora lleva el rango y la agrupación con la que se está viendo.
+    expect(nombres.at(-1)).toBe('reporte_2026-07-01_2026-08-01_day.csv');
   });
 });
 

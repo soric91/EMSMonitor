@@ -6,11 +6,13 @@ import { useDevice } from '../hooks/useDevice';
 import type { Period, RangoIso } from '../domain/periods';
 import {
   MENSAJE_RANGO_INVALIDO,
+  agrupacionPorDefecto,
+  agrupacionesDisponibles,
   esPeriodo,
   formatoDeBucket,
   validarRango,
 } from '../domain/periods';
-import type { ReportData } from '../api/types';
+import type { EnergyBucket, ReportData } from '../api/types';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DateRangePicker } from '../components/ui/DateRangePicker';
@@ -67,6 +69,10 @@ export default function Reports() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  // `null` = la que proponga el backend para el rango. Solo se fija cuando
+  // alguien elige otra: así cambiar de pestaña no arrastra una agrupación que
+  // en el periodo nuevo no tiene sentido.
+  const [agrupacion, setAgrupacion] = useState<EnergyBucket | null>(null);
 
   const motivoInvalido = validarRango(fromIso, toIso);
 
@@ -87,9 +93,19 @@ export default function Reports() {
     [setParams, period, fromIso, toIso],
   );
 
+  // Qué agrupaciones tienen sentido para el periodo que se está viendo, y
+  // cuál está activa: la elegida, o la que el backend aplicó por defecto.
+  const agrupaciones = report
+    ? agrupacionesDisponibles(report.period_start, report.period_end)
+    : [];
+  const agrupacionActiva =
+    agrupacion ?? (report ? agrupacionPorDefecto(report.period_start, report.period_end) : null);
+
   // La etiqueta del bucket sale de la duración del reporte, no de su nombre:
   // un rango personalizado de seis meses no se puede rotular hora por hora.
-  const formato = report ? formatoDeBucket(report.period_start, report.period_end) : 'd MMM';
+  const formato = report
+    ? formatoDeBucket(report.period_start, report.period_end, agrupacionActiva ?? undefined)
+    : 'd MMM';
   const etiqueta = (time: string) => formatLocalDateTime(time, formato);
 
   // Una sola fusión sirve a la gráfica y al CSV: comparten los mismos buckets.
@@ -105,7 +121,10 @@ export default function Reports() {
     // se llamaban igual y se pisaban en la carpeta de descargas.
     const desde = formatLocalDateTime(report.period_start, 'yyyy-MM-dd');
     const hasta = formatLocalDateTime(report.period_end, 'yyyy-MM-dd');
-    downloadCsv(`reporte_${desde}_${hasta}.csv`, [
+    // La agrupación va en el nombre: el mismo rango bajado por hora y por día
+    // son dos archivos distintos y hay que poder distinguirlos.
+    const paso = agrupacionActiva ?? 'auto';
+    downloadCsv(`reporte_${desde}_${hasta}_${paso}.csv`, [
       [
         'hora_bogota',
         'importado_kwh',
@@ -141,8 +160,8 @@ export default function Reports() {
       try {
         const data =
           period === 'custom'
-            ? await getCustomReport({ ...pedido!, device_id })
-            : await getReport(period, device_id);
+            ? await getCustomReport({ ...pedido!, device_id, bucket: agrupacion ?? undefined })
+            : await getReport(period, device_id, agrupacion ?? undefined);
         if (!cancelled) setReport(data);
       } catch {
         if (!cancelled) setError(true);
@@ -155,7 +174,7 @@ export default function Reports() {
     return () => {
       cancelled = true;
     };
-  }, [period, pedido, selectedDeviceId]);
+  }, [period, pedido, selectedDeviceId, agrupacion]);
 
   // Un periodo fijo llega sin fechas visibles: las del reporte que devolvió el
   // backend se copian al selector para que se vea de qué días se está
@@ -179,6 +198,7 @@ export default function Reports() {
     navegar({ period: 'custom', from, to });
     setPedido(null);
     setReport(null);
+    setAgrupacion(null);
   };
 
   return (
@@ -194,6 +214,7 @@ export default function Reports() {
               navegar({ period: key });
               setPedido(null);
               setReport(null);
+              setAgrupacion(null);
             }}
           />
 
@@ -257,17 +278,29 @@ export default function Reports() {
           <CostBreakdownSummary costs={report.costs} />
 
           <Card>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                 Importación vs. exportación
               </p>
-              <button
-                onClick={exportCsv}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
-              >
-                <Download className="h-3.5 w-3.5" />
-                Exportar CSV
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Agrupar es un cambio de lectura, no de datos: los totales
+                    de arriba no se mueven, solo en cuántas barras se reparte
+                    el periodo. Lo elegido vale también para el CSV. */}
+                <TabPills
+                  layoutId="report-bucket-pill"
+                  size="sm"
+                  options={agrupaciones}
+                  value={agrupacionActiva}
+                  onChange={setAgrupacion}
+                />
+                <button
+                  onClick={exportCsv}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-900/10 px-3 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-900/5 hover:text-slate-900 dark:border-white/10 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Exportar CSV
+                </button>
+              </div>
             </div>
             <ComparisonBarChart
               data={merged}

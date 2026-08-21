@@ -1,11 +1,15 @@
 import { apiClient, unwrap } from './client';
 import type { FixedPeriod } from '../domain/periods';
 import { finDeRangoPedible, toReportPath } from '../domain/periods';
-import type { ApiResponse, CustomReportParams, ReportData } from './types';
+import type { ApiResponse, CustomReportParams, EnergyBucket, ReportData } from './types';
 
-export async function getReport(period: FixedPeriod, deviceId?: string): Promise<ReportData> {
+export async function getReport(
+  period: FixedPeriod,
+  deviceId?: string,
+  bucket?: EnergyBucket,
+): Promise<ReportData> {
   const { data } = await apiClient.get<ApiResponse<ReportData>>(toReportPath(period), {
-    params: { device_id: deviceId },
+    params: { device_id: deviceId, bucket },
   });
   return unwrap(data);
 }

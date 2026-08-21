@@ -7,6 +7,7 @@
  * el backend sale de esta enum: /reports/{daily|…|yearly|custom} y /costs/{day|…}.
  */
 
+import type { EnergyBucket } from '../api/types';
 import { startOfLocalDay, startOfLocalMonth, startOfLocalYear } from '../utils/timezone';
 
 export type Period = 'day' | 'week' | 'month' | 'year' | 'custom';
@@ -36,6 +37,36 @@ const REPORT_TYPE: Record<Period, string> = {
 /** La ruta del reporte para un periodo: `/reports/{daily|weekly|monthly|yearly|custom}`. */
 export function toReportPath(period: Period): string {
   return `/reports/${REPORT_TYPE[period]}`;
+}
+
+/**
+ * Las agrupaciones que tiene sentido ofrecer para un rango.
+ *
+ * No es una lista fija: agrupar por semana un reporte de un día daría una sola
+ * barra, y por hora uno de dos años daría diecisiete mil. Se ofrece solo lo que
+ * deja entre un puñado y unas pocas centenas de barras.
+ */
+export function agrupacionesDisponibles(
+  inicio: string,
+  fin: string,
+): { key: EnergyBucket; label: string }[] {
+  const horas = (new Date(fin).getTime() - new Date(inicio).getTime()) / 3_600_000;
+  const opciones: { key: EnergyBucket; label: string }[] = [];
+  if (horas <= 24 * 31) opciones.push({ key: 'hour', label: 'Hora' });
+  if (horas >= 24 * 2) opciones.push({ key: 'day', label: 'Día' });
+  if (horas >= 24 * 21) opciones.push({ key: 'week', label: 'Semana' });
+  return opciones;
+}
+
+/**
+ * La agrupación que se muestra si nadie eligió: la misma escalera que aplica
+ * el backend, para que la pestaña abra mostrando lo que ya venía.
+ */
+export function agrupacionPorDefecto(inicio: string, fin: string): EnergyBucket {
+  const horas = (new Date(fin).getTime() - new Date(inicio).getTime()) / 3_600_000;
+  if (horas < 48) return 'hour';
+  if (horas < 24 * 400) return 'day';
+  return 'week';
 }
 
 export interface RangoIso {
@@ -121,9 +152,18 @@ function duracionEnHoras(inicio: string, fin: string): number {
  * que había: la semana lleva el día del mes (`lun 8`, no `lun`), porque dos
  * semanas seguidas se veían idénticas; y el año lleva el año (`ene 2026`),
  * porque un rango de doce meses cruza diciembre y `ene` no decía cuál.
+ *
+ * `bucket` gana cuando el cliente eligió cómo agrupar: entonces lo que decide
+ * la etiqueta es el tamaño de la barra, no el largo del rango.
  */
-export function formatoDeBucket(inicio: string, fin: string): string {
+export function formatoDeBucket(inicio: string, fin: string, bucket?: EnergyBucket): string {
   const horas = duracionEnHoras(inicio, fin);
+
+  // Con una agrupación elegida manda ella: treinta días vistos hora por hora
+  // necesitan la hora en la etiqueta, aunque el rango sea de un mes.
+  if (bucket === 'hour') return horas < 48 ? 'HH:mm' : 'd MMM HH:mm';
+  if (bucket === 'day' || bucket === 'week') return horas < 24 * 300 ? 'd MMM' : 'd MMM yyyy';
+
   if (horas < 48) return 'HH:mm';
   if (horas < 24 * 10) return 'EEE d';
   if (horas < 24 * 90) return 'd MMM';
