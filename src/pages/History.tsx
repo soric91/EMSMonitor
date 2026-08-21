@@ -40,9 +40,13 @@ const NEUTRAL_COLOR = '#3b82f6';
  * pedir un mes segundo a segundo son dos millones y medio de puntos que ni el
  * backend debería barrer ni el navegador dibujar. El techo dice hasta dónde el
  * detalle sigue siendo útil.
+ *
+ * Cuatro horas al segundo —14 400 puntos en cuatro tramos— porque revisar un
+ * corte de comunicación exige abarcar lo de antes y lo de después: con dos, el
+ * borde del rango caía dentro del hueco que se estaba investigando.
  */
 const INTERVAL_OPTIONS: { label: string; seconds: number; maxRangoSegundos: number }[] = [
-  { label: '1 segundo', seconds: 1, maxRangoSegundos: 2 * 3600 },
+  { label: '1 segundo', seconds: 1, maxRangoSegundos: 4 * 3600 },
   { label: '1 min', seconds: 60, maxRangoSegundos: 24 * 3600 },
   { label: '5 min', seconds: 300, maxRangoSegundos: 7 * 24 * 3600 },
   { label: '15 min', seconds: 900, maxRangoSegundos: 31 * 24 * 3600 },
