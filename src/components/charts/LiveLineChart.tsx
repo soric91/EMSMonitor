@@ -12,12 +12,13 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { formatInTimeZone } from 'date-fns-tz';
+import { es } from 'date-fns/locale';
 import { useTheme } from '../../hooks/useTheme';
 
 const TIME_ZONE = 'America/Bogota';
 
 function bogotaTime(time: Time, pattern: string): string {
-  return formatInTimeZone(new Date((time as number) * 1000), TIME_ZONE, pattern);
+  return formatInTimeZone(new Date((time as number) * 1000), TIME_ZONE, pattern, { locale: es });
 }
 
 export interface LiveChartPoint {

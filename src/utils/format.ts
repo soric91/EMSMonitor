@@ -1,4 +1,5 @@
 import { formatInTimeZone } from 'date-fns-tz';
+import { es } from 'date-fns/locale';
 
 const TIME_ZONE = 'America/Bogota';
 
@@ -46,8 +47,15 @@ export function formatKwh(value: number): string {
   return `${value.toFixed(2)} kWh`;
 }
 
+/**
+ * Una fecha del backend en hora de Bogotá y en español.
+ *
+ * El locale va explícito: sin él date-fns cae en inglés y el panel mezclaba
+ * "1 Aug 2026" en la franja del reporte con "ago. 2026" en las tarjetas de
+ * costo, que salen de `Intl` con locale es-CO.
+ */
 export function formatLocalDateTime(iso: string, formatStr = 'd MMM, HH:mm:ss'): string {
-  return formatInTimeZone(new Date(iso), TIME_ZONE, formatStr);
+  return formatInTimeZone(new Date(iso), TIME_ZONE, formatStr, { locale: es });
 }
 
 export function formatPercent(value: number): string {
