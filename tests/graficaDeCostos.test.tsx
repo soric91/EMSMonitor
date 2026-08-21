@@ -9,7 +9,8 @@
 
 import { describe, expect, test } from '@rstest/core';
 import { render, screen } from '@testing-library/react';
-import { PeriodCostChart, puntosDeCosto } from '../src/components/charts/PeriodCostChart';
+import { PeriodCostChart } from '../src/components/charts/PeriodCostChart';
+import { puntosDeCosto } from '../src/components/charts/puntosDeCosto';
 import type { CostPoint } from '../src/api/types';
 
 const PUNTO = (time: string, costo: number, credito: number): CostPoint => ({

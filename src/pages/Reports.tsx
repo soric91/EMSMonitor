@@ -72,7 +72,16 @@ export default function Reports() {
       ? { from: params.get('from')!, to: params.get('to')! }
       : null,
   );
-  const [report, setReport] = useState<ReportData | null>(null);
+  // El reporte guarda de qué medidor es. Antes se vaciaba dentro de un efecto
+  // al cambiar de sede, lo que además de disparar un render en cascada dejaba
+  // un parpadeo: los números viejos se iban antes de que llegaran los nuevos.
+  const [traido, setTraido] = useState<{ deviceId: string | null; data: ReportData } | null>(null);
+  const report = traido?.deviceId === (selectedDeviceId ?? null) ? traido.data : null;
+  const setReport = useCallback(
+    (data: ReportData | null) =>
+      setTraido(data === null ? null : { deviceId: selectedDeviceId ?? null, data }),
+    [selectedDeviceId],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   // `null` = la que proponga el backend para el rango. Solo se fija cuando
@@ -169,13 +178,6 @@ export default function Reports() {
     ]);
   };
 
-  // Cambiar de medidor invalida lo que hay en pantalla: son los números de
-  // otra sede. Cambiar la agrupación NO — es el mismo periodo contado en otras
-  // barras—, y por eso ese caso conserva el reporte mientras llega el nuevo.
-  useEffect(() => {
-    setReport(null);
-  }, [selectedDeviceId]);
-
   useEffect(() => {
     // Un periodo fijo lo calcula el backend; uno personalizado espera a que
     // alguien pida ese rango (Generar o un atajo).
@@ -203,7 +205,7 @@ export default function Reports() {
     return () => {
       cancelled = true;
     };
-  }, [period, pedido, selectedDeviceId, agrupacion]);
+  }, [period, pedido, selectedDeviceId, agrupacion, setReport]);
 
   // Un periodo fijo llega sin fechas visibles: las del reporte que devolvió el
   // backend se copian al selector para que se vea de qué días se está

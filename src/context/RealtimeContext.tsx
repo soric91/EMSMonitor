@@ -29,7 +29,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const { selectedDeviceId } = useDevice();
   const [estadoConexion, setStatus] = useState<WsConnectionStatus>('connecting');
   const [subscribedVariable, setSubscribedVariable] = useState<Variable | null>(null);
-  const [latestData, setLatestData] = useState<WsDataEvent | null>(null);
+  const [ultimo, setUltimo] = useState<WsDataEvent | null>(null);
+  // El evento ya dice de qué medidor viene, así que no hace falta guardarlo ni
+  // vaciarlo al cambiar de sede: el último dato del medidor anterior deja de
+  // darse por bueno solo. Vaciarlo desde el efecto que resuscribe —como se
+  // hacía— disparaba un render en cascada por cada cambio de selección.
+  const latestData = ultimo?.device_id === selectedDeviceId ? ultimo : null;
   const clientRef = useRef<EmsWebSocketClient | null>(null);
   const listenersRef = useRef(new Set<DataListener>());
   const alertListenersRef = useRef(new Set<AlertListener>());
@@ -60,7 +65,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     const client = createEmsWebSocket({
       onStatusChange: setStatus,
       onData: (event) => {
-        setLatestData(event);
+        setUltimo(event);
         listenersRef.current.forEach((listener) => listener(event));
       },
       onAlert: (event) => {
@@ -83,7 +88,6 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   // quedaba con el último que llegara: la cifra saltaba entre medidores.
   const subscribe = useCallback(
     (variable: Variable) => {
-      setLatestData(null);
       clientRef.current?.subscribe(variable, selectedDeviceId);
     },
     [selectedDeviceId],
@@ -94,7 +98,6 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   // ofrezca el selector.
   useEffect(() => {
     if (subscribedVariable === null) return;
-    setLatestData(null);
     clientRef.current?.subscribe(subscribedVariable, selectedDeviceId);
     // `subscribedVariable` queda fuera a propósito: reaccionar a él volvería a
     // suscribir en respuesta al ack de la suscripción anterior, en bucle.

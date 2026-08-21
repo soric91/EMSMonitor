@@ -9,11 +9,11 @@ import {
   type IRange,
   type ISeriesApi,
   type Time,
-  type UTCTimestamp,
 } from 'lightweight-charts';
 import { formatInTimeZone } from 'date-fns-tz';
 import { es } from 'date-fns/locale';
 import { useTheme } from '../../hooks/useTheme';
+import { toChartPoints } from './chartPoints';
 
 const TIME_ZONE = 'America/Bogota';
 
@@ -73,20 +73,6 @@ function sinReventar(que: string, accion: () => void): void {
   } catch (error) {
     console.warn(`Gráfica: ${que} falló y se ignoró.`, error);
   }
-}
-
-export function toChartPoints(data: LiveChartPoint[]) {
-  const bySecond = new Map<number, number>();
-  for (const p of data) {
-    // Un tick con valor no finito (null/NaN/Inf — el backend puede recibir
-    // NaN del medidor) rompe lightweight-charts con "Value is null"; se
-    // descarta el punto, no la serie entera.
-    if (!Number.isFinite(p.value) || !Number.isFinite(p.time)) continue;
-    bySecond.set(Math.floor(p.time / 1000), p.value);
-  }
-  return Array.from(bySecond.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([time, value]) => ({ time: time as UTCTimestamp, value }));
 }
 
 export function LiveLineChart({

@@ -45,36 +45,52 @@ export function PeriodDetailSections({ report, merged }: PeriodDetailSectionsPro
   // Sin respuesta todavía no se esconde nada: adivinar el caso mayoritario
   // haría parpadear la interfaz en las sedes que sí tienen solar.
   const soloImporta = useSiteMode()?.mode === 'consumo';
-  const [heatmap, setHeatmap] = useState<HeatmapResult | null>(null);
-  const [perfil, setPerfil] = useState<HourProfilePoint[] | null>(null);
-
   const aplica = admiteDetalleSemanal(report);
   const desde = report.period_start;
   const hasta = report.period_end;
+  // A qué consulta pertenece lo que hay guardado. Va PEGADO al dato en vez de
+  // limpiarse al empezar la siguiente: vaciar el estado dentro del efecto
+  // dispara un render en cascada, y además deja una ventana en la que el
+  // detalle del rango viejo ya se borró y el nuevo todavía no llegó.
+  const clave = `${desde}|${hasta}|${selectedDeviceId ?? ''}`;
+  const [traido, setTraido] = useState<{
+    clave: string;
+    heatmap: HeatmapResult | null;
+    perfil: HourProfilePoint[] | null;
+  } | null>(null);
+
+  // Lo de otra consulta no se muestra: se ignora hasta que llegue lo de esta.
+  const heatmap = traido?.clave === clave ? traido.heatmap : null;
+  const perfil = traido?.clave === clave ? traido.perfil : null;
 
   useEffect(() => {
     if (!aplica) return;
     let cancelled = false;
     const rango = { from: desde, to: hasta, device_id: selectedDeviceId ?? undefined };
 
-    setHeatmap(null);
-    setPerfil(null);
+    const guardar = (parte: { heatmap?: HeatmapResult; perfil?: HourProfilePoint[] }) => {
+      setTraido((previo) => ({
+        clave,
+        heatmap: parte.heatmap ?? (previo?.clave === clave ? previo.heatmap : null),
+        perfil: parte.perfil ?? (previo?.clave === clave ? previo.perfil : null),
+      }));
+    };
 
     void getHeatmap({ ...rango, metric: 'import' })
       .then((data) => {
-        if (!cancelled) setHeatmap(data);
+        if (!cancelled) guardar({ heatmap: data });
       })
       .catch(() => {});
     void getDailyProfile(rango)
       .then((data) => {
-        if (!cancelled) setPerfil(data);
+        if (!cancelled) guardar({ perfil: data });
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [aplica, desde, hasta, selectedDeviceId]);
+  }, [aplica, desde, hasta, selectedDeviceId, clave]);
 
   if (!aplica) return null;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@rstest/core';
-import { toChartPoints } from '../src/components/charts/LiveLineChart';
+import { toChartPoints } from '../src/components/charts/chartPoints';
 
 describe('toChartPoints — puntos que alimentan la gráfica en vivo', () => {
   it('agrupa por segundo y ordena por tiempo', () => {

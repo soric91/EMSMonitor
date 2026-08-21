@@ -11,6 +11,7 @@
 import { afterAll, afterEach, describe, expect, test } from '@rstest/core';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, Navigate } from 'react-router-dom';
+import { readFileSync } from 'node:fs';
 import { apiClient } from '../src/api/client';
 import Reports from '../src/pages/Reports';
 import { DeviceContext } from '../src/context/DeviceContext';
@@ -128,7 +129,6 @@ describe('la ruta vieja', () => {
   });
 
   test('el sidebar ya no ofrece dos entradas para lo mismo', () => {
-    const { readFileSync } = require('node:fs') as typeof import('node:fs');
     const sidebar = readFileSync('src/components/layout/Sidebar.tsx', 'utf8');
 
     expect(sidebar).not.toContain('Consumo / Exportación');

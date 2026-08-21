@@ -13,7 +13,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach } from '@rstest/core';
 import { EnergyBalanceCards } from '../src/components/dashboard/EnergyBalanceCards';
 import { WeeklyBreakdownCard } from '../src/components/dashboard/WeeklyBreakdownCard';
-import { puntosDeCosto } from '../src/components/charts/PeriodCostChart';
+import { puntosDeCosto } from '../src/components/charts/puntosDeCosto';
 import { tieneGeneracion } from '../src/domain/informeMensual';
 import type { SemanaDelPeriodo } from '../src/domain/detalleDelPeriodo';
 import type { CostPoint } from '../src/api/types';
