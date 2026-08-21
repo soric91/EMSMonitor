@@ -1,3 +1,9 @@
+import { admiteDetalleSemanal, agruparPorSemana } from './detalleDelPeriodo';
+import type { SemanaDelPeriodo } from './detalleDelPeriodo';
+import { formatLocalDateTime } from '../utils/format';
+import { mergeSeries } from '../utils/mergeSeries';
+import { monthLabel } from '../utils/labels';
+import { startOfLocalMonth } from '../utils/timezone';
 import type {
   AlertsHistory,
   BaseLoadTrendResult,
@@ -22,7 +28,6 @@ import type {
  */
 
 export interface DatosInformeMensual {
-  mes: string;
   sede: string;
   reporte: ReportData;
   proyeccion: BillForecast | null;
@@ -34,9 +39,59 @@ export interface DatosInformeMensual {
   comparacion: BenchmarkResult | null;
 }
 
+/**
+ * Cómo se nombra el periodo del informe.
+ *
+ * El informe se llamaba siempre "del mes" y titulaba con el mes en curso,
+ * aunque el rango fuera otro: quien miraba julio se bajaba un PDF que decía
+ * agosto. El título sale ahora del periodo que el backend reportó, y solo dice
+ * el nombre del mes cuando el rango ES un mes de calendario.
+ */
+export function etiquetaDelPeriodo(inicio: string, fin: string): string {
+  const mes = mesCalendarioExacto(inicio, fin);
+  if (mes) return monthLabel(mes, 'long');
+
+  const mismoAnio = anioLocal(inicio) === anioLocal(fin);
+  const desde = formatLocalDateTime(inicio, mismoAnio ? 'd MMM' : 'd MMM yyyy');
+  return `${desde} — ${formatLocalDateTime(fin, 'd MMM yyyy')}`;
+}
+
+function anioLocal(iso: string): string {
+  return formatLocalDateTime(iso, 'yyyy');
+}
+
+/** El sufijo del archivo: el mes si lo es, y si no las dos fechas. */
+export function sufijoDeArchivo(inicio: string, fin: string): string {
+  return (
+    mesCalendarioExacto(inicio, fin) ??
+    `${formatLocalDateTime(inicio, 'yyyy-MM-dd')}_${formatLocalDateTime(fin, 'yyyy-MM-dd')}`
+  );
+}
+
+/**
+ * "YYYY-MM" si el rango cubre exactamente ese mes en hora de Bogotá, o `null`.
+ *
+ * Se compara contra los límites locales del mes: un rango que empieza el 1 a
+ * medianoche de Bogotá arranca a las 05:00 UTC, y comparar los ISO crudos
+ * diría que no es el mes.
+ */
+function mesCalendarioExacto(inicio: string, fin: string): string | null {
+  const mes = formatLocalDateTime(inicio, 'yyyy-MM');
+  const desde = new Date(inicio).getTime();
+  const hasta = new Date(fin).getTime();
+  const inicioDelMes = startOfLocalMonth(0, new Date(inicio)).getTime();
+  const finDelMes = startOfLocalMonth(1, new Date(inicio)).getTime();
+
+  // Un minuto de tolerancia: el backend puede devolver el cierre como
+  // 23:59:59 del último día en vez del primer instante del siguiente.
+  const cierraElMes = Math.abs(hasta - finDelMes) <= 60_000 || finDelMes - hasta <= 1_000;
+  return desde === inicioDelMes && cierraElMes && hasta > desde ? mes : null;
+}
+
 export type SeccionInforme =
   | 'resumen'
   | 'cascada'
+  | 'semanas'
   | 'cobertura'
   | 'heatmap'
   | 'carga_base'
@@ -44,9 +99,29 @@ export type SeccionInforme =
   | 'tipos_de_dia'
   | 'sedes';
 
+/**
+ * Las semanas del informe, o `[]` si el periodo no da para partirlo.
+ *
+ * Vive acá y no en el PDF porque es la misma definición de semana que usa la
+ * pantalla: un informe que corte los lunes distinto a como los corta el panel
+ * daría dos respuestas a la misma pregunta.
+ */
+export function semanasDelInforme(datos: DatosInformeMensual): SemanaDelPeriodo[] {
+  if (!admiteDetalleSemanal(datos.reporte)) return [];
+  return agruparPorSemana(
+    mergeSeries(datos.reporte.consumption_series, datos.reporte.export_series, (time) =>
+      formatLocalDateTime(time, 'd MMM'),
+    ),
+  );
+}
+
 /** Las secciones que este mes tiene con qué llenarse, en orden de lectura. */
 export function seccionesDelInforme(datos: DatosInformeMensual): SeccionInforme[] {
   const secciones: SeccionInforme[] = ['resumen', 'cascada'];
+
+  // Con una sola semana no hay evolución que mostrar: la tabla repetiría el
+  // total del resumen en otra fila.
+  if (semanasDelInforme(datos).length >= 2) secciones.push('semanas');
 
   // La cobertura solo se cuenta cuando hay contra qué compararla: sin
   // referencia de cuántas lecturas esperar, un "97%" sería inventado.

@@ -1,8 +1,16 @@
 import type { DatosInformeMensual, SeccionInforme } from '../domain/informeMensual';
-import { seccionesDelInforme } from '../domain/informeMensual';
+import {
+  etiquetaDelPeriodo,
+  seccionesDelInforme,
+  semanasDelInforme,
+  sufijoDeArchivo,
+} from '../domain/informeMensual';
+import { diaDeMayorConsumo, horaDeMayorConsumo } from '../domain/detalleDelPeriodo';
+import { mergeSeries } from './mergeSeries';
 import { formatCop, formatKwh, formatLocalDateTime, formatWatts } from './format';
 import { monthLabel } from './labels';
 import {
+  BOTTOM_LIMIT,
   CARD_BORDER,
   CONTENT_W,
   EXPORT,
@@ -22,6 +30,7 @@ import {
   table,
   t,
 } from './pdfKit';
+import type { ColumnaTabla } from './pdfKit';
 
 /**
  * El informe mensual: lo que el cliente archiva o reenvía una vez al mes.
@@ -43,7 +52,12 @@ export async function buildMonthlyReportPdf(datos: DatosInformeMensual): Promise
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
   renderMonthlyReport(pdf, datos);
-  pdf.save(nombreDeArchivo('informe_mensual', datos.mes));
+  pdf.save(
+    nombreDeArchivo(
+      'informe_energia',
+      sufijoDeArchivo(datos.reporte.period_start, datos.reporte.period_end),
+    ),
+  );
 }
 
 /** Dibuja el informe y devuelve las secciones que quedaron en él. */
@@ -62,12 +76,16 @@ export function renderMonthlyReport(
       y = ensureSpace(pdf, y, 120);
       y = seccionCascada(pdf, datos, y);
     },
+    semanas: () => {
+      y = ensureSpace(pdf, y, 120);
+      y = seccionSemanas(pdf, datos, y);
+    },
     cobertura: () => {
       y = ensureSpace(pdf, y, 60);
       y = seccionCobertura(pdf, datos, y);
     },
     heatmap: () => {
-      y = ensureSpace(pdf, y, 200);
+      y = ensureSpace(pdf, y, altoDelHeatmap(datos.heatmap?.dates.length ?? 0));
       y = seccionHeatmap(pdf, datos, y);
     },
     carga_base: () => {
@@ -140,7 +158,10 @@ function encabezado(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
   return reportHeader(
     pdf,
     {
-      titulo: `Informe de energía · ${monthLabel(datos.mes, 'long')}`,
+      titulo: `Informe de energía · ${etiquetaDelPeriodo(
+        datos.reporte.period_start,
+        datos.reporte.period_end,
+      )}`,
       sede: datos.sede,
       periodo: `Periodo: ${formatLocalDateTime(datos.reporte.period_start, 'd MMM yyyy')} — ${formatLocalDateTime(
         datos.reporte.period_end,
@@ -264,6 +285,103 @@ function seccionCobertura(pdf: Pdf, datos: DatosInformeMensual, y: number): numb
   return cursor + 12;
 }
 
+/**
+ * Cómo se movió el consumo semana a semana, y dónde estuvieron los picos.
+ *
+ * Es lo que un informe mensual tiene que responder y el resumen de totales no
+ * responde: qué semana se disparó y cuánto, qué día fue el más alto, a qué
+ * hora se concentra la carga. Las semanas parciales de las puntas entran con
+ * su etiqueta de fechas para que una semana corta no se lea como una semana
+ * floja.
+ *
+ * Solo energía: el crédito por exportar se reparte en tramos contra lo
+ * importado del mes entero, así que un costo por semana sumado acá no cuadraría
+ * con la factura.
+ */
+function seccionSemanas(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
+  const semanas = semanasDelInforme(datos);
+  if (semanas.length < 2) return y;
+
+  let cursor = sectionTitle(pdf, 'Semana a semana', y);
+  const conGeneracion = semanas.some((s) => s.exportacionKwh > 0);
+
+  const columnas: ColumnaTabla[] = [
+    { titulo: 'Semana', peso: 3 },
+    { titulo: 'Importado', peso: 2, align: 'right' },
+    ...(conGeneracion ? [{ titulo: 'Exportado', peso: 2, align: 'right' } as ColumnaTabla] : []),
+    { titulo: 'vs. anterior', peso: 2, align: 'right' },
+  ];
+
+  const filas = semanas.map((semana, i) => {
+    const previa = semanas[i - 1];
+    // La primera semana no tiene contra qué compararse; un "0%" ahí sería
+    // una comparación inventada.
+    const delta =
+      previa && previa.consumoKwh > 0 ? semana.consumoKwh / previa.consumoKwh - 1 : null;
+    return [
+      semana.etiqueta,
+      formatKwh(semana.consumoKwh),
+      ...(conGeneracion ? [formatKwh(semana.exportacionKwh)] : []),
+      delta === null ? '—' : `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(0)}%`,
+    ];
+  });
+
+  cursor = table(pdf, columnas, filas, cursor);
+
+  const merged = mergeSeries(
+    datos.reporte.consumption_series,
+    datos.reporte.export_series,
+    (time) => formatLocalDateTime(time, 'd MMM'),
+  );
+  const diaPico = diaDeMayorConsumo(merged);
+  const horaPico = datos.heatmap ? horaDeMayorConsumo(datos.heatmap) : null;
+
+  const notas: string[] = [];
+  if (diaPico) {
+    notas.push(
+      `El día más alto fue el ${formatLocalDateTime(diaPico.time, 'd MMM')} con ${formatKwh(diaPico.kwh)}.`,
+    );
+  }
+  if (horaPico) {
+    notas.push(
+      `La hora de mayor consumo fue las ${String(horaPico.hora).padStart(2, '0')}:00` +
+        (horaPico.fecha
+          ? ` del ${formatLocalDateTime(`${horaPico.fecha}T12:00:00Z`, 'd MMM')}`
+          : '') +
+        `, con ${formatKwh(horaPico.kwh)}.`,
+    );
+  }
+  if (notas.length > 0) {
+    cursor = paragraph(pdf, notas.join(' '), cursor + 4);
+  }
+
+  return cursor + 6;
+}
+
+/** El ancho de una casilla: 24 horas repartidas en el ancho útil menos la columna de fechas. */
+const CELDA_HEATMAP = Math.min(11, (CONTENT_W - 46) / 24);
+
+/**
+ * El alto de una fila del mapa, y cuánto ocupa el mapa entero.
+ *
+ * El alto se encoge para que la cuadrícula quepa siempre en una página: el
+ * reserva fijo de 200 pt que había antes alcanzaba para unos 25 días, y un mes
+ * de 31 empujaba las últimas filas encima del pie —justo el caso normal de un
+ * informe mensual—. Con rangos más largos las filas se achican en vez de
+ * desbordarse.
+ */
+const ALTO_UTIL = BOTTOM_LIMIT - MARGIN - 60;
+
+function altoDeFila(dias: number): number {
+  if (dias === 0) return 0;
+  return Math.max(1.5, Math.min(6, CELDA_HEATMAP, ALTO_UTIL / dias - 1.5));
+}
+
+function altoDelHeatmap(dias: number): number {
+  // Título, la cuadrícula, la fila de horas y la leyenda.
+  return dias === 0 ? 0 : 26 + dias * (altoDeFila(dias) + 1.5) + 26;
+}
+
 function seccionHeatmap(pdf: Pdf, datos: DatosInformeMensual, y: number): number {
   const heatmap = datos.heatmap;
   if (!heatmap || heatmap.dates.length === 0) return y;
@@ -271,8 +389,8 @@ function seccionHeatmap(pdf: Pdf, datos: DatosInformeMensual, y: number): number
 
   const valores = heatmap.values.flat().filter((v): v is number => v !== null);
   const maximo = Math.max(...valores, 0.0001);
-  const celda = Math.min(11, (CONTENT_W - 46) / 24);
-  const alto = Math.min(6, celda);
+  const celda = CELDA_HEATMAP;
+  const alto = altoDeFila(heatmap.dates.length);
 
   pdf.setFontSize(6);
   heatmap.dates.forEach((fecha, fila) => {

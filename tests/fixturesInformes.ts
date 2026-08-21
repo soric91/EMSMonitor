@@ -84,8 +84,16 @@ export const REPORTE_MES: ReportData = {
   consumption_kwh: 380,
   export_kwh: 55,
   net_balance_kwh: 325,
-  consumption_series: [],
-  export_series: [],
+  // Un bucket por día del mes: es lo que el backend devuelve para un rango
+  // mensual, y lo que permite el desglose semana a semana.
+  consumption_series: Array.from({ length: 30 }, (_, i) => ({
+    time: `2026-08-${String(i + 1).padStart(2, '0')}T05:00:00.000Z`,
+    value: i + 1 === 12 ? 42 : 12,
+  })),
+  export_series: Array.from({ length: 30 }, (_, i) => ({
+    time: `2026-08-${String(i + 1).padStart(2, '0')}T05:00:00.000Z`,
+    value: 1.8,
+  })),
   kpis: {
     period_start: '2026-08-01T05:00:00Z',
     period_end: '2026-08-31T05:00:00Z',
@@ -131,7 +139,6 @@ export const REPORTE_MES: ReportData = {
 
 /** Un mes con todas las secciones llenas: es el que puede desbordar la hoja. */
 export const MENSUAL_CARGADO: DatosInformeMensual = {
-  mes: '2026-08',
   sede: 'Planta Norte · Tablero principal',
   reporte: REPORTE_MES,
   proyeccion: {

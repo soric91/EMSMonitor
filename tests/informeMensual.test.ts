@@ -7,7 +7,12 @@
  */
 
 import { describe, expect, test } from '@rstest/core';
-import { seccionesDelInforme } from '../src/domain/informeMensual';
+import {
+  etiquetaDelPeriodo,
+  seccionesDelInforme,
+  semanasDelInforme,
+  sufijoDeArchivo,
+} from '../src/domain/informeMensual';
 import type { DatosInformeMensual } from '../src/domain/informeMensual';
 import type { CostBreakdown, ReportData } from '../src/api/types';
 
@@ -85,7 +90,6 @@ const REPORTE: ReportData = {
 
 /** Un mes sin ninguna sección opcional disponible. */
 const MINIMO: DatosInformeMensual = {
-  mes: '2026-08',
   sede: 'Planta · Tablero',
   reporte: REPORTE,
   proyeccion: null,
@@ -318,5 +322,119 @@ describe('las secciones del informe mensual', () => {
       'tipos_de_dia',
       'sedes',
     ]);
+  });
+});
+
+describe('cómo se nombra el periodo del informe', () => {
+  // Medianoche de Bogotá son las 05:00 UTC.
+  const JULIO = ['2026-07-01T05:00:00Z', '2026-08-01T05:00:00Z'] as const;
+
+  test('un mes de calendario se llama por su nombre', () => {
+    expect(etiquetaDelPeriodo(...JULIO)).toContain('julio');
+    expect(etiquetaDelPeriodo(...JULIO)).toContain('2026');
+  });
+
+  test('un rango que no es un mes se dice con sus dos fechas', () => {
+    // El informe se titulaba "del mes" pasara lo que pasara: quien pedía
+    // quince días se bajaba un PDF que decía el mes entero.
+    const etiqueta = etiquetaDelPeriodo('2026-07-01T05:00:00Z', '2026-07-15T05:00:00Z');
+
+    expect(etiqueta).toBe('1 jul — 15 jul 2026');
+  });
+
+  test('un rango a caballo entre dos años lleva los dos años', () => {
+    const etiqueta = etiquetaDelPeriodo('2025-12-20T05:00:00Z', '2026-01-10T05:00:00Z');
+
+    expect(etiqueta).toBe('20 dic 2025 — 10 ene 2026');
+  });
+
+  test('el mes en curso, todavía sin cerrar, no se llama por su nombre', () => {
+    // 1 de agosto a las 00:00 hasta el 20: es agosto, pero no es "agosto".
+    const etiqueta = etiquetaDelPeriodo('2026-08-01T05:00:00Z', '2026-08-20T15:00:00Z');
+
+    expect(etiqueta).toBe('1 ago — 20 ago 2026');
+  });
+});
+
+describe('el nombre del archivo', () => {
+  test('un mes cerrado se archiva como el mes', () => {
+    expect(sufijoDeArchivo('2026-07-01T05:00:00Z', '2026-08-01T05:00:00Z')).toBe('2026-07');
+  });
+
+  test('cualquier otro rango lleva las dos fechas, para que no se pisen', () => {
+    expect(sufijoDeArchivo('2026-07-01T05:00:00Z', '2026-07-15T05:00:00Z')).toBe(
+      '2026-07-01_2026-07-15',
+    );
+  });
+});
+
+describe('la sección de semanas', () => {
+  /** Un reporte de un mes con un bucket por día. */
+  function conBucketsDiarios(dias: number): DatosInformeMensual {
+    const fin = new Date(Date.UTC(2026, 7, 1, 5) + dias * 86_400_000).toISOString();
+    return {
+      ...MINIMO,
+      reporte: {
+        ...MINIMO.reporte,
+        period_start: '2026-08-01T05:00:00.000Z',
+        period_end: fin,
+        consumption_series: Array.from({ length: dias }, (_, i) => ({
+          time: new Date(Date.UTC(2026, 7, 1, 5) + i * 86_400_000).toISOString(),
+          value: 12,
+        })),
+        export_series: [],
+      },
+    };
+  }
+
+  test('un mes completo se parte en semanas', () => {
+    const datos = conBucketsDiarios(31);
+
+    expect(semanasDelInforme(datos).length).toBeGreaterThanOrEqual(5);
+    expect(seccionesDelInforme(datos)).toContain('semanas');
+  });
+
+  test('la sección va justo después de la cascada de la factura', () => {
+    const secciones = seccionesDelInforme(conBucketsDiarios(31));
+
+    expect(secciones.indexOf('semanas')).toBe(secciones.indexOf('cascada') + 1);
+  });
+
+  test('un reporte de cinco días no la trae: no hay semanas que comparar', () => {
+    const datos = conBucketsDiarios(5);
+
+    expect(semanasDelInforme(datos)).toEqual([]);
+    expect(seccionesDelInforme(datos)).not.toContain('semanas');
+  });
+
+  test('un periodo largo con buckets mensuales tampoco', () => {
+    // El reporte anual llega con doce puntos: agruparlos "por semana" daría
+    // doce semanas de un bucket cada una.
+    const datos: DatosInformeMensual = {
+      ...MINIMO,
+      reporte: {
+        ...MINIMO.reporte,
+        period_start: '2026-01-01T05:00:00.000Z',
+        period_end: '2027-01-01T05:00:00.000Z',
+        consumption_series: Array.from({ length: 12 }, (_, m) => ({
+          time: new Date(Date.UTC(2026, m, 1, 5)).toISOString(),
+          value: 300,
+        })),
+        export_series: [],
+      },
+    };
+
+    expect(seccionesDelInforme(datos)).not.toContain('semanas');
+  });
+
+  test('la semana del informe se corta igual que la de la pantalla', () => {
+    // Las dos salen de agruparPorSemana: si el PDF cortara los lunes distinto,
+    // el mismo mes tendría dos respuestas.
+    const semanas = semanasDelInforme(conBucketsDiarios(31));
+
+    expect(semanas[0]!.inicio.endsWith('T05:00:00.000Z')).toBe(true);
+    expect(new Date(semanas[1]!.inicio).getTime() - new Date(semanas[0]!.inicio).getTime()).toBe(
+      7 * 86_400_000,
+    );
   });
 });

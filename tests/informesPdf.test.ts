@@ -244,6 +244,34 @@ describe('el texto de los informes', () => {
     expect(t('$ 1.234')).not.toContain(' ');
   });
 
+  test('el mensual escribe la evolución semana a semana', () => {
+    // Un mes dibujaba lo mismo que un día: totales y una barra por bucket.
+    const { cajas } = dibujar((pdf) => renderMonthlyReport(pdf, MENSUAL_CARGADO));
+    const texto = cajas.map((c) => c.texto).join(' | ');
+
+    expect(texto).toContain('Semana a semana');
+    // Una fila por semana, con su rango de fechas y su variación.
+    expect(texto).toContain('vs. anterior');
+    expect(texto).toMatch(/\d+ – \d+ ago/);
+  });
+
+  test('el mensual dice cuál fue el día y la hora de mayor consumo', () => {
+    const { cajas } = dibujar((pdf) => renderMonthlyReport(pdf, MENSUAL_CARGADO));
+    const texto = cajas.map((c) => c.texto).join(' ');
+
+    // El fixture tiene su pico el 12 de agosto.
+    expect(texto).toContain('El día más alto fue el 12 ago');
+    expect(texto).toContain('La hora de mayor consumo');
+  });
+
+  test('la cuadrícula de un mes de 31 días no se come el pie', () => {
+    // El reserva fijo de 200 pt alcanzaba para unos 25 días: con 31 las
+    // últimas filas caían sobre la banda del pie.
+    const { cajas } = dibujar((pdf) => renderMonthlyReport(pdf, MENSUAL_CARGADO));
+
+    expect(invadenElPie(cajas).map(describir)).toEqual([]);
+  });
+
   test('el límite inferior deja sitio para el pie', () => {
     expect(BOTTOM_LIMIT).toBeLessThan(PAGE_H - 40);
     expect(PAGE_W).toBeGreaterThan(MARGIN * 2);
