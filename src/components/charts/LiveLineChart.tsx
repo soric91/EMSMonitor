@@ -54,6 +54,27 @@ const THEME = {
   light: { text: '#64748b', grid: 'rgba(15,23,42,0.06)', border: 'rgba(15,23,42,0.1)' },
 };
 
+/**
+ * Corre una operación sobre la gráfica sin dejar que su fallo salga del
+ * componente.
+ *
+ * lightweight-charts lanza "Value is null" desde sus propios recálculos —el
+ * stack ni siquiera pasa por código nuestro— cuando el modelo queda a medias:
+ * pasa al montar mientras el contenedor todavía no tiene tamaño, y al navegar
+ * a otra página con datos en vuelo. Dentro de un efecto de React, esa
+ * excepción desmonta el árbol entero y la página queda en blanco.
+ *
+ * Una gráfica que no se actualiza es un problema; una página en blanco, sin
+ * barra lateral y sin manera de volver, es otro mucho peor.
+ */
+function sinReventar(que: string, accion: () => void): void {
+  try {
+    accion();
+  } catch (error) {
+    console.warn(`Gráfica: ${que} falló y se ignoró.`, error);
+  }
+}
+
 export function toChartPoints(data: LiveChartPoint[]) {
   const bySecond = new Map<number, number>();
   for (const p of data) {
@@ -78,6 +99,9 @@ export function LiveLineChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  // Una gráfica ya destruida sigue teniendo métodos: llamarlos revienta desde
+  // dentro. Pasa al cambiar de página con datos en vuelo.
+  const destruidaRef = useRef(false);
   const seriesMapRef = useRef(
     new Map<
       string,
@@ -103,6 +127,7 @@ export function LiveLineChart({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    destruidaRef.current = false;
 
     const chart = createChart(container, {
       autoSize: true,
@@ -206,107 +231,117 @@ export function LiveLineChart({
     const seriesMap = seriesMapRef.current;
 
     return () => {
-      chart.remove();
+      destruidaRef.current = true;
       chartRef.current = null;
       seriesMap.clear();
+      sinReventar('destruir', () => chart.remove());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    chartRef.current?.applyOptions({
-      layout: { textColor: THEME[theme].text },
-      grid: { vertLines: { color: THEME[theme].grid }, horzLines: { color: THEME[theme].grid } },
-      timeScale: { borderColor: THEME[theme].border },
+    const chart = chartRef.current;
+    if (!chart || destruidaRef.current) return;
+    sinReventar('aplicar el tema', () => {
+      chart.applyOptions({
+        layout: { textColor: THEME[theme].text },
+        grid: { vertLines: { color: THEME[theme].grid }, horzLines: { color: THEME[theme].grid } },
+        timeScale: { borderColor: THEME[theme].border },
+      });
     });
   }, [theme]);
 
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart) return;
+    if (!chart || destruidaRef.current) return;
     const seriesMap = seriesMapRef.current;
 
-    const activeKeys = new Set(series.map((s) => s.key));
-    for (const [key, entry] of seriesMap) {
-      if (!activeKeys.has(key)) {
-        chart.removeSeries(entry.api);
-        seriesMap.delete(key);
-      }
-    }
-
-    let anyBars = false;
-
-    for (const spec of series) {
-      let entry = seriesMap.get(spec.key);
-      if (!entry) {
-        const api = chart.addSeries(AreaSeries, {
-          lineColor: spec.color,
-          topColor: `${spec.color}33`,
-          bottomColor: `${spec.color}00`,
-          lineWidth: 2,
-          priceFormat: { type: 'custom', formatter: valueFormatter, minMove: 0.01 },
-        });
-        entry = { api, minLine: null, maxLine: null };
-        seriesMap.set(spec.key, entry);
-      } else {
-        entry.api.applyOptions({
-          lineColor: spec.color,
-          topColor: `${spec.color}33`,
-          bottomColor: `${spec.color}00`,
-        });
-      }
-
-      const points = toChartPoints(spec.data);
-      if (points.length === 0) continue;
-      anyBars = true;
-      entry.api.setData(points);
-
-      if (series.length === 1) {
-        if (entry.minLine) entry.api.removePriceLine(entry.minLine);
-        if (entry.maxLine) entry.api.removePriceLine(entry.maxLine);
-        const min = Math.min(...points.map((p) => p.value));
-        const max = Math.max(...points.map((p) => p.value));
-        entry.minLine = entry.api.createPriceLine({
-          price: min,
-          color: spec.color,
-          lineWidth: 1,
-          lineStyle: LineStyle.Dotted,
-          axisLabelVisible: false,
-          title: '',
-        });
-        entry.maxLine = entry.api.createPriceLine({
-          price: max,
-          color: spec.color,
-          lineWidth: 1,
-          lineStyle: LineStyle.Dotted,
-          axisLabelVisible: false,
-          title: '',
-        });
-      } else if (entry.minLine || entry.maxLine) {
-        if (entry.minLine) entry.api.removePriceLine(entry.minLine);
-        if (entry.maxLine) entry.api.removePriceLine(entry.maxLine);
-        entry.minLine = null;
-        entry.maxLine = null;
-      }
-    }
-
-    if (lastSeriesKeyRef.current !== seriesKey) {
-      // fitContent()/setVisibleRange() lanzan "Value is null" en
-      // lightweight-charts cuando no hay barras todavía, o cuando el rango
-      // guardado no aplica a los datos nuevos (p. ej. al cambiar de pestaña).
-      // Sin barras se sale sin marcar la clave: cuando lleguen, se reintenta.
-      if (!anyBars) return;
-      lastSeriesKeyRef.current = seriesKey;
-      try {
-        if (visibleRangeRef.current && !forceFit) {
-          chart.timeScale().setVisibleRange(visibleRangeRef.current);
-        } else {
-          chart.timeScale().fitContent();
+    // Todo el volcado de datos va dentro de una sola guarda: cualquiera de
+    // estas llamadas dispara el recálculo interno que puede lanzar, y ninguna
+    // vale una página en blanco.
+    sinReventar('dibujar las series', () => {
+      const activeKeys = new Set(series.map((s) => s.key));
+      for (const [key, entry] of seriesMap) {
+        if (!activeKeys.has(key)) {
+          chart.removeSeries(entry.api);
+          seriesMap.delete(key);
         }
-      } catch {
-        // un encuadre fallido no debe tumbar la gráfica ni la página
       }
-    }
+
+      let anyBars = false;
+
+      for (const spec of series) {
+        let entry = seriesMap.get(spec.key);
+        if (!entry) {
+          const api = chart.addSeries(AreaSeries, {
+            lineColor: spec.color,
+            topColor: `${spec.color}33`,
+            bottomColor: `${spec.color}00`,
+            lineWidth: 2,
+            priceFormat: { type: 'custom', formatter: valueFormatter, minMove: 0.01 },
+          });
+          entry = { api, minLine: null, maxLine: null };
+          seriesMap.set(spec.key, entry);
+        } else {
+          entry.api.applyOptions({
+            lineColor: spec.color,
+            topColor: `${spec.color}33`,
+            bottomColor: `${spec.color}00`,
+          });
+        }
+
+        const points = toChartPoints(spec.data);
+        if (points.length === 0) continue;
+        anyBars = true;
+        entry.api.setData(points);
+
+        if (series.length === 1) {
+          if (entry.minLine) entry.api.removePriceLine(entry.minLine);
+          if (entry.maxLine) entry.api.removePriceLine(entry.maxLine);
+          const min = Math.min(...points.map((p) => p.value));
+          const max = Math.max(...points.map((p) => p.value));
+          entry.minLine = entry.api.createPriceLine({
+            price: min,
+            color: spec.color,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dotted,
+            axisLabelVisible: false,
+            title: '',
+          });
+          entry.maxLine = entry.api.createPriceLine({
+            price: max,
+            color: spec.color,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dotted,
+            axisLabelVisible: false,
+            title: '',
+          });
+        } else if (entry.minLine || entry.maxLine) {
+          if (entry.minLine) entry.api.removePriceLine(entry.minLine);
+          if (entry.maxLine) entry.api.removePriceLine(entry.maxLine);
+          entry.minLine = null;
+          entry.maxLine = null;
+        }
+      }
+
+      if (lastSeriesKeyRef.current !== seriesKey) {
+        // fitContent()/setVisibleRange() lanzan "Value is null" en
+        // lightweight-charts cuando no hay barras todavía, o cuando el rango
+        // guardado no aplica a los datos nuevos (p. ej. al cambiar de pestaña).
+        // Sin barras se sale sin marcar la clave: cuando lleguen, se reintenta.
+        if (!anyBars) return;
+        lastSeriesKeyRef.current = seriesKey;
+        try {
+          if (visibleRangeRef.current && !forceFit) {
+            chart.timeScale().setVisibleRange(visibleRangeRef.current);
+          } else {
+            chart.timeScale().fitContent();
+          }
+        } catch {
+          // un encuadre fallido no debe tumbar la gráfica ni la página
+        }
+      }
+    });
   }, [series, seriesKey, forceFit, valueFormatter]);
 
   return (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { RealtimeProvider } from '../../context/RealtimeContext';
 import { AlertsProvider } from '../../context/AlertsContext';
 import { DeviceProvider } from '../../context/DeviceContext';
@@ -10,10 +10,12 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { PageContainer } from './PageContainer';
 import { AlertToast } from './AlertToast';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname } = useLocation();
 
   return (
     // El orden es una cadena de dependencias, no una preferencia:
@@ -47,7 +49,13 @@ export function AppLayout() {
                 <Topbar onOpenMobileSidebar={() => setMobileOpen(true)} />
                 <main>
                   <PageContainer>
-                    <Outlet />
+                    {/* El error de una página se queda en la página: la barra
+                        lateral, el selector de medidor y las alertas siguen
+                        vivos, y se puede navegar a otro lado sin recargar.
+                        Cambiar de ruta limpia el error. */}
+                    <ErrorBoundary resetKey={pathname}>
+                      <Outlet />
+                    </ErrorBoundary>
                   </PageContainer>
                 </main>
               </div>
