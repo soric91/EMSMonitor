@@ -23,9 +23,7 @@ export function AlarmPanel() {
   return (
     <Card className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-          Alertas recientes
-        </p>
+        <p className="stencil text-slate-500 dark:text-slate-400">Alertas recientes</p>
         {recientes.length > 0 && (
           <span className="text-[11px] text-slate-400">
             {recientes.length} {recientes.length === 1 ? 'alerta' : 'alertas'}

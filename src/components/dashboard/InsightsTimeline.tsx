@@ -67,7 +67,7 @@ export function InsightsTimeline() {
 
   return (
     <Card>
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+      <p className="stencil text-slate-500 dark:text-slate-400">
         Qué pasó <span className="text-slate-400">· últimos 30 días</span>
       </p>
 

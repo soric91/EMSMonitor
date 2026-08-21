@@ -137,12 +137,10 @@ export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
   const color = isImporting ? IMPORT_COLOR : isExporting ? EXPORT_COLOR : NEUTRAL_COLOR;
 
   return (
-    <Card>
+    <Card elevacion="instrumento">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Balance energético
-          </p>
+          <p className="stencil text-slate-500 dark:text-slate-400">Balance energético</p>
           {isLive ? (
             <span className="flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
@@ -217,10 +215,10 @@ export function EnergyFlowHero({ seedWatts = null }: EnergyFlowHeroProps) {
         )}
 
         <div className="text-center">
-          <p className="text-4xl font-semibold tracking-tight text-slate-900 dark:text-white">
+          <p className="readout text-4xl text-slate-900 sm:text-5xl dark:text-white dark:[text-shadow:0_0_28px_rgba(76,141,255,0.22)]">
             {value !== null ? formatWatts(Math.abs(value)) : '—'}
           </p>
-          <p className="mt-1 text-xs text-slate-400">Potencia activa en la frontera</p>
+          <p className="mt-1.5 text-xs text-slate-400">Potencia activa en la frontera</p>
         </div>
 
         <div className="relative hidden h-1 flex-1 overflow-hidden rounded-full bg-slate-900/10 sm:block dark:bg-white/10">

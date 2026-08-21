@@ -84,9 +84,7 @@ export default function Analytics() {
 
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Rango de análisis
-          </p>
+          <p className="stencil text-slate-500 dark:text-slate-400">Rango de análisis</p>
           <SiteModeBadge />
           <DataCoverageBadge fromIso={fromIso} toIso={toIso} />
         </div>
@@ -133,14 +131,14 @@ export default function Analytics() {
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Importado</p>
-              <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
+              <p className="stencil text-slate-500 dark:text-slate-400">Importado</p>
+              <p className="mt-1.5 readout text-xl text-slate-900 dark:text-white">
                 {formatKwh(report.consumption_kwh)}
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Exportado</p>
-              <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
+              <p className="stencil text-slate-500 dark:text-slate-400">Exportado</p>
+              <p className="mt-1.5 readout text-xl text-slate-900 dark:text-white">
                 {formatKwh(report.export_kwh)}
               </p>
             </Card>
@@ -156,7 +154,7 @@ export default function Analytics() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
-              <p className="mb-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <p className="mb-4 stencil text-slate-500 dark:text-slate-400">
                 Perfil horario típico
               </p>
               {dailyProfile && dailyProfile.length > 0 ? (
@@ -172,7 +170,7 @@ export default function Analytics() {
               )}
             </Card>
             <Card>
-              <p className="mb-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+              <p className="mb-4 stencil text-slate-500 dark:text-slate-400">
                 Perfil semanal (importación vs. exportación)
               </p>
               {weeklyProfile && weeklyProfile.length > 0 ? (

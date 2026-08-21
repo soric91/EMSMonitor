@@ -44,8 +44,11 @@ export function AreaChartWidget({
       <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={color} stopOpacity={0.4} />
-            <stop offset="95%" stopColor={color} stopOpacity={0} />
+            {/* Más denso arriba y disuelto hacia la base: el área acompaña a
+                la línea en vez de competir con ella. */}
+            <stop offset="0%" stopColor={color} stopOpacity={0.42} />
+            <stop offset="70%" stopColor={color} stopOpacity={0.08} />
+            <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={AXIS_LINE} vertical={false} />
@@ -68,6 +71,7 @@ export function AreaChartWidget({
           width={68}
         />
         <Tooltip
+          cursor={{ stroke: 'rgba(143,160,188,0.35)', strokeWidth: 1 }}
           contentStyle={TOOLTIP_CONTENT}
           labelStyle={TOOLTIP_LABEL}
           itemStyle={TOOLTIP_ITEM}

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 /**
  * Una miniserie sin ejes ni tooltip, para acompañar un número.
  *
@@ -19,6 +21,7 @@ interface SparklineProps {
 }
 
 export function Sparkline({ values, color = 'currentColor', label }: SparklineProps) {
+  const id = useId();
   if (values.length < 2) return null;
 
   const max = Math.max(...values);
@@ -27,13 +30,14 @@ export function Sparkline({ values, color = 'currentColor', label }: SparklinePr
   // como una línea recta a media altura, que es exactamente lo que es.
   const rango = max - min || 1;
 
-  const puntos = values
-    .map((valor, i) => {
-      const x = (i / (values.length - 1)) * ANCHO;
-      const y = ALTO - ((valor - min) / rango) * ALTO;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
+  const coords = values.map((valor, i) => ({
+    x: (i / (values.length - 1)) * ANCHO,
+    // Un pelo de aire arriba y abajo: la línea pegada al borde se corta.
+    y: ALTO - 1.5 - ((valor - min) / rango) * (ALTO - 3),
+  }));
+  const puntos = coords.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const ultimo = coords[coords.length - 1]!;
+  const gradiente = `spark-${id.replace(/[^a-zA-Z0-9]/g, '')}`;
 
   return (
     <svg
@@ -43,6 +47,15 @@ export function Sparkline({ values, color = 'currentColor', label }: SparklinePr
       role={label ? 'img' : 'presentation'}
       aria-label={label}
     >
+      {/* El área bajo la curva da cuerpo a una línea de un píxel; el degradado
+          la disuelve hacia abajo para que no se lea como una segunda serie. */}
+      <defs>
+        <linearGradient id={gradiente} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.22} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <polygon points={`0,${ALTO} ${puntos} ${ANCHO},${ALTO}`} fill={`url(#${gradiente})`} />
       <polyline
         points={puntos}
         fill="none"
@@ -52,6 +65,8 @@ export function Sparkline({ values, color = 'currentColor', label }: SparklinePr
         strokeLinecap="round"
         vectorEffect="non-scaling-stroke"
       />
+      {/* El extremo vivo: dónde está la medida de hoy. */}
+      <circle cx={ultimo.x} cy={ultimo.y} r={1.6} fill={color} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

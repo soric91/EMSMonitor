@@ -25,7 +25,7 @@ export function WeeklyBreakdownCard({ semanas, soloImporta = false }: WeeklyBrea
 
   return (
     <Card>
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Consumo por semana</p>
+      <p className="stencil text-slate-500 dark:text-slate-400">Consumo por semana</p>
       <p className="mt-0.5 mb-4 text-[11px] text-slate-400">
         De lunes a domingo. Las semanas de los extremos pueden ser parciales — la etiqueta dice qué
         días abarcan.

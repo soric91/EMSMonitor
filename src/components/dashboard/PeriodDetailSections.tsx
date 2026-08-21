@@ -93,7 +93,7 @@ export function PeriodDetailSections({ report, merged }: PeriodDetailSectionsPro
 
       {heatmap && heatmap.dates.length > 0 && (
         <Card>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <p className="stencil text-slate-500 dark:text-slate-400">
             Reparto hora × día · energía importada (kWh)
           </p>
           <p className="mt-0.5 mb-4 text-[11px] text-slate-400">
@@ -106,9 +106,7 @@ export function PeriodDetailSections({ report, merged }: PeriodDetailSectionsPro
 
       {perfil && perfil.length > 0 && (
         <Card>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Perfil horario medio
-          </p>
+          <p className="stencil text-slate-500 dark:text-slate-400">Perfil horario medio</p>
           <p className="mt-0.5 mb-4 text-[11px] text-slate-400">
             El promedio de cada hora en todo el periodo, no el de un día suelto.
           </p>

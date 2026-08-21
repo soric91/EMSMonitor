@@ -68,7 +68,7 @@ export function PhantomLoadCard({ fromIso, toIso }: PhantomLoadCardProps) {
   if (data.current_w === null) {
     return (
       <Card>
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Consumo de fondo</p>
+        <p className="stencil text-slate-500 dark:text-slate-400">Consumo de fondo</p>
         <p className="mt-2 text-sm text-slate-400">
           {data.window === 'noche'
             ? 'Sin lecturas nocturnas en este rango. Con generación solar solo se mide de noche: de día el medidor ve el balance neto.'
@@ -85,11 +85,11 @@ export function PhantomLoadCard({ fromIso, toIso }: PhantomLoadCardProps) {
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <p className="flex items-center gap-1.5 stencil text-slate-500 dark:text-slate-400">
             <Ghost className="h-3.5 w-3.5" /> Consumo de fondo
             {data.window === 'noche' && <span className="text-slate-400">· medido de noche</span>}
           </p>
-          <p className="mt-1.5 text-2xl font-semibold text-slate-900 dark:text-white">
+          <p className="mt-1.5 readout text-2xl text-slate-900 dark:text-white">
             {formatWatts(data.current_w)}
           </p>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">

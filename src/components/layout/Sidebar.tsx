@@ -51,8 +51,8 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 shrink-0 items-center gap-3 px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30">
-          <Zap className="h-5 w-5 text-slate-950" strokeWidth={2.5} />
+        <div className="bezel flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-300 shadow-sm dark:border-slate-700">
+          <Zap className="h-[18px] w-[18px] text-accent-500" strokeWidth={2.4} />
         </div>
         <AnimatePresence initial={false}>
           {!collapsed && (
@@ -60,7 +60,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: 'auto' }}
               exit={{ opacity: 0, width: 0 }}
-              className="overflow-hidden whitespace-nowrap text-sm font-semibold tracking-tight text-slate-900 dark:text-white"
+              className="overflow-hidden font-display whitespace-nowrap text-sm font-semibold tracking-tight text-slate-900 dark:text-white"
             >
               EMS Monitor
             </motion.span>
@@ -87,7 +87,7 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
                 {isActive && (
                   <motion.span
                     layoutId="sidebar-active-pill"
-                    className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent-500"
+                    className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-accent-500 shadow-[0_0_10px_rgba(76,141,255,0.55)]"
                     transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                   />
                 )}

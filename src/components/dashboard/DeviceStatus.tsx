@@ -32,7 +32,7 @@ export function DeviceStatus() {
 
   return (
     <Card className="space-y-3">
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Dispositivos</p>
+      <p className="stencil text-slate-500 dark:text-slate-400">Dispositivos</p>
       <ul className="divide-y divide-slate-900/5 dark:divide-white/5">
         {gateways.map((gateway) => (
           <li key={gateway.id} className="py-2.5 first:pt-0 last:pb-0">

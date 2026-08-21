@@ -15,10 +15,8 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Costo importado
-            </p>
-            <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
+            <p className="stencil text-slate-500 dark:text-slate-400">Costo importado</p>
+            <p className="mt-1.5 readout text-xl text-slate-900 dark:text-white">
               {formatCop(costs.consumption_cost_cop)}
             </p>
           </div>
@@ -28,10 +26,8 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
         </Card>
         <Card className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Crédito exportado
-            </p>
-            <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
+            <p className="stencil text-slate-500 dark:text-slate-400">Crédito exportado</p>
+            <p className="mt-1.5 readout text-xl text-slate-900 dark:text-white">
               {formatCop(costs.export_credit_cop)}
             </p>
           </div>
@@ -41,7 +37,7 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
         </Card>
         <Card className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Costo neto</p>
+            <p className="stencil text-slate-500 dark:text-slate-400">Costo neto</p>
             <p
               className={[
                 'mt-1.5 text-xl font-semibold',
@@ -68,9 +64,7 @@ export function CostBreakdownSummary({ costs }: { costs: CostBreakdown }) {
       </div>
 
       <Card>
-        <p className="mb-3 text-xs font-medium text-slate-500 dark:text-slate-400">
-          De dónde sale el neto
-        </p>
+        <p className="mb-3 stencil text-slate-500 dark:text-slate-400">De dónde sale el neto</p>
         <CostWaterfall costs={costs} />
       </Card>
 

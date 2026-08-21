@@ -48,9 +48,7 @@ export function PeriodCostChart({ series, labelOf, soloImporta = false }: Period
 
   return (
     <Card>
-      <p className="mb-4 text-xs font-medium text-slate-500 dark:text-slate-400">
-        Costo por periodo (COP)
-      </p>
+      <p className="mb-4 stencil text-slate-500 dark:text-slate-400">Costo por periodo (COP)</p>
       <ComparisonBarChart
         data={puntosDeCosto(series, labelOf, soloImporta)}
         labelA={soloImporta ? 'Costo' : 'Costo importado'}

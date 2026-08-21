@@ -103,8 +103,8 @@ export function AnalyticsSummary() {
           {KPIS_ENERGIA.map(({ key, label, tone }) => (
             <Card key={key} className="flex items-start justify-between gap-2">
               <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
-                <p className="mt-1.5 text-xl font-semibold text-slate-900 dark:text-white">
+                <p className="stencil text-slate-500 dark:text-slate-400">{label}</p>
+                <p className="mt-1.5 readout text-xl text-slate-900 dark:text-white">
                   {formatKwh(summary[key] as number)}
                 </p>
               </div>
@@ -128,7 +128,7 @@ export function AnalyticsSummary() {
 
         <Card>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            <p className="stencil text-slate-500 dark:text-slate-400">
               Perfil horario promedio (últimos 30 días)
             </p>
             <div className="flex gap-2 text-[11px] text-slate-400">

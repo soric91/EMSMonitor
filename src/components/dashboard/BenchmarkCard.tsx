@@ -63,7 +63,7 @@ export function BenchmarkCard({ maximo = 8 }: BenchmarkCardProps) {
   if (data.own_kwh_per_day === null) {
     return (
       <Card>
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Tus sedes</p>
+        <p className="stencil text-slate-500 dark:text-slate-400">Tus sedes</p>
         <p className="mt-2 text-sm text-slate-400">
           Sin consumo registrado en los últimos {data.days} días para comparar.
         </p>
@@ -77,7 +77,7 @@ export function BenchmarkCard({ maximo = 8 }: BenchmarkCardProps) {
 
   return (
     <Card>
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+      <p className="stencil text-slate-500 dark:text-slate-400">
         Tus sedes <span className="text-slate-400">· consumo medio de {data.days} días</span>
       </p>
 

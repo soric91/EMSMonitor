@@ -220,7 +220,7 @@ function HistoryContent() {
 
       <Card>
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <p className="stencil text-slate-500 dark:text-slate-400">
             {info?.etiqueta ?? variable}
             {response && (
               <span className="ml-2 text-slate-400">
@@ -262,10 +262,8 @@ function HistoryContent() {
             return (
               <Card key={clave} className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {etiqueta}
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+                  <p className="stencil text-slate-500 dark:text-slate-400">{etiqueta}</p>
+                  <p className="mt-1 readout text-lg text-slate-900 dark:text-white">
                     {valor === null
                       ? NOT_APPLICABLE
                       : formatVariableValue(info?.unidad ?? '', valor)}

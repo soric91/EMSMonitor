@@ -22,7 +22,7 @@ export function PeakInsightsCard({ diaPico, horaPico, semanaPico }: PeakInsights
   const delta = semanaPico?.deltaSobreMedia;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="rise-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
       {diaPico && (
         <StatCard
           label="Día de mayor consumo"

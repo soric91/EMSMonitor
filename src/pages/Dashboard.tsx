@@ -40,8 +40,11 @@ function TarifaAviso({ cost }: { cost?: CostBreakdown | null }) {
 
 function TituloSeccion({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+    // El rótulo de sección con su regla al lado: separa sin ocupar una línea
+    // entera, como el grabado de un tablero.
+    <h2 className="flex items-center gap-3 stencil text-slate-400 dark:text-slate-500">
       {children}
+      <span className="h-px flex-1 bg-slate-900/5 dark:bg-white/5" />
     </h2>
   );
 }
@@ -94,7 +97,7 @@ export default function Dashboard() {
           <SiteModeBadge />
         </div>
         <EnergyFlowHero seedWatts={summary?.power_active_total_w ?? null} />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="rise-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <KpiCard
             label="Consumido hoy"
             value={summary ? formatKwh(summary.consumption_today_kwh) : undefined}
@@ -167,7 +170,7 @@ export default function Dashboard() {
       {/* PROYECCIÓN: en cuánto termina el mes al ritmo actual */}
       <section aria-label="Proyección" className="space-y-4">
         <TituloSeccion>Proyección</TituloSeccion>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rise-grid grid grid-cols-1 gap-4 lg:grid-cols-2">
           <BillProjectionCard costoMesActualCop={summary?.costs_month.net_cost_cop ?? null} />
           <PowerForecastCard />
         </div>
@@ -182,7 +185,7 @@ export default function Dashboard() {
       {/* OPERACIÓN: dispositivos y alarmas */}
       <section aria-label="Operación" className="space-y-4">
         <TituloSeccion>Operación</TituloSeccion>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rise-grid grid grid-cols-1 gap-4 lg:grid-cols-2">
           <DeviceStatus />
           <AlarmPanel />
         </div>
@@ -191,7 +194,7 @@ export default function Dashboard() {
       {/* ANÁLISIS: comparación de períodos */}
       <section aria-label="Análisis" className="space-y-4">
         <TituloSeccion>Análisis</TituloSeccion>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rise-grid grid grid-cols-1 gap-4 sm:grid-cols-2">
           <PeriodComparisonCard label="Últimos 7 días" days={7} />
           <PeriodComparisonCard label="Últimos 30 días" days={30} />
         </div>

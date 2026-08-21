@@ -2,18 +2,211 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Acento de marca del panel: azul industrial/SCADA. El verde (emerald) se
-   reserva para lo semántico (exportación, acreditación, online). Así el azul
-   marca la identidad y la interacción, y el verde solo significa "positivo". */
+/* ---------------------------------------------------------------------------
+   CARA DE INSTRUMENTO
+   ---------------------------------------------------------------------------
+   El panel mide electricidad, y su mundo visual es el de los instrumentos de
+   medida: bisel, lectura luminosa, etiqueta grabada, rejilla hundida.
+   Antes toda superficie era la misma tarjeta blanca con el mismo borde y la
+   misma sombra — sin jerarquía, el ojo no sabía por dónde entrar.
+
+   La piel entera se cambia desde acá, sin tocar una sola clase de los
+   componentes: `slate` es el gris que usan las ~50 piezas del panel, así que
+   redefinir su rampa reencarna todo. El azul del acento y la semántica de
+   color (ámbar importa, verde exporta, rojo alerta) no se mueven: son
+   significado, no decoración.
+   --------------------------------------------------------------------------- */
+
+/* Las fuentes viajan con el proyecto y no por CDN: la CSP de producción es
+   `font-src 'self'` a propósito, y abrirla a un tercero para dos tipografías
+   sería pagar seguridad con estética. Van en `src/` y no en `public/` para que
+   el bundler les ponga hash y les aplique el prefijo — en GitHub Pages el sitio
+   cuelga de /EMSMonitor/ y una ruta absoluta daría 404. Solo el subconjunto
+   `latin`: el panel está en español y no necesita cirílico ni vietnamita. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/archivo-600-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/archivo-700-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chivo Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/chivo-mono-500-latin.woff2') format('woff2');
+}
+
 @theme {
-  --color-accent-300: var(--color-blue-300);
-  --color-accent-400: var(--color-blue-400);
-  --color-accent-500: var(--color-blue-500);
-  --color-accent-600: var(--color-blue-600);
-  --color-accent-700: var(--color-blue-700);
+  /* El acento de marca: azul industrial/SCADA. El verde (emerald) se reserva
+     para lo semántico (exportación, acreditación, online). Así el azul marca
+     la identidad y la interacción, y el verde solo significa "positivo". */
+  --color-accent-300: #93b8ff;
+  --color-accent-400: #6ba1ff;
+  --color-accent-500: #4c8dff;
+  --color-accent-600: #2e6fe0;
+  --color-accent-700: #1f56b8;
+
+  /* La rampa neutra deja de ser gris puro y se sesga hacia el azul del acento:
+     un gris neutro se lee como "sin decidir"; este se lee como elegido. Los
+     pasos conservan su relación de contraste, así que ninguna clase existente
+     pierde legibilidad. */
+  --color-slate-50: #f7f9fc;
+  --color-slate-100: #eef2f8;
+  --color-slate-200: #dfe7f2;
+  --color-slate-300: #c8d5e8;
+  --color-slate-400: #8fa0bc;
+  --color-slate-500: #72829c;
+  --color-slate-600: #4c5d78;
+  --color-slate-700: #344563;
+  --color-slate-800: #1c2943;
+  --color-slate-900: #16223a;
+  --color-slate-950: #101827;
+
+  /* Dos familias nuevas, cada una con un trabajo:
+     - display: las CIFRAS. Con cifras tabulares y tracking negativo leen como
+       un instrumento de medida, no como texto corrido.
+     - stencil: las ETIQUETAS, en versalitas espaciadas — lo que va grabado en
+       la carcasa de un equipo.
+     Inter se queda para la interfaz: ya era la fuente del panel. */
+  --font-display: 'Archivo', system-ui, sans-serif;
+  --font-stencil: 'Chivo Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
 body {
   margin: 0;
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  /* El fondo lo pinta el layout con las clases de slate; fijarlo también acá
+     evita el destello blanco entre el primer paint y el montaje de React. */
+  background-color: var(--color-slate-50);
+}
+
+html.dark body {
+  background-color: var(--color-slate-950);
+}
+
+/* --- Piezas del lenguaje ------------------------------------------------- */
+
+/* La lectura de un instrumento: cifra tabular, apretada, sin que los dígitos
+   bailen de ancho al actualizarse en vivo. */
+@utility readout {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+/* La etiqueta grabada. Va sobre la cifra, nunca al lado: nombra lo que se
+   está midiendo. */
+@utility stencil {
+  font-family: var(--font-stencil);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* El bisel del instrumento: un degradado tenue que separa la superficie
+   elevada del fondo sin recurrir a otra sombra. */
+@utility bezel {
+  background-image: linear-gradient(180deg, #ffffff 0%, #f4f7fc 100%);
+}
+.dark .bezel {
+  background-image: linear-gradient(180deg, #1b2a45 0%, #121b2d 100%);
+}
+
+/* La entrada: una sola secuencia al cargar, escalonada por la posición en la
+   rejilla. No hay animaciones de adorno en ningún otro lado. */
+@utility rise {
+  animation: rise 0.5s cubic-bezier(0.22, 0.8, 0.3, 1) backwards;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Quien pide menos movimiento no recibe ninguno: ni entradas, ni transiciones,
+   ni el pulso del punto en vivo. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* El barrido del esqueleto de carga (ver `Skeleton`). */
+@keyframes barrido {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Los pasos del mapa de calor (ver `CalendarHeatmap`). Arrancan desde el fondo
+   del tema: sobre una superficie oscura, una rampa que empieza en crema hace
+   que la hora más floja brille más que la más cargada. */
+:root {
+  --celda-0: #eef2f8;
+  --celda-1: #e4d9c4;
+  --celda-2: #dcbe8a;
+  --celda-3: #c9903f;
+  --celda-4: #a45f0c;
+  --celda-e1: #d3ece0;
+  --celda-e2: #a8dcc5;
+  --celda-e3: #4fae8b;
+  --celda-e4: #0f8a63;
+}
+
+html.dark {
+  --celda-0: #1d2b42;
+  --celda-1: #3f3826;
+  --celda-2: #6e5423;
+  --celda-3: #9c6e1d;
+  --celda-4: #c97f22;
+  --celda-e1: #21382f;
+  --celda-e2: #1c5a45;
+  --celda-e3: #177f5f;
+  --celda-e4: #1b9e74;
+}
+
+/* La entrada escalonada de una rejilla: las tarjetas aparecen en el orden en
+   que se leen, no todas de golpe. Solo al montar — no se repite al actualizar
+   los datos, que sería un parpadeo cada vez que llega una lectura. */
+.rise-grid > * {
+  animation: rise 0.5s cubic-bezier(0.22, 0.8, 0.3, 1) backwards;
+}
+.rise-grid > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.rise-grid > *:nth-child(2) {
+  animation-delay: 45ms;
+}
+.rise-grid > *:nth-child(3) {
+  animation-delay: 90ms;
+}
+.rise-grid > *:nth-child(4) {
+  animation-delay: 135ms;
+}
+.rise-grid > *:nth-child(5) {
+  animation-delay: 180ms;
+}
+.rise-grid > *:nth-child(n + 6) {
+  animation-delay: 225ms;
 }

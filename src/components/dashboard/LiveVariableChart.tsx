@@ -225,10 +225,7 @@ export function LiveVariableChart() {
                 const inicio = existentes.length > 0 ? existentes[0]!.time : Infinity;
                 // La hora nueva se antepone a la izquierda: primero la más
                 // reciente, y las más viejas quedan delante en orden.
-                const merged = pruneOld([
-                  ...seeded.filter((p) => p.time < inicio),
-                  ...existentes,
-                ]);
+                const merged = pruneOld([...seeded.filter((p) => p.time < inicio), ...existentes]);
                 return {
                   device: selectedDeviceId,
                   contenido: { ...actuales, [variable]: merged },
@@ -410,7 +407,7 @@ export function LiveVariableChart() {
           ambos valores en vivo — repetir uno grande aquí sería duplicado. */}
       {secondaryVariables.length === 0 && (
         <div className="mt-4 flex items-center gap-2">
-          <p className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">
+          <p className="readout text-2xl text-slate-900 dark:text-white">
             {primaryValue !== null && primaryVariable
               ? formatVariableValue(
                   primaryInfo?.unidad ?? '',

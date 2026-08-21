@@ -11,6 +11,8 @@ import {
 import {
   AXIS_LINE,
   AXIS_TICK,
+  GRADIENTE_ABAJO,
+  GRADIENTE_ARRIBA,
   LEGEND_WRAPPER,
   TOOLTIP_CONTENT,
   TOOLTIP_ITEM,
@@ -49,13 +51,32 @@ export function ComparisonBarChart({
   valueFormatter = (v) => `${v}`,
   ocultarB = false,
 }: ComparisonBarChartProps) {
+  const idA = `barra-${colorA.replace('#', '')}`;
+  const idB = `barra-${colorB.replace('#', '')}`;
+
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+        {/* El degradado le da volumen a la barra sin inventar un segundo color:
+            es el mismo tono, más denso arriba y disuelto hacia la base. */}
+        <defs>
+          {[
+            [idA, colorA],
+            [idB, colorB],
+          ].map(([id, color]) => (
+            <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={GRADIENTE_ARRIBA} />
+              <stop offset="100%" stopColor={color} stopOpacity={GRADIENTE_ABAJO} />
+            </linearGradient>
+          ))}
+        </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={AXIS_LINE} vertical={false} />
         <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
         <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={40} />
         <Tooltip
+          // El resaltado sigue al cursor por columna, no por barra: apuntar a
+          // una barra de once píxeles no debería ser puntería.
+          cursor={{ fill: 'rgba(143,160,188,0.08)' }}
           contentStyle={TOOLTIP_CONTENT}
           labelStyle={TOOLTIP_LABEL}
           itemStyle={TOOLTIP_ITEM}
@@ -65,7 +86,7 @@ export function ComparisonBarChart({
         <Bar
           dataKey="a"
           name={labelA}
-          fill={colorA}
+          fill={`url(#${idA})`}
           radius={[4, 4, 0, 0]}
           isAnimationActive
           animationDuration={400}
@@ -74,7 +95,7 @@ export function ComparisonBarChart({
           <Bar
             dataKey="b"
             name={labelB}
-            fill={colorB}
+            fill={`url(#${idB})`}
             radius={[4, 4, 0, 0]}
             isAnimationActive
             animationDuration={400}

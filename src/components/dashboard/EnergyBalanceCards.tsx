@@ -52,7 +52,7 @@ export function EnergyBalanceCards({
   // especial. Con una sola tarjeta la fila no se estira a lo ancho.
   if (soloImporta) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="rise-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           label="Consumo del periodo"
           tone="import"
@@ -64,7 +64,7 @@ export function EnergyBalanceCards({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="rise-grid grid grid-cols-1 gap-4 sm:grid-cols-3">
       <StatCard
         label="Importado"
         tone="import"

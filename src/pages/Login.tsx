@@ -72,11 +72,13 @@ export default function Login() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1, duration: 0.4 }}
-            className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30"
+            className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/30 backdrop-blur-xl"
           >
-            <Zap className="h-7 w-7 text-slate-950" strokeWidth={2.5} />
+            <Zap className="h-7 w-7 text-accent-400" strokeWidth={2.4} />
           </motion.div>
-          <h1 className="text-xl font-semibold tracking-tight text-white">EMS Monitor</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight text-white">
+            EMS Monitor
+          </h1>
           <p className="mt-1 text-sm text-slate-400">Panel de monitoreo energético</p>
         </div>
 

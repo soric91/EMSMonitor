@@ -16,11 +16,36 @@ import { formatLocalDateTime } from '../../utils/format';
 
 const NIVELES = 5;
 
-/** Ámbar (importación/costo) y esmeralda (exportación), de menos a más. */
-const PALETA_IMPORT = ['#fef3c7', '#fde68a', '#fbbf24', '#d97706', '#92400e'];
-const PALETA_EXPORT = ['#d1fae5', '#a7f3d0', '#34d399', '#059669', '#065f46'];
+/**
+ * Ámbar (importación/costo) y esmeralda (exportación), de menos a más.
+ *
+ * Los pasos salen de variables CSS y no de literales porque la rampa tiene que
+ * arrancar desde el fondo del tema: sobre una superficie oscura, una rampa que
+ * empieza en crema hace que la casilla más floja brille más que la más cargada
+ * — el mapa se leía invertido.
+ */
+const PALETA_IMPORT = [
+  'var(--celda-0)',
+  'var(--celda-1)',
+  'var(--celda-2)',
+  'var(--celda-3)',
+  'var(--celda-4)',
+];
+const PALETA_EXPORT = [
+  'var(--celda-0)',
+  'var(--celda-e1)',
+  'var(--celda-e2)',
+  'var(--celda-e3)',
+  'var(--celda-e4)',
+];
 /** Divergente para el neto: exporta (verde) ← 0 → importa (ámbar). */
-const PALETA_NET = ['#059669', '#a7f3d0', '#e2e8f0', '#fbbf24', '#b45309'];
+const PALETA_NET = [
+  'var(--celda-e4)',
+  'var(--celda-e2)',
+  'var(--celda-0)',
+  'var(--celda-3)',
+  'var(--celda-4)',
+];
 
 const SIN_DATO = 'transparent';
 

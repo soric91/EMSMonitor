@@ -7,22 +7,26 @@ import { formatLocalDateTime } from '../../utils/format';
 
 type KpiTone = 'neutral' | 'import' | 'export' | 'warning';
 
-const TONE: Record<KpiTone, { value: string; icon: string }> = {
+const TONE: Record<KpiTone, { value: string; icon: string; edge: string }> = {
   neutral: {
     value: 'text-slate-900 dark:text-white',
     icon: 'bg-slate-500/10 text-slate-500 dark:text-slate-400',
+    edge: 'before:bg-slate-400/50',
   },
   import: {
     value: 'text-amber-600 dark:text-amber-400',
     icon: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    edge: 'before:bg-amber-500',
   },
   export: {
     value: 'text-emerald-600 dark:text-emerald-400',
     icon: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    edge: 'before:bg-emerald-500',
   },
   warning: {
     value: 'text-red-600 dark:text-red-400',
     icon: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    edge: 'before:bg-red-500',
   },
 };
 
@@ -97,16 +101,16 @@ export function KpiCard({
   const direccion = variacion && variacion.delta >= 0 ? 'subir' : 'bajar';
 
   return (
-    <Card className="flex flex-col gap-1">
+    <Card
+      className={`relative flex flex-col gap-1 overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-0.5 ${tono.edge}`}
+    >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="stencil text-slate-500 dark:text-slate-400">{label}</p>
         {icon && <div className={`rounded-xl p-2 ${tono.icon}`}>{icon}</div>}
       </div>
 
       <div className="flex items-baseline gap-1.5">
-        <span className={`text-2xl font-semibold tabular-nums tracking-tight ${tono.value}`}>
-          {empty ? '—' : value}
-        </span>
+        <span className={`readout text-2xl ${tono.value}`}>{empty ? '—' : value}</span>
         {unit && !empty && <span className="text-xs text-slate-400">{unit}</span>}
       </div>
 
@@ -114,10 +118,12 @@ export function KpiCard({
         {variacion && (
           <span
             className={[
-              'flex items-center gap-1 text-[11px] font-medium',
+              // La variación va en píldora: es un juicio sobre el número, no
+              // otro número, y a la misma altura se leían como iguales.
+              'flex items-center gap-1 rounded-md px-1.5 py-0.5 font-stencil text-[10px] font-medium',
               esBueno
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-amber-600 dark:text-amber-400',
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
             ].join(' ')}
           >
             {direccion === 'subir' ? (
@@ -129,7 +135,7 @@ export function KpiCard({
           </span>
         )}
         {timestamp && (
-          <span className="text-[11px] text-slate-400">
+          <span className="font-stencil text-[10px] text-slate-400">
             {formatLocalDateTime(timestamp, 'HH:mm')}
           </span>
         )}

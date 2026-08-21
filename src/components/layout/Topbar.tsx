@@ -25,7 +25,7 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
   const isLive = wsStatus === 'connected';
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-900/5 bg-white/80 backdrop-blur-xl dark:border-white/5 dark:bg-slate-950/80">
+    <header className="sticky top-0 z-20 border-b border-slate-900/5 bg-white/75 backdrop-blur-xl dark:border-white/5 dark:bg-slate-950/75">
       <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -35,7 +35,7 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="flex shrink-0 items-center gap-2 rounded-full border border-slate-900/10 px-3 py-1.5 text-xs font-medium dark:border-white/10">
+          <div className="flex shrink-0 items-center gap-2 rounded-full border border-slate-900/10 bg-white px-3 py-1.5 font-stencil text-[10px] dark:border-white/10 dark:bg-slate-900">
             <OnlineDot
               tone={
                 isLive
@@ -66,7 +66,9 @@ export function Topbar({ onOpenMobileSidebar }: TopbarProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-4">
-          <span className="hidden font-mono text-xs text-slate-500 sm:inline dark:text-slate-400">
+          {/* El reloj en cifras tabulares: si no, la barra entera se corre un
+              píxel cada segundo al cambiar el ancho de los dígitos. */}
+          <span className="hidden font-stencil text-[11px] tabular-nums text-slate-500 sm:inline dark:text-slate-400">
             {clock}
           </span>
           <NoticeBell />

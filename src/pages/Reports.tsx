@@ -319,7 +319,7 @@ export default function Reports() {
 
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              <p className="stencil text-slate-500 dark:text-slate-400">
                 {soloImporta ? 'Consumo del periodo' : 'Importación vs. exportación'}
               </p>
               <div className="flex flex-wrap items-center gap-2">
@@ -363,40 +363,32 @@ export default function Reports() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Potencia promedio
-              </p>
-              <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
+              <p className="stencil text-slate-500 dark:text-slate-400">Potencia promedio</p>
+              <p className="mt-1.5 readout text-lg text-slate-900 dark:text-white">
                 {report.kpis.power_avg_w !== null
                   ? formatWatts(report.kpis.power_avg_w)
                   : NOT_APPLICABLE}
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Voltaje promedio
-              </p>
-              <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
+              <p className="stencil text-slate-500 dark:text-slate-400">Voltaje promedio</p>
+              <p className="mt-1.5 readout text-lg text-slate-900 dark:text-white">
                 {report.kpis.voltage_avg_v !== null
                   ? `${report.kpis.voltage_avg_v.toFixed(1)} V`
                   : NOT_APPLICABLE}
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Corriente promedio
-              </p>
-              <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
+              <p className="stencil text-slate-500 dark:text-slate-400">Corriente promedio</p>
+              <p className="mt-1.5 readout text-lg text-slate-900 dark:text-white">
                 {report.kpis.current_avg_a !== null
                   ? `${report.kpis.current_avg_a.toFixed(2)} A`
                   : NOT_APPLICABLE}
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                Factor de potencia
-              </p>
-              <p className="mt-1.5 text-lg font-semibold text-slate-900 dark:text-white">
+              <p className="stencil text-slate-500 dark:text-slate-400">Factor de potencia</p>
+              <p className="mt-1.5 readout text-lg text-slate-900 dark:text-white">
                 {report.kpis.power_factor_avg !== null
                   ? report.kpis.power_factor_avg.toFixed(2)
                   : NOT_APPLICABLE}

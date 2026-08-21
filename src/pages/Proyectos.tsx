@@ -102,7 +102,7 @@ export function Proyectos() {
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+            <h1 className="font-display text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
               Proyectos
             </h1>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -254,7 +254,7 @@ function Tarjeta({
       onClick={onClick}
       disabled={bloqueada}
       whileHover={{ y: -2 }}
-      className={`${MARCO} flex flex-col items-start gap-3 text-left transition hover:border-accent-500/40 disabled:opacity-60`}
+      className={`${MARCO} flex flex-col items-start gap-3 text-left transition duration-200 hover:-translate-y-0.5 hover:border-accent-500/40 hover:shadow-lg hover:shadow-slate-900/5 disabled:opacity-60 dark:hover:shadow-black/40`}
     >
       <span className="flex w-full items-start justify-between gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-500/10 text-accent-600 dark:text-accent-400">

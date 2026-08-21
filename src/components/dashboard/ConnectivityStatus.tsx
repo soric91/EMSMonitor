@@ -40,7 +40,7 @@ export function ConnectivityStatus() {
 
   return (
     <Card className="space-y-3">
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Estado del sistema</p>
+      <p className="stencil text-slate-500 dark:text-slate-400">Estado del sistema</p>
       <div className="flex flex-wrap gap-2">
         <Badge tone={status.mqtt_connected ? 'emerald' : 'red'}>
           MQTT {status.mqtt_connected ? 'conectado' : 'desconectado'}

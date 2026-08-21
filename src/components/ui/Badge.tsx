@@ -13,7 +13,7 @@ export function Badge({ tone = 'slate', children }: { tone?: BadgeTone; children
   return (
     <span
       className={[
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-stencil text-[10px]',
         TONE_CLASSES[tone],
       ].join(' ')}
     >

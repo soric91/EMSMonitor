@@ -261,9 +261,7 @@ function ReactivaContent() {
       {!loading && !error && response && total > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-900/10 bg-white px-4 py-3 dark:border-white/10 dark:bg-slate-800/50">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Datos a exportar
-            </span>
+            <span className="stencil text-slate-500 dark:text-slate-400">Datos a exportar</span>
             <TabPills
               options={[...EXPORT_RANGE_OPTIONS]}
               value={exportRangeKey}
@@ -322,7 +320,7 @@ function ReactivaContent() {
               <p className="text-xs font-medium text-amber-600 dark:text-amber-400">
                 Reactiva importada
               </p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+              <p className="mt-1 readout text-lg text-slate-900 dark:text-white">
                 {formatVariableValue('kvarh', response.total_import_kvarh)}
               </p>
               <p className="text-xs text-slate-400">
@@ -333,7 +331,7 @@ function ReactivaContent() {
               <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
                 Reactiva exportada
               </p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+              <p className="mt-1 readout text-lg text-slate-900 dark:text-white">
                 {formatVariableValue('kvarh', response.total_export_kvarh)}
               </p>
               <p className="text-xs text-slate-400">
@@ -341,10 +339,10 @@ function ReactivaContent() {
               </p>
             </Card>
             <Card className="flex flex-col justify-between">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              <p className="stencil text-slate-500 dark:text-slate-400">
                 Balance (importada menos exportada)
               </p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+              <p className="mt-1 readout text-lg text-slate-900 dark:text-white">
                 {`${response.balance_kvarh >= 0 ? '+' : ''}${formatVariableValue('kvarh', response.balance_kvarh)}`}
               </p>
               <p className="text-xs text-slate-400">
@@ -388,7 +386,7 @@ function ReactivaContent() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                    <p className="mt-2 readout text-lg text-slate-900 dark:text-white">
                       {formatVariableValue('kvarh', value)}
                     </p>
                     <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-900/5 dark:bg-white/5">

@@ -79,9 +79,9 @@ export function PeriodComparisonCard({ label, days }: PeriodComparisonCardProps)
 
   return (
     <Card>
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="stencil text-slate-500 dark:text-slate-400">{label}</p>
       <div className="mt-1.5 flex items-baseline gap-2">
-        <p className="text-2xl font-semibold text-slate-900 dark:text-white">
+        <p className="readout text-2xl text-slate-900 dark:text-white">
           {formatKwh(result.period_b.consumption_kwh)}
         </p>
         {delta !== null && (

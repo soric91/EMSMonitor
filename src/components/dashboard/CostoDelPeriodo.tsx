@@ -169,7 +169,7 @@ function Recuadro({ titulo, monto, energia, tono, icono, pie, aviso }: RecuadroP
   return (
     <Card className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{titulo}</p>
+        <p className="stencil text-slate-500 dark:text-slate-400">{titulo}</p>
         <p className={`mt-1.5 text-2xl font-semibold ${texto}`}>{formatCop(monto)}</p>
         {/* La energía debajo del dinero: sin ella, un costo que sube no
             distingue entre haber consumido más y que subiera la tarifa. */}

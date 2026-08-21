@@ -30,7 +30,14 @@ export function AppLayout() {
       <DeviceProvider>
         <RealtimeProvider>
           <AlertsProvider>
-            <div className="min-h-screen overflow-x-clip bg-slate-50 dark:bg-slate-950">
+            {/* El foco frío detrás del contenido: lo único ambiental del panel.
+                Va en el fondo y no en una tarjeta para que las superficies se
+                recorten contra él en vez de flotar sobre un plano muerto. */}
+            <div className="relative min-h-screen overflow-x-clip bg-slate-50 dark:bg-slate-950">
+              <div
+                aria-hidden
+                className="pointer-events-none fixed inset-x-0 top-0 h-[60vh] bg-[radial-gradient(60%_60%_at_50%_0%,rgba(76,141,255,0.10),transparent_70%)] dark:bg-[radial-gradient(60%_60%_at_50%_0%,rgba(76,141,255,0.16),transparent_70%)]"
+              />
               {/* Arriba de todo, antes que cualquier dato: si aparece debajo de
                 una gráfica, ya se leyó la gráfica sin saber de quién era. */}
               <ImpersonationBanner />

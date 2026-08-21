@@ -59,7 +59,7 @@ export function TabPills<T extends string>({
   return (
     <div
       role="tablist"
-      className={`inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-lg border border-slate-900/10 bg-slate-900/[0.03] p-1 dark:border-white/10 dark:bg-white/5 ${className}`}
+      className={`inline-flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-slate-900/10 bg-slate-100 p-1 dark:border-white/10 dark:bg-slate-950/70 ${className}`}
     >
       {options.map((option, i) => {
         const selected = option.key === value;
@@ -78,7 +78,7 @@ export function TabPills<T extends string>({
               if (e.key === 'ArrowLeft') move(e, -1);
             }}
             className={[
-              'relative font-medium transition-colors',
+              'relative font-medium whitespace-nowrap transition-colors',
               SIZE[size],
               selected
                 ? 'text-slate-950'
@@ -88,7 +88,7 @@ export function TabPills<T extends string>({
             {selected && (
               <motion.span
                 layoutId={pillId}
-                className={`absolute inset-0 ${pillClassName}`}
+                className={`absolute inset-0 rounded-lg ${pillClassName}`}
                 transition={{ type: 'spring', stiffness: 400, damping: 32 }}
               />
             )}

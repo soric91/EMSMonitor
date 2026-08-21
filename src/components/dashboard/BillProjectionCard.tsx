@@ -68,7 +68,7 @@ export function BillProjectionCard({ costoMesActualCop }: BillProjectionCardProp
 
   return (
     <Card>
-      <p className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+      <p className="flex items-center gap-1.5 stencil text-slate-500 dark:text-slate-400">
         <CalendarClock className="h-3.5 w-3.5" /> Proyección del mes
       </p>
 
@@ -84,7 +84,7 @@ export function BillProjectionCard({ costoMesActualCop }: BillProjectionCardProp
         </p>
       ) : (
         <>
-          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">
+          <p className="mt-2 readout text-2xl text-slate-900 dark:text-white">
             {forecast.cost_projected_cop !== null
               ? formatCop(forecast.cost_projected_cop)
               : formatKwh(forecast.kwh_projected ?? 0)}

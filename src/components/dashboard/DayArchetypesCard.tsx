@@ -75,7 +75,7 @@ export function DayArchetypesCard() {
   if (data.archetypes.length === 0) {
     return (
       <Card>
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Tipos de día</p>
+        <p className="stencil text-slate-500 dark:text-slate-400">Tipos de día</p>
         <p className="mt-2 text-sm text-slate-400">
           {data.days_analyzed === 0
             ? 'Todavía no hay días completos suficientes para agrupar.'
@@ -97,7 +97,7 @@ export function DayArchetypesCard() {
 
   return (
     <Card>
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+      <p className="stencil text-slate-500 dark:text-slate-400">
         Tipos de día <span className="text-slate-400">· {data.days_analyzed} días analizados</span>
       </p>
 

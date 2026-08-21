@@ -67,7 +67,7 @@ export function PowerForecastCard() {
   if (forecast.method === 'insufficient_history' || forecast.points.length === 0) {
     return (
       <Card>
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Consumo esperado</p>
+        <p className="stencil text-slate-500 dark:text-slate-400">Consumo esperado</p>
         <p className="mt-2 text-[11px] leading-snug text-slate-400">
           Hacen falta dos semanas de lecturas horarias para pronosticar. Mientras tanto no se dibuja
           nada: un pronóstico sobre pocos días diría más del azar que del consumo.
@@ -83,7 +83,7 @@ export function PowerForecastCard() {
   return (
     <Card>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+        <p className="stencil text-slate-500 dark:text-slate-400">
           Consumo esperado{' '}
           <span className="text-slate-400">· próximas {forecast.horizon_hours} h</span>
         </p>

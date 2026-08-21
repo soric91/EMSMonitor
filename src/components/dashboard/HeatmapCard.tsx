@@ -75,9 +75,7 @@ export function HeatmapCard({ fromIso, toIso }: HeatmapCardProps) {
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Mapa de calor por hora
-          </p>
+          <p className="stencil text-slate-500 dark:text-slate-400">Mapa de calor por hora</p>
           <p className="mt-0.5 text-[11px] text-slate-400">
             Cada fila es un día y cada columna una hora: acá saltan los patrones que una línea
             esconde.

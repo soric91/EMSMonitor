@@ -53,9 +53,7 @@ export function LoadDurationCard({ fromIso, toIso }: LoadDurationCardProps) {
 
   return (
     <Card>
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-        Curva de duración de carga
-      </p>
+      <p className="stencil text-slate-500 dark:text-slate-400">Curva de duración de carga</p>
 
       {error && (
         <p className="mt-2 text-sm text-red-500">No se pudo cargar la curva de duración.</p>
