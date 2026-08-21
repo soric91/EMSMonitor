@@ -74,6 +74,14 @@ export default function Reports() {
   // en el periodo nuevo no tiene sentido.
   const [agrupacion, setAgrupacion] = useState<EnergyBucket | null>(null);
 
+  // Dos cargas distintas: la que no tiene nada que mostrar todavía (esqueleto)
+  // y la que ya tiene un reporte en pantalla y solo está trayendo otra versión
+  // del mismo periodo. Confundirlas hacía que elegir "Hora" borrara la página
+  // entera —totales, costos, KPIs— para volver a pintar lo mismo salvo las
+  // barras.
+  const sinNada = loading && report === null;
+  const recargando = loading && report !== null;
+
   const motivoInvalido = validarRango(fromIso, toIso);
 
   /** Escribe periodo y rango en la URL de una sola vez. */
@@ -146,6 +154,13 @@ export default function Reports() {
       }),
     ]);
   };
+
+  // Cambiar de medidor invalida lo que hay en pantalla: son los números de
+  // otra sede. Cambiar la agrupación NO — es el mismo periodo contado en otras
+  // barras—, y por eso ese caso conserva el reporte mientras llega el nuevo.
+  useEffect(() => {
+    setReport(null);
+  }, [selectedDeviceId]);
 
   useEffect(() => {
     // Un periodo fijo lo calcula el backend; uno personalizado espera a que
@@ -245,10 +260,18 @@ export default function Reports() {
         )}
       </Card>
 
-      {loading && <EnergyBalanceCards />}
+      {sinNada && <EnergyBalanceCards />}
 
-      {!loading && error && (
+      {!loading && error && report === null && (
         <Card className="text-sm text-red-500">No se pudo generar el reporte.</Card>
+      )}
+
+      {!loading && error && report !== null && (
+        // Falló la recarga pero hay un reporte en pantalla: no se borra, se
+        // avisa. Sin este aviso quedarían números viejos sin nada que lo diga.
+        <Card className="text-sm text-red-500">
+          No se pudo actualizar el reporte. Lo que se muestra es la consulta anterior.
+        </Card>
       )}
 
       {!loading && !error && !report && period === 'custom' && (
@@ -259,8 +282,10 @@ export default function Reports() {
         />
       )}
 
-      {!loading && !error && report && (
-        <>
+      {report && (
+        // Durante una recarga el contenido se queda: lo que cambia es el paso
+        // de las barras, no los totales.
+        <div className={recargando ? 'space-y-6 opacity-60 transition-opacity' : 'space-y-6'}>
           <Card className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
             <span>
               Periodo: {formatLocalDateTime(report.period_start, 'd MMM yyyy, HH:mm')} —{' '}
@@ -364,7 +389,7 @@ export default function Reports() {
             load_factor={report.load_factor}
             base_load={report.base_load}
           />
-        </>
+        </div>
       )}
     </div>
   );

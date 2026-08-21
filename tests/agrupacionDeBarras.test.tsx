@@ -105,6 +105,39 @@ describe('en la página', () => {
     expect(nombres.at(-1)).toContain('_hour.csv');
   });
 
+  test('cambiar la agrupación no borra la página: solo cambian las barras', async () => {
+    servir();
+
+    montar();
+
+    await waitFor(() => expect(screen.getByText('Importado')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Hora'));
+
+    // Mientras llega el reporte nuevo, los totales, el desglose de costos y
+    // los KPIs siguen en pantalla: es el mismo periodo contado en otras barras.
+    expect(screen.getByText('Importado')).toBeInTheDocument();
+    expect(screen.getByText('Importación vs. exportación')).toBeInTheDocument();
+    expect(screen.getByText('Potencia promedio')).toBeInTheDocument();
+
+    await waitFor(() => expect(pedidos.at(-1)!.bucket).toBe('hour'));
+  });
+
+  test('si la recarga falla, se avisa y no se borra lo que ya estaba', async () => {
+    servir();
+
+    montar();
+    await waitFor(() => expect(screen.getByText('Importado')).toBeInTheDocument());
+
+    fallar();
+    fireEvent.click(screen.getByText('Hora'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/No se pudo actualizar el reporte/)).toBeInTheDocument(),
+    );
+    // Los números viejos siguen, pero dichos como lo que son.
+    expect(screen.getByText('Importado')).toBeInTheDocument();
+  });
+
   test('un periodo sin alternativas no muestra un selector de una sola opción', async () => {
     servir(reporte(...DIA));
 
@@ -251,6 +284,14 @@ function servir(data: ReportData = reporte(...MES)): void {
       headers: {},
       config,
     });
+  };
+}
+
+/** La siguiente consulta falla, como una recarga que no llega. */
+function fallar(): void {
+  apiClient.defaults.adapter = (config) => {
+    pedidos.push({ url: config.url ?? '', ...(config.params ?? {}) });
+    return Promise.reject(new Error('sin respuesta'));
   };
 }
 
